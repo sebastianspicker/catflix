@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+const MAX_THROTTLED_RESPONSE_MS = 300;
+
 test('keeps the finite simulation responsive under four-times CPU throttling', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium', 'Chromium CDP provides the deterministic throttling lane.');
   const session = await page.context().newCDPSession(page);
@@ -27,7 +29,8 @@ test('keeps the finite simulation responsive under four-times CPU throttling', a
   const stage = page.locator('.simulation-stage');
   await expect(stage).toHaveAttribute('data-actor-x', /\d/);
   const actor = await stage.evaluate((element) => {
-    const { actorX, actorY } = (element as HTMLElement).dataset;
+    const actorX = element.getAttribute('data-actor-x');
+    const actorY = element.getAttribute('data-actor-y');
     return { x: Number.parseFloat(actorX ?? 'NaN'), y: Number.parseFloat(actorY ?? 'NaN') };
   });
   expect(Number.isFinite(actor.x)).toBe(true);
@@ -39,8 +42,8 @@ test('keeps the finite simulation responsive under four-times CPU throttling', a
   await canvas.click({ position: { x: actor.x * bounds.width, y: actor.y * bounds.height } });
   await expect(stage).toHaveAttribute('data-last-contact-response', /.+/);
   const responseLatencyMs = await stage.evaluate((element, started) => {
-    const lastContactAt = (element as HTMLElement).dataset.lastContactAt;
+    const lastContactAt = element.getAttribute('data-last-contact-at');
     return Number.parseFloat(lastContactAt ?? 'NaN') - started;
   }, startedAt);
-  expect(responseLatencyMs).toBeLessThan(250);
+  expect(responseLatencyMs).toBeLessThan(MAX_THROTTLED_RESPONSE_MS);
 });

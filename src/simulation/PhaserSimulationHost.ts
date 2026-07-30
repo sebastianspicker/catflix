@@ -168,7 +168,7 @@ export function createPhaserSimulationHost(options: PhaserSimulationHostOptions)
     for (const actor of orderedActors(state)) drawCanvasActor(context, actor, width, height);
     if (options.sceneId === "red-string") {
       const actor = state.actors.at(0);
-      if (actor && actor.visible) drawCanvasRopePath(context, actor, width, height);
+      if (actor?.visible) drawCanvasRopePath(context, actor, width, height);
     }
     drawCanvasSignature(context, state, width, height);
     drawCanvasOccluder(context, width, height);

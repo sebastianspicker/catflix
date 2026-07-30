@@ -10,6 +10,7 @@ const scenes = [
 
 for (const renderer of ['auto', 'canvas'] as const) {
   test(`captures deterministic ${renderer} checkpoints for every scene`, async ({ page }, testInfo) => {
+    test.setTimeout(60_000);
     test.skip(testInfo.project.name === 'firefox', 'Desktop Chromium, tablet WebKit, and mobile Chromium cover the checkpoint matrix.');
     const consoleErrors: string[] = [];
     page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()); });

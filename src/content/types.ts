@@ -150,11 +150,23 @@ function validateManifestFields(manifest: PartialManifest, errors: string[]): vo
   for (const [field, fieldValue] of requiredTextFieldValues(manifest)) {
     if (!isNonEmptyText(fieldValue)) errors.push(`Missing ${field}.`);
   }
+  validateManifestPresentation(manifest, errors);
+  validateManifestEditorialMetadata(manifest, errors);
+  validateManifestLimits(manifest, errors);
+}
+
+function validateManifestPresentation(manifest: PartialManifest, errors: string[]): void {
   if (!manifest.contrast?.natural || !manifest.contrast.enhanced) errors.push("Both contrast variants are required.");
-  if (!isEncounterMetadata(manifest.encounter)) errors.push("Complete encounter editorial metadata is required.");
   if (!isVisualPackage(manifest.visuals)) errors.push("A complete cinematic visual package is required.");
+}
+
+function validateManifestEditorialMetadata(manifest: PartialManifest, errors: string[]): void {
+  if (!isEncounterMetadata(manifest.encounter)) errors.push("Complete encounter editorial metadata is required.");
   if (!isMotionMetadata(manifest.motion)) errors.push("Complete editorial motion metadata is required.");
   if (!isApparentSizeMetadata(manifest.apparentSize)) errors.push("Complete apparent-size metadata is required.");
+}
+
+function validateManifestLimits(manifest: PartialManifest, errors: string[]): void {
   if (!Array.isArray(manifest.riskFlags)) errors.push("Risk metadata is required.");
   if (typeof manifest.finiteDurationMs !== "number" || manifest.finiteDurationMs <= 0) errors.push("A finite duration is required.");
 }

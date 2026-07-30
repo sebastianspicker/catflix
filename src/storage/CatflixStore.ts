@@ -240,13 +240,22 @@ function hasObservationContext(item: PartialObservation): boolean {
 }
 
 function hasObservationOutcome(item: PartialObservation): boolean {
+  return hasObservationTiming(item)
+    && hasObservationInteraction(item)
+    && hasObservationRecord(item);
+}
+function hasObservationTiming(item: PartialObservation): boolean {
   return typeof item.elapsedMs === "number"
     && item.elapsedMs >= 0
-    && isOneOf(item.endReason, ["completed", "owner-ended", "cat-left", "safety-stop"] as const)
-    && Array.isArray(item.acceptedContactTimestamps)
+    && isOneOf(item.endReason, ["completed", "owner-ended", "cat-left", "safety-stop"] as const);
+}
+function hasObservationInteraction(item: PartialObservation): boolean {
+  return Array.isArray(item.acceptedContactTimestamps)
     && item.acceptedContactTimestamps.every((timestamp) => typeof timestamp === "number")
-    && Array.isArray(item.vocabulary)
-    && isOneOf(item.physicalPlayHandoff, ["not-recorded", "offered", "ignored", "voluntarily-joined"] as const)
+    && isOneOf(item.physicalPlayHandoff, ["not-recorded", "offered", "ignored", "voluntarily-joined"] as const);
+}
+function hasObservationRecord(item: PartialObservation): boolean {
+  return Array.isArray(item.vocabulary)
     && typeof item.rawNote === "string"
     && typeof item.confirmedAt === "string";
 }
@@ -292,7 +301,7 @@ function requestValue<T>(request: IDBRequest<T>): Promise<T> {
     request.onerror = () => { reject(request.error ?? new Error("IndexedDB request failed.")); };
   });
 }
-function transactionDone(transaction: IDBTransaction, write: (transaction: IDBTransaction) => void): Promise<void> {
+function transactionDone(transaction: IDBTransaction, write: (_transaction: IDBTransaction) => void): Promise<void> {
   return new Promise((resolve, reject) => {
     write(transaction);
     transaction.oncomplete = () => { resolve(); };
