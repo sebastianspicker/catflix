@@ -2,17 +2,45 @@ import { AssetProvenance, SceneId, sceneIds } from "../content/types";
 import { CatflixDataExport, CatflixDataExportV1, ComparisonRecord, DeviceSettings, ProgressRecord, QueueItem, RefereeNote, SessionObservation, StoredProvenance } from "./types";
 
 type StoreName = "settings" | "queue" | "progress" | "notes" | "observations" | "comparisons" | "provenance";
+type ValidExportFields = Pick<CatflixDataExport, "settings" | "queue" | "progress" | "notes" | "comparisons" | "provenance"> & { schemaVersion: 1 | 2; exportedAt?: unknown };
+type PartialExport = Partial<CatflixDataExport> | Partial<CatflixDataExportV1>;
+type PartialQueueItem = Partial<QueueItem>;
+type PartialProgress = Partial<ProgressRecord>;
+type PartialNote = Partial<RefereeNote>;
+type PartialObservation = Partial<SessionObservation>;
+type PartialAsset = Partial<AssetProvenance>;
+type PartialStoredProvenance = Partial<StoredProvenance>;
 const stores: readonly StoreName[] = ["settings", "queue", "progress", "notes", "observations", "comparisons", "provenance"];
 const databaseName = "catflix-local";
 const databaseVersion = 2;
 const defaultSettings: DeviceSettings = { soundEnabled: false, reducedMotion: false, sceneMotionMode: "standard" };
 const clone = <T>(value: T): T => typeof structuredClone === "function" ? structuredClone(value) : JSON.parse(JSON.stringify(value)) as T;
 const keyFor = (store: StoreName, value: unknown): string => {
-  if (store === "settings") return "device";
-  const record = value as { id?: string; sceneId?: string };
-  if (store === "progress") return record.sceneId ?? "unknown";
-  return record.id ?? (value as { assetId?: string }).assetId ?? crypto.randomUUID();
+  switch (store) {
+    case "settings":
+      return "device";
+    case "progress":
+      return progressKey(value);
+    default:
+      return recordKey(value);
+  }
 };
+
+function progressKey(value: unknown): string {
+  const sceneId = recordFields(value).sceneId;
+  return typeof sceneId === "string" ? sceneId : "unknown";
+}
+
+function recordKey(value: unknown): string {
+  const record = recordFields(value);
+  if (typeof record.id === "string") return record.id;
+  if (typeof record.assetId === "string") return record.assetId;
+  return crypto.randomUUID();
+}
+
+function recordFields(value: unknown): { id?: unknown; sceneId?: unknown; assetId?: unknown } {
+  return typeof value === "object" && value !== null ? value as { id?: unknown; sceneId?: unknown; assetId?: unknown } : {};
+}
 
 export interface CatflixStore {
   getSettings(): Promise<DeviceSettings>;
@@ -35,9 +63,18 @@ export interface CatflixStore {
 
 /** Creates a household-observation comparison and rejects multi-variable changes. */
 export function createMatchedComparison(comparison: ComparisonRecord): ComparisonRecord {
-  const differences = (["figureGround", "motion", "sound", "novelty"] as const).filter((key) => comparison.first.variant[key] !== comparison.second.variant[key]);
+  const differences = changedVariantDimensions(comparison);
   if (differences.length !== 1 || differences[0] !== comparison.changedDimension) throw new Error("A matched comparison must change exactly one declared dimension.");
   return clone(comparison);
+}
+
+function changedVariantDimensions(comparison: ComparisonRecord): ("figureGround" | "motion" | "sound" | "novelty")[] {
+  const differences: ("figureGround" | "motion" | "sound" | "novelty")[] = [];
+  if (comparison.first.variant.figureGround !== comparison.second.variant.figureGround) differences.push("figureGround");
+  if (comparison.first.variant.motion !== comparison.second.variant.motion) differences.push("motion");
+  if (comparison.first.variant.sound !== comparison.second.variant.sound) differences.push("sound");
+  if (comparison.first.variant.novelty !== comparison.second.variant.novelty) differences.push("novelty");
+  return differences;
 }
 
 export function createCatflixStore(): CatflixStore {
@@ -49,8 +86,8 @@ export function createCatflixStore(): CatflixStore {
     databasePromise = new Promise((resolve) => {
       const request = indexedDB.open(databaseName, databaseVersion);
       request.onupgradeneeded = () => { const database = request.result; for (const name of stores) if (!database.objectStoreNames.contains(name)) database.createObjectStore(name); };
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => resolve(undefined);
+      request.onsuccess = () => { resolve(request.result); };
+      request.onerror = () => { resolve(undefined); };
     });
     return databasePromise;
   };
@@ -99,16 +136,35 @@ export function createCatflixStore(): CatflixStore {
 }
 
 function validateComparison(value: ComparisonRecord): Promise<void> {
-  try { createMatchedComparison(value); } catch (error) { return Promise.reject(error); }
+  try { createMatchedComparison(value); } catch (error) { return Promise.reject(error instanceof Error ? error : new Error("Invalid matched comparison.")); }
   return Promise.resolve();
 }
 function validateExport(value: unknown): CatflixDataExport {
   if (typeof value !== "object" || value === null) throw new Error("Import must be an object.");
-  const candidate = value as Partial<CatflixDataExport> | Partial<CatflixDataExportV1>;
-  if ((candidate.schemaVersion !== 1 && candidate.schemaVersion !== 2) || !candidate.settings || !Array.isArray(candidate.queue) || !candidate.queue.every(isQueueItem) || !Array.isArray(candidate.progress) || !candidate.progress.every(isProgressRecord) || !Array.isArray(candidate.notes) || !candidate.notes.every(isRefereeNote) || !Array.isArray(candidate.comparisons) || !candidate.comparisons.every(isComparisonRecord) || !Array.isArray(candidate.provenance) || !candidate.provenance.every(isStoredProvenance)) throw new Error("Unsupported or corrupt Catflix export.");
-  const observations = candidate.schemaVersion === 2 ? (candidate as Partial<CatflixDataExport>).observations : [];
+  const candidate = value as PartialExport;
+  if (!hasValidExportFields(candidate)) throw new Error("Unsupported or corrupt Catflix export.");
+  const exportFields = candidate as ValidExportFields;
+  const observations = exportFields.schemaVersion === 2 ? (candidate as Partial<CatflixDataExport>).observations : [];
   if (!Array.isArray(observations) || !observations.every(isSessionObservation)) throw new Error("Unsupported or corrupt Catflix export.");
-  return { schemaVersion: 2, exportedAt: typeof candidate.exportedAt === "string" ? candidate.exportedAt : new Date().toISOString(), settings: normalizeSettings(candidate.settings), queue: clone(candidate.queue), progress: clone(candidate.progress), notes: clone(candidate.notes), observations: clone(observations), comparisons: clone(candidate.comparisons), provenance: clone(candidate.provenance) };
+  return { schemaVersion: 2, exportedAt: typeof exportFields.exportedAt === "string" ? exportFields.exportedAt : new Date().toISOString(), settings: normalizeSettings(exportFields.settings), queue: clone(exportFields.queue), progress: clone(exportFields.progress), notes: clone(exportFields.notes), observations: clone(observations), comparisons: clone(exportFields.comparisons), provenance: clone(exportFields.provenance) };
+}
+
+function hasValidExportFields(candidate: PartialExport): boolean {
+  return hasSupportedSchemaVersion(candidate.schemaVersion)
+    && candidate.settings !== undefined
+    && hasValidRecords(candidate.queue, isQueueItem)
+    && hasValidRecords(candidate.progress, isProgressRecord)
+    && hasValidRecords(candidate.notes, isRefereeNote)
+    && hasValidRecords(candidate.comparisons, isComparisonRecord)
+    && hasValidRecords(candidate.provenance, isStoredProvenance);
+}
+
+function hasSupportedSchemaVersion(value: unknown): value is 1 | 2 {
+  return value === 1 || value === 2;
+}
+
+function hasValidRecords<T>(value: unknown, isRecord: (item: unknown) => item is T): value is readonly T[] {
+  return Array.isArray(value) && value.every(isRecord);
 }
 function normalizeSettings(value: unknown): DeviceSettings {
   const settings = value as Partial<DeviceSettings> | null;
@@ -121,19 +177,126 @@ function normalizeSettings(value: unknown): DeviceSettings {
   };
 }
 const isSceneId = (value: unknown): value is SceneId => sceneIds.includes(value as SceneId);
-const isVariantSelection = (value: unknown): boolean => { const variant = value as Record<string, unknown> | null; return Boolean(variant && (variant.figureGround === "natural" || variant.figureGround === "enhanced") && (variant.motion === "continuous" || variant.motion === "intermittent") && (variant.sound === "off" || variant.sound === "on") && (variant.novelty === "familiar" || variant.novelty === "alternate")); };
-function isQueueItem(value: unknown): value is QueueItem { const item = value as Partial<QueueItem> | null; return Boolean(item && typeof item.id === "string" && isSceneId(item.sceneId) && isVariantSelection(item.variant) && typeof item.addedAt === "string"); }
-function isProgressRecord(value: unknown): value is ProgressRecord { const item = value as Partial<ProgressRecord> | null; return Boolean(item && isSceneId(item.sceneId) && typeof item.revision === "string" && typeof item.elapsedMs === "number" && typeof item.durationMs === "number" && item.elapsedMs >= 0 && item.durationMs > 0 && item.elapsedMs <= item.durationMs && typeof item.updatedAt === "string"); }
-function isRefereeNote(value: unknown): value is RefereeNote { const item = value as Partial<RefereeNote> | null; return Boolean(item && typeof item.id === "string" && ["Arri", "Ozzy", "Mika"].includes(item.cat ?? "") && isSceneId(item.sceneId) && typeof item.rawNote === "string" && Array.isArray(item.vocabulary)); }
+const isVariantSelection = (value: unknown): boolean => {
+  const variant = value as Record<string, unknown> | null;
+  return Boolean(variant
+    && isOneOf(variant.figureGround, ["natural", "enhanced"] as const)
+    && isOneOf(variant.motion, ["continuous", "intermittent"] as const)
+    && isOneOf(variant.sound, ["off", "on"] as const)
+    && isOneOf(variant.novelty, ["familiar", "alternate"] as const));
+};
+function isQueueItem(value: unknown): value is QueueItem {
+  const item = value as PartialQueueItem | null;
+  return Boolean(item
+    && typeof item.id === "string"
+    && isSceneId(item.sceneId)
+    && isVariantSelection(item.variant)
+    && typeof item.addedAt === "string");
+}
+function isProgressRecord(value: unknown): value is ProgressRecord {
+  const item = value as PartialProgress | null;
+  return Boolean(item
+    && isSceneId(item.sceneId)
+    && typeof item.revision === "string"
+    && hasValidProgressDuration(item.elapsedMs, item.durationMs)
+    && typeof item.updatedAt === "string");
+}
+
+function hasValidProgressDuration(elapsedMs: unknown, durationMs: unknown): boolean {
+  return typeof elapsedMs === "number"
+    && typeof durationMs === "number"
+    && elapsedMs >= 0
+    && durationMs > 0
+    && elapsedMs <= durationMs;
+}
+function isRefereeNote(value: unknown): value is RefereeNote {
+  const item = value as PartialNote | null;
+  return Boolean(item
+    && typeof item.id === "string"
+    && isOneOf(item.cat, ["Arri", "Ozzy", "Mika"] as const)
+    && isSceneId(item.sceneId)
+    && typeof item.rawNote === "string"
+    && Array.isArray(item.vocabulary));
+}
 function isSessionObservation(value: unknown): value is SessionObservation {
-  const item = value as Partial<SessionObservation> | null;
-  return Boolean(item && item.schemaVersion === 2 && typeof item.id === "string" && isSceneId(item.sceneId) && typeof item.contentRevision === "string" && isVariantSelection(item.variant) && (item.playbackMode === "tablet-touch" || item.playbackMode === "tv-passive") && (item.viewingDistanceBand === "near-screen" || item.viewingDistanceBand === "room-display") && ["dim", "moderate", "bright"].includes(item.roomLightBand ?? "") && typeof item.soundEnabled === "boolean" && (item.observedCat === undefined || ["Arri", "Ozzy", "Mika"].includes(item.observedCat)) && typeof item.elapsedMs === "number" && item.elapsedMs >= 0 && ["completed", "owner-ended", "cat-left", "safety-stop"].includes(item.endReason ?? "") && Array.isArray(item.acceptedContactTimestamps) && item.acceptedContactTimestamps.every((timestamp) => typeof timestamp === "number") && Array.isArray(item.vocabulary) && ["not-recorded", "offered", "ignored", "voluntarily-joined"].includes(item.physicalPlayHandoff ?? "") && typeof item.rawNote === "string" && typeof item.confirmedAt === "string");
+  const item = value as PartialObservation | null;
+  return Boolean(item && hasObservationIdentity(item) && hasObservationContext(item) && hasObservationOutcome(item));
 }
-function isComparisonRecord(value: unknown): value is ComparisonRecord { try { createMatchedComparison(value as ComparisonRecord); return true; } catch { return false; } }
+
+function hasObservationIdentity(item: PartialObservation): boolean {
+  return item.schemaVersion === 2
+    && typeof item.id === "string"
+    && isSceneId(item.sceneId)
+    && typeof item.contentRevision === "string"
+    && isVariantSelection(item.variant);
+}
+
+function hasObservationContext(item: PartialObservation): boolean {
+  return isOneOf(item.playbackMode, ["tablet-touch", "tv-passive"] as const)
+    && isOneOf(item.viewingDistanceBand, ["near-screen", "room-display"] as const)
+    && isOneOf(item.roomLightBand, ["dim", "moderate", "bright"] as const)
+    && typeof item.soundEnabled === "boolean"
+    && (item.observedCat === undefined || isOneOf(item.observedCat, ["Arri", "Ozzy", "Mika"] as const));
+}
+
+function hasObservationOutcome(item: PartialObservation): boolean {
+  return typeof item.elapsedMs === "number"
+    && item.elapsedMs >= 0
+    && isOneOf(item.endReason, ["completed", "owner-ended", "cat-left", "safety-stop"] as const)
+    && Array.isArray(item.acceptedContactTimestamps)
+    && item.acceptedContactTimestamps.every((timestamp) => typeof timestamp === "number")
+    && Array.isArray(item.vocabulary)
+    && isOneOf(item.physicalPlayHandoff, ["not-recorded", "offered", "ignored", "voluntarily-joined"] as const)
+    && typeof item.rawNote === "string"
+    && typeof item.confirmedAt === "string";
+}
+function isComparisonRecord(value: unknown): value is ComparisonRecord {
+  try {
+    createMatchedComparison(value as ComparisonRecord);
+    return true;
+  } catch {
+    return false;
+  }
+}
 function isAssetProvenance(value: unknown): value is AssetProvenance {
-  const asset = value as Partial<AssetProvenance> | null;
-  return Boolean(asset && typeof asset.assetId === "string" && asset.assetId.trim() !== "" && typeof asset.creator === "string" && asset.creator.trim() !== "" && typeof asset.source === "string" && asset.source.startsWith("/assets/") && typeof asset.license === "string" && asset.license.trim() !== "" && Array.isArray(asset.derivativeHistory) && asset.derivativeHistory.length > 0 && asset.derivativeHistory.every((entry) => typeof entry === "string" && entry.trim() !== "") && typeof asset.checksum === "string" && /^[a-f0-9]{64}$/.test(asset.checksum) && ["webp", "avif", "png", "opus", "mp3", "wav"].includes(asset.masteringFormat ?? "") && typeof asset.contentRevision === "string" && asset.contentRevision.trim() !== "");
+  const asset = value as PartialAsset | null;
+  return Boolean(asset && hasAssetIdentity(asset) && hasAssetDerivativeHistory(asset.derivativeHistory) && hasValidChecksum(asset.checksum) && isOneOf(asset.masteringFormat, ["webp", "avif", "png", "opus", "mp3", "wav"] as const) && hasNonEmptyText(asset.contentRevision));
 }
-function isStoredProvenance(value: unknown): value is StoredProvenance { const record = value as Partial<StoredProvenance> | null; const savedAt = record?.savedAt; return Boolean(isAssetProvenance(record) && typeof savedAt === "string" && savedAt !== ""); }
-function requestValue<T>(request: IDBRequest<T>): Promise<T> { return new Promise((resolve, reject) => { request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); }); }
-function transactionDone(transaction: IDBTransaction, write: (transaction: IDBTransaction) => void): Promise<void> { return new Promise((resolve, reject) => { write(transaction); transaction.oncomplete = () => resolve(); transaction.onerror = () => reject(transaction.error); transaction.onabort = () => reject(transaction.error); }); }
+function isOneOf<T extends readonly string[]>(value: unknown, values: T): value is T[number] {
+  return typeof value === "string" && values.includes(value as T[number]);
+}
+function hasNonEmptyText(value: unknown): value is string {
+  return typeof value === "string" && value.trim() !== "";
+}
+function hasAssetIdentity(asset: PartialAsset): boolean {
+  return hasNonEmptyText(asset.assetId)
+    && hasNonEmptyText(asset.creator)
+    && hasNonEmptyText(asset.source)
+    && asset.source.startsWith("/assets/")
+    && hasNonEmptyText(asset.license);
+}
+function hasAssetDerivativeHistory(value: unknown): boolean {
+  return Array.isArray(value) && value.length > 0 && value.every(hasNonEmptyText);
+}
+function hasValidChecksum(value: unknown): boolean {
+  return typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
+}
+function isStoredProvenance(value: unknown): value is StoredProvenance {
+  const record = value as PartialStoredProvenance | null;
+  const savedAt = record?.savedAt;
+  return Boolean(isAssetProvenance(record) && typeof savedAt === "string" && savedAt !== "");
+}
+function requestValue<T>(request: IDBRequest<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => { resolve(request.result); };
+    request.onerror = () => { reject(request.error ?? new Error("IndexedDB request failed.")); };
+  });
+}
+function transactionDone(transaction: IDBTransaction, write: (transaction: IDBTransaction) => void): Promise<void> {
+  return new Promise((resolve, reject) => {
+    write(transaction);
+    transaction.oncomplete = () => { resolve(); };
+    transaction.onerror = () => { reject(transaction.error ?? new Error("IndexedDB transaction failed.")); };
+    transaction.onabort = () => { reject(transaction.error ?? new Error("IndexedDB transaction aborted.")); };
+  });
+}
