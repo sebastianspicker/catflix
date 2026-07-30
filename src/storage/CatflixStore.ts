@@ -105,12 +105,14 @@ export function createCatflixStore(): CatflixStore {
   async function put(store: StoreName, value: unknown): Promise<void> {
     const key = keyFor(store, value); const database = await open();
     if (!database) { memory.get(store)?.set(key, clone(value)); return; }
-    await transactionDone(database.transaction(store, "readwrite"), (transaction) => transaction.objectStore(store).put(clone(value), key));
+    const transaction = database.transaction(store, "readwrite");
+    await transactionDone(transaction, () => transaction.objectStore(store).put(clone(value), key));
   }
   async function replace(store: StoreName, valuesToStore: readonly unknown[]): Promise<void> {
     const database = await open();
     if (!database) { const target = memory.get(store); target?.clear(); valuesToStore.forEach((value) => target?.set(keyFor(store, value), clone(value))); return; }
-    await transactionDone(database.transaction(store, "readwrite"), (transaction) => { const objectStore = transaction.objectStore(store); objectStore.clear(); valuesToStore.forEach((value) => objectStore.put(clone(value), keyFor(store, value))); });
+    const transaction = database.transaction(store, "readwrite");
+    await transactionDone(transaction, () => { const objectStore = transaction.objectStore(store); objectStore.clear(); valuesToStore.forEach((value) => objectStore.put(clone(value), keyFor(store, value))); });
   }
   return {
     async getSettings() { return normalizeSettings(await get<unknown>("settings", "device")); },
@@ -301,9 +303,9 @@ function requestValue<T>(request: IDBRequest<T>): Promise<T> {
     request.onerror = () => { reject(request.error ?? new Error("IndexedDB request failed.")); };
   });
 }
-function transactionDone(transaction: IDBTransaction, write: (_transaction: IDBTransaction) => void): Promise<void> {
+function transactionDone(transaction: IDBTransaction, write: () => void): Promise<void> {
   return new Promise((resolve, reject) => {
-    write(transaction);
+    write();
     transaction.oncomplete = () => { resolve(); };
     transaction.onerror = () => { reject(transaction.error ?? new Error("IndexedDB transaction failed.")); };
     transaction.onabort = () => { reject(transaction.error ?? new Error("IndexedDB transaction aborted.")); };

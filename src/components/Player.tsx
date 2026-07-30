@@ -21,23 +21,19 @@ interface PlayerControlsProps {
   onTogglePlay: () => void;
   onToggleSound: () => void;
   onChangeMotion: () => void;
-  onStop: (_physicalPlaySuggested?: boolean) => void;
+  onStop: () => void;
   reminder: ReactNode;
 }
 
 interface ContactReminderProps {
-  onStop: PlayerControlsProps['onStop'];
+  onStop: () => void;
+  onOfferPhysicalPlay: () => void;
   onPauseAndObserve: () => void;
   onDismissReminder: () => void;
 }
 
-function endReminderSession(onStop: (_physicalPlaySuggested?: boolean) => void) { onStop(); }
-function offerReminderPhysicalPlay(onStop: (_physicalPlaySuggested?: boolean) => void) { onStop(true); }
-
-function ContactReminder({ onStop, onPauseAndObserve, onDismissReminder }: ContactReminderProps) {
-  const endSession = endReminderSession.bind(undefined, onStop);
-  const offerPhysicalPlay = offerReminderPhysicalPlay.bind(undefined, onStop);
-  return <div className="contact-reminder" role="status"><p>Editorial safety cap reached: three accepted contacts within 20 seconds. The scene is resting for 10–12 seconds.</p><div><button type="button" onClick={onPauseAndObserve}>Pause and observe</button><button type="button" onClick={endSession}>End session</button><button type="button" onClick={offerPhysicalPlay}>End and offer voluntary physical play</button><button type="button" onClick={onDismissReminder}>Continue quietly</button></div></div>;
+function ContactReminder({ onStop, onOfferPhysicalPlay, onPauseAndObserve, onDismissReminder }: ContactReminderProps) {
+  return <div className="contact-reminder" role="status"><p>Editorial safety cap reached: three accepted contacts within 20 seconds. The scene is resting for 10–12 seconds.</p><div><button type="button" onClick={onPauseAndObserve}>Pause and observe</button><button type="button" onClick={onStop}>End session</button><button type="button" onClick={onOfferPhysicalPlay}>End and offer voluntary physical play</button><button type="button" onClick={onDismissReminder}>Continue quietly</button></div></div>;
 }
 
 function PlayerControls(props: PlayerControlsProps) {
@@ -70,7 +66,9 @@ export function Player({ plan, onSceneMotionModeChange, onExit }: PlayerProps) {
   };
   const toggleSound = () => { if (variants.sound === 'off' || !manifest.audio?.provenance?.some((record) => record.eligible)) return; const next = !sound; hostRef.current?.setSoundEnabled(next); setSound(next); };
   const changeMotion = () => { const next = sceneMotionMode === 'low' ? 'standard' : 'low'; setSceneMotionMode(next); hostRef.current?.setSceneMotionMode(next); onSceneMotionModeChange(next); };
-  const stop = (physicalPlaySuggested = false) => { hostRef.current?.stop(); onExit({ elapsedMs: elapsedRef.current, complete: false, touchTimestamps: touchesRef.current, soundEnabled: sound, physicalPlaySuggested }); };
+  const finish = (physicalPlaySuggested: boolean) => { hostRef.current?.stop(); onExit({ elapsedMs: elapsedRef.current, complete: false, touchTimestamps: touchesRef.current, soundEnabled: sound, physicalPlaySuggested }); };
+  const stop = () => { finish(false); };
+  const offerPhysicalPlay = () => { finish(true); };
   const dismissReminder = () => { hostRef.current?.dismissReminder(); setShowContactReminder(false); };
   const audioEligible = Boolean(manifest.audio?.provenance?.some((record) => record.eligible));
   const soundVariantEnabled = variants.sound !== 'off';
@@ -80,6 +78,6 @@ export function Player({ plan, onSceneMotionModeChange, onExit }: PlayerProps) {
     <header className="player-topbar"><span>CATFLIX / FINITE ENCOUNTER</span><h1 id="player-title">{displayTitle[manifest.id]}</h1><span>{timecode(elapsed)} / {timecode(manifest.finiteDurationMs)}</span></header>
     <div className="session-context" aria-label="Owner session context"><span>{playbackMode === 'tablet-touch' ? 'Tablet / touch-reactive' : 'Television / passive'}</span><span>{setup.observedCat ? `Observation: ${setup.observedCat}` : 'Not recording a cat'}</span><span>{setup.roomLightBand} light · {setup.viewingDistanceBand.replace('-', ' ')}</span><span>Phase: {phase}</span></div>
     <div className="stage-wrap" data-scene={manifest.id}><div className="simulation-stage" data-scene-motion={sceneMotionMode} data-playback-mode={playbackMode} data-figure-ground={variants.figureGround} ref={stageRef} aria-label={`${displayTitle[manifest.id]} ${playbackMode === 'tablet-touch' ? 'target-touch encounter' : 'passive encounter'}`} /></div>
-    <PlayerControls playing={playing} sound={sound} soundVariantEnabled={soundVariantEnabled} audioEligible={audioEligible} sceneMotionMode={sceneMotionMode} onTogglePlay={togglePlay} onToggleSound={toggleSound} onChangeMotion={changeMotion} onStop={stop} reminder={showContactReminder ? <ContactReminder onStop={stop} onPauseAndObserve={pauseAndObserve} onDismissReminder={dismissReminder} /> : null} />
+    <PlayerControls playing={playing} sound={sound} soundVariantEnabled={soundVariantEnabled} audioEligible={audioEligible} sceneMotionMode={sceneMotionMode} onTogglePlay={togglePlay} onToggleSound={toggleSound} onChangeMotion={changeMotion} onStop={stop} reminder={showContactReminder ? <ContactReminder onStop={stop} onOfferPhysicalPlay={offerPhysicalPlay} onPauseAndObserve={pauseAndObserve} onDismissReminder={dismissReminder} /> : null} />
   </section>;
 }
