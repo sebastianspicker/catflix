@@ -3,6 +3,7 @@ import { getContentManifest } from "../content/registry";
 import { SceneId, VariantSelection } from "../content/types";
 import { createSceneSimulation, getSceneDefinition } from "./definitions";
 import { PlaybackMode, Point, SceneActorSnapshot, SceneMotionMode, SceneSnapshot, SoundEvent } from "./types";
+import { publicUrl } from "../paths";
 
 export interface PhaserSimulationHostOptions {
   container: HTMLElement;
@@ -52,11 +53,11 @@ export function createPhaserSimulationHost(options: PhaserSimulationHostOptions)
   const sheet = poseSheets[options.sceneId];
   const manifest = getContentManifest(options.sceneId);
   const backdrop = new Image();
-  backdrop.src = manifest.visuals.backgroundPlateUrl;
+  backdrop.src = publicUrl(manifest.visuals.backgroundPlateUrl);
   const poses = new Image();
-  poses.src = sheet.path;
+  poses.src = publicUrl(sheet.path);
   const ropeTexture = new Image();
-  ropeTexture.src = "/assets/scenes/v2/red-string-tile.png";
+  ropeTexture.src = publicUrl("/assets/scenes/v2/red-string-tile.png");
   let game: Phaser.Game | undefined;
   let activeScene: Phaser.Scene | undefined;
   let background: Phaser.GameObjects.Image | undefined;
@@ -102,9 +103,9 @@ export function createPhaserSimulationHost(options: PhaserSimulationHostOptions)
     }
   }
   function preload(this: Phaser.Scene): void {
-    this.load.image("catflix-background", manifest.visuals.backgroundPlateUrl);
-    this.load.image("catflix-poses", sheet.path);
-    if (options.sceneId === "red-string") this.load.image("catflix-rope", "/assets/scenes/v2/red-string-tile.png");
+    this.load.image("catflix-background", publicUrl(manifest.visuals.backgroundPlateUrl));
+    this.load.image("catflix-poses", publicUrl(sheet.path));
+    if (options.sceneId === "red-string") this.load.image("catflix-rope", publicUrl("/assets/scenes/v2/red-string-tile.png"));
   }
   function create(this: Phaser.Scene): void {
     activeScene = this;
@@ -251,7 +252,7 @@ export function createPhaserSimulationHost(options: PhaserSimulationHostOptions)
       const provenance = manifest.audio.provenance.find((record) => record.eventKind === event.kind && record.eligible && record.source.startsWith("/assets/"));
       if (!provenance) continue;
       activeAudio?.pause();
-      activeAudio = new Audio(provenance.source); activeAudio.volume = 0.08; void activeAudio.play().catch(() => undefined);
+      activeAudio = new Audio(publicUrl(provenance.source)); activeAudio.volume = 0.08; void activeAudio.play().catch(() => undefined);
       break; // At most one audible event at a time.
     }
   }

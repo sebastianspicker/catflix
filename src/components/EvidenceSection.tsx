@@ -1,4 +1,5 @@
 import { evidenceThemes, type EvidenceThemeId } from '../content/evidence';
+import { publicUrl } from '../paths';
 
 interface EvidenceSectionProps {
   onOpen: (themeId: EvidenceThemeId) => void;
@@ -15,7 +16,7 @@ export function EvidenceSection({ onOpen }: EvidenceSectionProps) {
         <div className="evidence-intro">
           <p>Catflix is shaped by peer-reviewed research, with the limits kept as visible as the findings.</p>
           <button type="button" onClick={() => onOpen(evidenceThemes[0].id)}>Read the evidence</button>
-          <a href="/research">Full research record</a>
+          <a href={publicUrl('/research')}>Full research record</a>
         </div>
       </div>
 

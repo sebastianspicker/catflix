@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 const screenshotDirectory = 'docs/screenshots';
 
 async function waitForArtwork(page: import('@playwright/test').Page) {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await expect(page.getByRole('heading', { name: /Pick a quiet encounter/i })).toBeVisible();
   await page.locator('.prey-card img').first().waitFor({ state: 'visible' });
   await page.waitForFunction(() => {

@@ -4,9 +4,10 @@ import { App } from './App';
 import './styles.css';
 import './editorial.css';
 import './encounters.css';
+import { routePathname } from './paths';
 
 const ResearchPage = lazy(() => import('./components/ResearchPage').then((module) => ({ default: module.ResearchPage })));
-const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
+const pathname = routePathname(window.location.pathname);
 const isResearchRoute = pathname === '/research';
 
 if (isResearchRoute) document.title = 'Scientific foundation — Catflix';

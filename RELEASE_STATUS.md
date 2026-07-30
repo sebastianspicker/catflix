@@ -7,7 +7,7 @@ Repository: https://github.com/sebastianspicker/catflix
 
 ## Confirmed locally
 
-- `npm test`: 37 tests passed across 5 files.
+- `npm test`: 40 tests passed across 6 files.
 - `npm run build`: TypeScript and the Vite production build passed.
 - `CATFLIX_E2E_PORT=4183 npm run test:e2e`: 43 tests passed and 5 browser-specific checks were intentionally skipped.
 - The passing Playwright matrix covered desktop Chromium, desktop Firefox, iPad WebKit, and mobile Chromium.

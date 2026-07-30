@@ -15,7 +15,6 @@ export default defineConfig({
     baseURL,
     colorScheme: 'light',
     locale: 'en-US',
-    reducedMotion: 'reduce',
     trace: 'retain-on-failure',
   },
   webServer: {

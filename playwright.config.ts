@@ -5,7 +5,7 @@ const baseURL = `http://127.0.0.1:${port}`;
 
 export default defineConfig({
   testDir: './e2e',
-  testIgnore: '**/docs-screenshots.spec.ts',
+  testIgnore: ['**/docs-screenshots.spec.ts', '**/pages.spec.ts'],
   fullyParallel: true,
   use: { baseURL, trace: 'retain-on-failure' },
   webServer: { command: `vite build && vite preview --strictPort --port ${port}`, url: baseURL, reuseExistingServer: false },

@@ -39,7 +39,7 @@ npm run check
 npm run test:e2e
 ```
 
-`npm run check` runs 37 unit tests, TypeScript compilation, and the production build. The Playwright suite covers Chromium, Firefox, iPad WebKit, and mobile Chromium. Browser binaries must be installed before the first end-to-end run:
+`npm run check` runs 40 unit tests, TypeScript compilation, and the production build. The Playwright suite covers Chromium, Firefox, iPad WebKit, and mobile Chromium. Browser binaries must be installed before the first end-to-end run:
 
 ```bash
 npx playwright install
@@ -50,6 +50,8 @@ Use an unused port if 4173 is occupied:
 ```bash
 CATFLIX_E2E_PORT=4183 npm run test:e2e
 ```
+
+The GitHub Pages deployment is built from the same application with a `/catflix/` base path. Validate that artifact locally with `npm run test:pages`.
 
 ## Screenshots
 

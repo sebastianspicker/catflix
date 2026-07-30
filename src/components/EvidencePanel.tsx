@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { evidenceMethodNote, evidenceThemes, type EvidenceThemeId } from '../content/evidence';
 import { useModalDialog } from './useModalDialog';
+import { publicUrl } from '../paths';
 
 interface EvidencePanelProps {
   initialTheme: EvidenceThemeId;
@@ -55,7 +56,7 @@ export function EvidencePanel({ initialTheme, onClose }: EvidencePanelProps) {
 
         <footer className="evidence-dialog-footer">
           <p>The full record includes the review method, decision table, metadata contract, limitations, and all 60 references.</p>
-          <a href="/research">Read the complete research record</a>
+          <a href={publicUrl('/research')}>Read the complete research record</a>
         </footer>
       </section>
     </div>

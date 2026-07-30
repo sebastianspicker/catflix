@@ -12,6 +12,7 @@ import { SafetyGate } from './components/SafetyGate';
 import { useModalDialog } from './components/useModalDialog';
 import { EvidenceSection } from './components/EvidenceSection';
 import type { EvidenceThemeId } from './content/evidence';
+import { publicUrl } from './paths';
 
 const manifests = [...listContentManifests()];
 const store = createCatflixStore();
@@ -50,7 +51,7 @@ interface PendingSession {
 }
 
 function SceneImage({ id, alt }: { id: SceneId; alt: string }) {
-  const base = artByScene[id];
+  const base = publicUrl(artByScene[id]);
   return <picture><source srcSet={`${base}.avif`} type="image/avif" /><source srcSet={`${base}.webp`} type="image/webp" /><img src={`${base}.png`} alt={alt} decoding="async" loading="lazy" /></picture>;
 }
 
