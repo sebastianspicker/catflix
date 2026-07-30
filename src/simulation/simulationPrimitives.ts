@@ -82,21 +82,25 @@ export function behaviorAt(score: SceneScore, timeMs: number, continuous: boolea
 
 export function sceneAnimationState(sceneId: SceneId, state: ActorState): AnimationState {
   if (state === "hidden" || state === "occluded") return "reappearing";
-  return state === "paused" ? pausedAnimationState(sceneId) : movingAnimationState(sceneId);
+  return state === "paused" ? pausedAnimationStateFor(sceneId) : movingAnimationStateFor(sceneId);
 }
 
-function pausedAnimationState(sceneId: SceneId): AnimationState {
-  if (sceneId === "balcony-birds") return "perching";
-  if (sceneId === "koi-pool") return "swimming";
-  if (sceneId === "paper-moth") return "landed";
-  if (sceneId === "beetle-under-the-fern") return "sheltering";
-  return "resting";
-}
+const pausedAnimationStateFor = (sceneId: SceneId): AnimationState => {
+  switch (sceneId) {
+    case "balcony-birds": return "perching";
+    case "koi-pool": return "swimming";
+    case "paper-moth": return "landed";
+    case "beetle-under-the-fern": return "sheltering";
+    case "red-string": return "resting";
+  }
+};
 
-function movingAnimationState(sceneId: SceneId): AnimationState {
-  if (sceneId === "balcony-birds") return "flying";
-  if (sceneId === "koi-pool") return "swimming";
-  if (sceneId === "paper-moth") return "fluttering";
-  if (sceneId === "beetle-under-the-fern") return "crawling";
-  return "dragging";
-}
+const movingAnimationStateFor = (sceneId: SceneId): AnimationState => {
+  switch (sceneId) {
+    case "balcony-birds": return "flying";
+    case "koi-pool": return "swimming";
+    case "paper-moth": return "fluttering";
+    case "beetle-under-the-fern": return "crawling";
+    case "red-string": return "dragging";
+  }
+};

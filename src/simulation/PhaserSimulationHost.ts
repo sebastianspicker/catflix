@@ -94,23 +94,23 @@ export function createPhaserSimulationHost(options: PhaserSimulationHostOptions)
   document.addEventListener("visibilitychange", onVisibilityChange);
   if (preferences.playbackMode === "tablet-touch") canvas.addEventListener("pointerdown", onPointerDown);
 
-  function makeGame(): void {
+  const makeGame = (): void => {
     if (options.renderer === "canvas") { options.container.appendChild(canvas); return; }
     try {
       game = new Phaser.Game({ type: Phaser.AUTO, parent: options.container, transparent: true, scale: { mode: Phaser.Scale.RESIZE, width: "100%", height: "100%" }, scene: { preload, create, update } });
     } catch {
       options.container.appendChild(canvas);
     }
-  }
-  function preload(this: Phaser.Scene): void {
+  };
+  const preload: Phaser.Types.Scenes.ScenePreloadCallback = function (): void {
     this.load.image("catflix-background", publicUrl(manifest.visuals.backgroundPlateUrl));
     this.load.image("catflix-poses", publicUrl(sheet.path));
     if (options.sceneId === "red-string") this.load.image("catflix-rope", publicUrl("/assets/scenes/v2/red-string-tile.png"));
-  }
-  function create(this: Phaser.Scene): void {
+  };
+  const create: Phaser.Types.Scenes.SceneCreateCallback = function (): void {
     setupScene(this);
-  }
-  function setupScene(scene: Phaser.Scene): void {
+  };
+  const setupScene = (scene: Phaser.Scene): void => {
     activeScene = scene;
     background = scene.add.image(0, 0, "catflix-background").setOrigin(0.5);
     const poseTexture = scene.textures.get("catflix-poses");
@@ -126,11 +126,11 @@ export function createPhaserSimulationHost(options: PhaserSimulationHostOptions)
       });
     }
     renderPhaser(simulation.snapshot());
-  }
-  function update(_time: number, delta: number): void {
+  };
+  const update = (_time: number, delta: number): void => {
     if (running && !paused) renderPhaser(tick(delta));
-  }
-  function tick(delta: number): SceneSnapshot {
+  };
+  const tick = (delta: number): SceneSnapshot => {
     const state = simulation.advance(Math.min(Math.max(delta, 0), 250));
     const primaryActor = state.actors.find((actor) => actor.visible);
     if (primaryActor) { options.container.dataset.actorX = String(primaryActor.x); options.container.dataset.actorY = String(primaryActor.y); }
@@ -141,14 +141,14 @@ export function createPhaserSimulationHost(options: PhaserSimulationHostOptions)
     options.onProgress?.(state.elapsedMs, state.durationMs);
     if (state.complete && !completeNotified) { completeNotified = true; pause(); options.onComplete?.(); }
     return state;
-  }
-  function fallbackFrame(now: number): void {
+  };
+  const fallbackFrame = (now: number): void => {
     if (!running) return;
     if (!paused) tick(lastTime === 0 ? 0 : Math.min(now - lastTime, 250));
     lastTime = now;
     frameId = scheduleFrame(fallbackFrame);
-  }
-  function drawFallback(state: SceneSnapshot): void {
+  };
+  const drawFallback = (state: SceneSnapshot): void => {
     if (!canvas.isConnected) return;
     const { context, width, height } = fallbackCanvasContext();
     if (!context) return;
@@ -160,26 +160,26 @@ export function createPhaserSimulationHost(options: PhaserSimulationHostOptions)
     drawFallbackRope(context, state, width, height);
     drawCanvasSignature(context, state, width, height);
     drawCanvasOccluder(context, width, height);
-  }
-  function fallbackCanvasContext(): { context: CanvasRenderingContext2D | null; width: number; height: number } {
+  };
+  const fallbackCanvasContext = (): { context: CanvasRenderingContext2D | null; width: number; height: number } => {
     const ratio = window.devicePixelRatio || 1;
     const width = Math.max(1, Math.round(canvas.clientWidth * ratio));
     const height = Math.max(1, Math.round(canvas.clientHeight * ratio));
     if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
     return { context: canvas.getContext("2d"), width, height };
-  }
-  function drawFallbackBackdrop(context: CanvasRenderingContext2D, width: number, height: number): void {
+  };
+  const drawFallbackBackdrop = (context: CanvasRenderingContext2D, width: number, height: number): void => {
     if (!backdrop.complete || !backdrop.naturalWidth) return;
     const cover = coverRect(backdrop.naturalWidth, backdrop.naturalHeight, width, height);
     context.globalAlpha = options.variant.figureGround === "enhanced" ? 0.52 : 0.78;
     context.drawImage(backdrop, cover.x, cover.y, cover.width, cover.height);
     context.globalAlpha = 1;
-  }
-  function drawFallbackRope(context: CanvasRenderingContext2D, state: SceneSnapshot, width: number, height: number): void {
+  };
+  const drawFallbackRope = (context: CanvasRenderingContext2D, state: SceneSnapshot, width: number, height: number): void => {
     const actor = options.sceneId === "red-string" ? state.actors.at(0) : undefined;
     if (actor?.visible) drawCanvasRopePath(context, actor, width, height);
-  }
-  function drawCanvasActor(context: CanvasRenderingContext2D, actor: SceneActorSnapshot, width: number, height: number): void {
+  };
+  const drawCanvasActor = (context: CanvasRenderingContext2D, actor: SceneActorSnapshot, width: number, height: number): void => {
     if (!actor.visible || !poses.complete || !poses.naturalWidth) return;
     if (options.sceneId === "red-string") return;
     const crop = poseCrop(options.sceneId, actor.poseFrame);
@@ -193,16 +193,16 @@ export function createPhaserSimulationHost(options: PhaserSimulationHostOptions)
     context.scale(actor.scaleX * (spriteUsesHorizontalFlip(options.sceneId) && actor.facing < 0 ? -1 : 1), actor.scaleY);
     context.drawImage(poses, crop.x, crop.y, crop.width, crop.height, -displayWidth * anchor.x, -displayHeight * anchor.y, displayWidth, displayHeight);
     context.restore();
-  }
-  function renderPhaser(state: SceneSnapshot): void {
+  };
+  const renderPhaser = (state: SceneSnapshot): void => {
     if (!activeScene || !background) return;
     const width = activeScene.scale.width; const height = activeScene.scale.height;
     const cover = coverRect(background.width, background.height, width, height);
     background.setPosition(width / 2, height / 2).setDisplaySize(cover.width, cover.height).setAlpha(options.variant.figureGround === "enhanced" ? 0.52 : 0.78);
     for (const actor of orderedActors(state)) renderPhaserActor(activeScene, actor, width, height);
     drawPhaserOccluder(width, height, state);
-  }
-  function renderPhaserActor(scene: Phaser.Scene, actor: SceneActorSnapshot, width: number, height: number): void {
+  };
+  const renderPhaserActor = (scene: Phaser.Scene, actor: SceneActorSnapshot, width: number, height: number): void => {
     if (options.sceneId === "red-string") { renderPhaserRope(actor, width, height); return; }
     let image = actorImages.get(actor.id);
     if (!image) { image = scene.add.image(0, 0, "catflix-poses", poseTextureFrame(actor.poseFrame)); actorImages.set(actor.id, image); }
@@ -217,8 +217,8 @@ export function createPhaserSimulationHost(options: PhaserSimulationHostOptions)
       .setFlipX(spriteUsesHorizontalFlip(options.sceneId) && actor.facing < 0)
       .setVisible(actor.visible).setAlpha(actor.alpha).setDepth(actor.depth);
     if (options.variant.figureGround === "enhanced") image.setTint(0xfff2d5); else image.clearTint();
-  }
-  function renderPhaserRope(actor: SceneActorSnapshot, width: number, height: number): void {
+  };
+  const renderPhaserRope = (actor: SceneActorSnapshot, width: number, height: number): void => {
     if (!activeScene) return;
     const endX = actor.x * width; const endY = actor.y * height;
     const deformation = preferences.sceneMotionMode === "low" ? .25 : 1;
@@ -228,8 +228,8 @@ export function createPhaserSimulationHost(options: PhaserSimulationHostOptions)
     if (!redStringRope) redStringRope = activeScene.add.rope(0, 0, "catflix-rope", undefined, points, true);
     else redStringRope.setPoints(points);
     redStringRope.setVisible(actor.visible).setAlpha(actor.alpha).setDepth(actor.depth).setScale(1, Math.max(.16, width / 1_900));
-  }
-  function drawPhaserOccluder(width: number, height: number, state: SceneSnapshot): void {
+  };
+  const drawPhaserOccluder = (width: number, height: number, state: SceneSnapshot): void => {
     const graphics = foreground;
     if (!graphics) return;
     graphics.clear().setDepth(10);
@@ -242,17 +242,17 @@ export function createPhaserSimulationHost(options: PhaserSimulationHostOptions)
       else if (signature.kind === "fern-shadow") graphics.fillStyle(0x102016, signature.alpha).fillEllipse(x, y + height * .04, width * .2, height * .08);
     }
     drawOccluder(options.sceneId, (color, alpha) => { graphics.fillStyle(color, alpha); }, (x, y, w, h) => { graphics.fillRect(x, y, w, h); }, (x, y, rx, ry) => { graphics.fillEllipse(x, y, rx, ry); }, width, height);
-  }
-  function drawCanvasOccluder(context: CanvasRenderingContext2D, width: number, height: number): void {
+  };
+  const drawCanvasOccluder = (context: CanvasRenderingContext2D, width: number, height: number): void => {
     drawOccluder(options.sceneId, (color, alpha) => { context.fillStyle = `#${color.toString(16).padStart(6, "0")}`; context.globalAlpha = alpha; }, (x, y, w, h) => { context.fillRect(x, y, w, h); }, (x, y, rx, ry) => { context.beginPath(); context.ellipse(x, y, rx / 2, ry / 2, 0, 0, Math.PI * 2); context.fill(); }, width, height);
     context.globalAlpha = 1;
-  }
-  function drawCanvasRopePath(context: CanvasRenderingContext2D, actor: SceneActorSnapshot, width: number, height: number): void {
+  };
+  const drawCanvasRopePath = (context: CanvasRenderingContext2D, actor: SceneActorSnapshot, width: number, height: number): void => {
     const deformation = preferences.sceneMotionMode === "low" ? .25 : 1;
     const endX = actor.x * width; const endY = actor.y * height; const startX = Math.max(0, endX - width * .32); const startY = Math.min(height, endY + height * (.08 + actor.stateProgress * .08) * deformation);
     context.save(); context.globalAlpha = actor.alpha; context.lineCap = "round"; context.strokeStyle = ropeTexture.complete ? context.createPattern(ropeTexture, "repeat") ?? "#a92d2f" : "#a92d2f"; context.lineWidth = Math.max(5, width * 0.01); context.beginPath(); context.moveTo(startX, startY); context.quadraticCurveTo((startX + endX) / 2, endY + height * (.12 + actor.stateProgress * .12) * deformation, endX, endY); context.stroke(); context.restore();
-  }
-  function drawCanvasSignature(context: CanvasRenderingContext2D, state: SceneSnapshot, width: number, height: number): void {
+  };
+  const drawCanvasSignature = (context: CanvasRenderingContext2D, state: SceneSnapshot, width: number, height: number): void => {
     const signature = state.signatureEffect; if (!signature || signature.kind === "slack-curve") return;
     const x = signature.x * width; const y = signature.y * height; context.save(); context.globalAlpha = signature.alpha;
     if (signature.kind === "reflected-ring") { context.strokeStyle = "#e6d5a3"; context.lineWidth = Math.max(2, width * .002); context.beginPath(); context.ellipse(x, y, width * .075, height * .035, 0, 0, Math.PI * 2); context.stroke(); }
@@ -260,8 +260,8 @@ export function createPhaserSimulationHost(options: PhaserSimulationHostOptions)
     if (signature.kind === "folded-shadow") { context.fillStyle = "#17141a"; context.beginPath(); context.moveTo(x - width * .08, y + height * .08); context.lineTo(x + width * .07, y + height * .04); context.lineTo(x + width * .02, y + height * .13); context.closePath(); context.fill(); }
     if (signature.kind === "fern-shadow") { context.fillStyle = "#102016"; context.beginPath(); context.ellipse(x, y + height * .04, width * .1, height * .04, 0, 0, Math.PI * 2); context.fill(); }
     context.restore();
-  }
-  function playEvents(events: readonly SoundEvent[]): void {
+  };
+  const playEvents = (events: readonly SoundEvent[]): void => {
     if (!soundEnabled || !manifest.audio?.provenance?.some((record) => record.eligible)) return;
     for (const event of events) {
       const provenance = manifest.audio.provenance.find((record) => record.eventKind === event.kind && record.eligible && record.source.startsWith("/assets/"));
@@ -270,17 +270,17 @@ export function createPhaserSimulationHost(options: PhaserSimulationHostOptions)
       activeAudio = new Audio(publicUrl(provenance.source)); activeAudio.volume = 0.08; void activeAudio.play().catch(() => undefined);
       break; // At most one audible event at a time.
     }
-  }
-  function start(): void { if (running) return; running = true; paused = false; lastTime = performance.now(); makeGame(); if (!game) { options.container.appendChild(canvas); frameId = scheduleFrame(fallbackFrame); } }
-  function silence(): void { activeAudio?.pause(); activeAudio = undefined; }
-  function pause(): void { paused = true; silence(); game?.loop.pause(); }
-  function resume(): void { if (!running || simulation.snapshot().complete) return; paused = false; lastTime = performance.now(); game?.loop.resume(); }
-  function stop(): void { paused = true; running = false; cancelFrame(frameId); silence(); game?.loop.pause(); }
-  function destroy(): void { stop(); game?.destroy(true); game = undefined; activeScene = undefined; background = undefined; foreground = undefined; redStringRope = undefined; actorImages.clear(); canvas.remove(); canvas.removeEventListener("pointerdown", onPointerDown); document.removeEventListener("visibilitychange", onVisibilityChange); }
-  function setSoundEnabled(enabled: boolean): void { soundEnabled = enabled; if (!enabled) silence(); }
-  function setSceneMotionMode(mode: SceneMotionMode): void { preferences.sceneMotionMode = mode; }
-  function setReducedMotion(_enabled: boolean): void { void _enabled; /* OS UI preference does not alter authored choreography. */ }
-  function dismissReminder(): void { reminderId = undefined; simulation.dismissReminder(); }
+  };
+  const start = (): void => { if (running) return; running = true; paused = false; lastTime = performance.now(); makeGame(); if (!game) { options.container.appendChild(canvas); frameId = scheduleFrame(fallbackFrame); } };
+  const silence = (): void => { activeAudio?.pause(); activeAudio = undefined; };
+  const pause = (): void => { paused = true; silence(); game?.loop.pause(); };
+  const resume = (): void => { if (!running || simulation.snapshot().complete) return; paused = false; lastTime = performance.now(); game?.loop.resume(); };
+  const stop = (): void => { paused = true; running = false; cancelFrame(frameId); silence(); game?.loop.pause(); };
+  const destroy = (): void => { stop(); game?.destroy(true); game = undefined; activeScene = undefined; background = undefined; foreground = undefined; redStringRope = undefined; actorImages.clear(); canvas.remove(); canvas.removeEventListener("pointerdown", onPointerDown); document.removeEventListener("visibilitychange", onVisibilityChange); };
+  const setSoundEnabled = (enabled: boolean): void => { soundEnabled = enabled; if (!enabled) silence(); };
+  const setSceneMotionMode = (mode: SceneMotionMode): void => { preferences.sceneMotionMode = mode; };
+  const setReducedMotion = (_enabled: boolean): void => { void _enabled; /* OS UI preference does not alter authored choreography. */ };
+  const dismissReminder = (): void => { reminderId = undefined; simulation.dismissReminder(); };
   return { start, pause, resume, stop, destroy, setSoundEnabled, setSceneMotionMode, setReducedMotion, dismissReminder, snapshot: () => simulation.snapshot() };
 }
 

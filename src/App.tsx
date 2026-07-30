@@ -20,13 +20,6 @@ const store = createCatflixStore();
 const Player = lazy(() => import('./components/Player').then((module) => ({ default: module.Player })));
 const EvidencePanel = lazy(() => import('./components/EvidencePanel').then((module) => ({ default: module.EvidencePanel })));
 
-const artByScene: Record<SceneId, string> = {
-  'balcony-birds': '/assets/balcony-birds',
-  'koi-pool': '/assets/koi',
-  'paper-moth': '/assets/paper-moth',
-  'beetle-under-the-fern': '/assets/beetle',
-  'red-string': '/assets/red-string',
-};
 const catalogueMeta: Record<SceneId, { title: string; theme: 'nature' | 'inside'; motion: 'flowing' | 'intermittent' | 'grounded'; note: string }> = {
   'balcony-birds': { title: 'Balcony Birds at Dusk', theme: 'nature', motion: 'intermittent', note: 'Perch, passage, occlusion, visible rest' },
   'koi-pool': { title: 'Koi in Slow Motion', theme: 'nature', motion: 'flowing', note: 'Long curves with calm-water finale' },
@@ -113,8 +106,18 @@ function queueRecords(ids: readonly SceneId[]): QueueItem[] {
   return ids.map((sceneId) => ({ id: `queue:${sceneId}`, sceneId, variant: defaultVariant, addedAt }));
 }
 
+function sceneArtPath(id: SceneId): string {
+  switch (id) {
+    case 'balcony-birds': return '/assets/balcony-birds';
+    case 'koi-pool': return '/assets/koi';
+    case 'paper-moth': return '/assets/paper-moth';
+    case 'beetle-under-the-fern': return '/assets/beetle';
+    case 'red-string': return '/assets/red-string';
+  }
+}
+
 function SceneImage({ id, alt }: { id: SceneId; alt: string }) {
-  const base = publicUrl(artByScene[id]);
+  const base = publicUrl(sceneArtPath(id));
   return <picture><source srcSet={`${base}.avif`} type="image/avif" /><source srcSet={`${base}.webp`} type="image/webp" /><img src={`${base}.png`} alt={alt} decoding="async" loading="lazy" /></picture>;
 }
 
