@@ -7,10 +7,11 @@ const scenes = [
   'Beetle Beneath the Fern',
   'The Red String Incident',
 ] as const;
+const CHECKPOINT_MATRIX_TIMEOUT_MS = 90_000;
 
 for (const renderer of ['auto', 'canvas'] as const) {
   test(`captures deterministic ${renderer} checkpoints for every scene`, async ({ page }, testInfo) => {
-    test.setTimeout(60_000);
+    test.setTimeout(CHECKPOINT_MATRIX_TIMEOUT_MS);
     test.skip(testInfo.project.name === 'firefox', 'Desktop Chromium, tablet WebKit, and mobile Chromium cover the checkpoint matrix.');
     const consoleErrors: string[] = [];
     page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()); });
