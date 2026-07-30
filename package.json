@@ -2,6 +2,7 @@
   "name": "catflix",
   "private": true,
   "version": "0.2.0",
+  "license": "MIT",
   "type": "module",
   "engines": {
     "node": "^20.19.0 || >=22.12.0"

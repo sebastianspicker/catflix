@@ -6,7 +6,7 @@ Catflix is a local-first catalogue of five finite, supervised visual encounters 
 
 ## Alpha status
 
-This public repository is a source alpha, not a tagged release. The application and its automated checks run locally, but a versioned alpha release remains blocked until the project license and artwork clearance are confirmed. See [RELEASE_STATUS.md](RELEASE_STATUS.md) for the current evidence and remaining release work.
+This public repository is a source alpha, not a tagged release. The application and its automated checks run locally, but a versioned alpha release remains blocked until artwork clearance is confirmed. See [RELEASE_STATUS.md](RELEASE_STATUS.md) for the current evidence and remaining release work.
 
 ## What works
 
@@ -86,4 +86,4 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) before proposing changes. Report securit
 
 ## License
 
-No public license has been selected. Public access to source code does not grant permission to copy, modify, redistribute, or reuse the bundled artwork. License and artwork-clearance decisions are required before the first public alpha release.
+Catflix software and original project documentation are available under the [MIT License](LICENSE). Bundled assets retain the source and license status recorded in the content registry; see [NOTICE.md](NOTICE.md). Assets whose provenance says clearance must be confirmed are not granted for reuse by the software license.

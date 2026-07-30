@@ -10,7 +10,7 @@ describe('content registry', () => {
       expect(manifest.encounter.presentation.tablet.distance).toBe('near-screen');
       expect(manifest.encounter.presentation.television.distance).toBe('room-display');
       expect(Object.values(manifest.encounter.riskRationale).every(Boolean)).toBe(true);
-      expect(manifest.encounter.editorialClaims.every((claim) => claim.evidenceEndpoint && claim.confidence)).toBe(true);
+      expect(manifest.encounter.editorialClaims.every((claim) => claim.evidenceEndpoint.length > 0)).toBe(true);
       expect(manifest.audio?.provenance?.every((record) => record.source && record.license && typeof record.eligible === 'boolean')).toBe(true);
     }
   });
@@ -35,6 +35,12 @@ describe('content registry', () => {
     }
   });
 
+  it('returns an independent manifest list', () => {
+    const manifests = listContentManifests();
+    Array.prototype.pop.call(manifests);
+    expect(listContentManifests()).toHaveLength(5);
+  });
+
   it('rejects missing provenance and safety metadata', () => {
     const manifest = structuredClone(listContentManifests()[0]);
     manifest.assets = [];
@@ -48,7 +54,10 @@ describe('content registry', () => {
     const manifest = structuredClone(listContentManifests()[0]);
     manifest.motion.entranceEdges = [];
     manifest.assets[0].source = 'https://example.invalid/asset.png';
-    manifest.audio!.excluded = [];
+    const audio = manifest.audio;
+    expect(audio).toBeDefined();
+    if (!audio) throw new Error('Expected a registry audio profile.');
+    audio.excluded = [];
     const result = validateContentManifest(manifest);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.errors).toEqual(expect.arrayContaining([

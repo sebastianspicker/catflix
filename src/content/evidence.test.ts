@@ -2,8 +2,23 @@ import { describe, expect, it } from "vitest";
 import ledger from "../../docs/research/evidence-ledger.csv?raw";
 import { evidenceMethodNote, evidenceThemes } from "./evidence";
 
+function parseCsvRow(line: string): string[] {
+  const fields: string[] = [];
+  let field = "";
+  let quoted = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line.charAt(index);
+    if (character === '"' && quoted && line.charAt(index + 1) === '"') { field += character; index += 1; continue; }
+    if (character === '"') { quoted = !quoted; continue; }
+    if (character === ',' && !quoted) { fields.push(field); field = ""; continue; }
+    field += character;
+  }
+  fields.push(field);
+  return fields;
+}
+
 const ledgerRows = new Map(ledger.trim().split("\n").slice(1).map((line) => {
-  const fields = line.match(/(?:^|,)(?:"([^"]*(?:""[^"]*)*)"|([^,]*))/g)?.map((field) => field.replace(/^,/, "").replace(/^"|"$/g, "").replace(/""/g, '"')) ?? [];
+  const fields = parseCsvRow(line);
   return [fields[0], fields] as const;
 }));
 
