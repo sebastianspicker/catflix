@@ -50,7 +50,7 @@ export function createPhaserSimulationHost(options: PhaserSimulationHostOptions)
   // scene setting remains stable if the operating-system accessibility preference changes.
   const preferences = { sceneMotionMode: options.sceneMotionMode ?? "standard", playbackMode: options.playbackMode ?? "tablet-touch" };
   const simulation = createSceneSimulation(options.sceneId, options.variant, options.seed, preferences);
-  const sheet = poseSheets[options.sceneId];
+  const sheet = poseSheetFor(options.sceneId);
   const manifest = getContentManifest(options.sceneId);
   const backdrop = new Image();
   backdrop.src = publicUrl(manifest.visuals.backgroundPlateUrl);
@@ -108,16 +108,23 @@ export function createPhaserSimulationHost(options: PhaserSimulationHostOptions)
     if (options.sceneId === "red-string") this.load.image("catflix-rope", publicUrl("/assets/scenes/v2/red-string-tile.png"));
   }
   function create(this: Phaser.Scene): void {
-    activeScene = this;
-    background = this.add.image(0, 0, "catflix-background").setOrigin(0.5);
-    const poseTexture = this.textures.get("catflix-poses");
+    setupScene(this);
+  }
+  function setupScene(scene: Phaser.Scene): void {
+    activeScene = scene;
+    background = scene.add.image(0, 0, "catflix-background").setOrigin(0.5);
+    const poseTexture = scene.textures.get("catflix-poses");
     for (let poseFrame = 0; poseFrame < 8; poseFrame += 1) {
       const crop = poseCrop(options.sceneId, poseFrame);
       const frameName = poseTextureFrame(poseFrame);
       if (!poseTexture.has(frameName)) poseTexture.add(frameName, 0, crop.x, crop.y, crop.width, crop.height);
     }
-    foreground = this.add.graphics().setDepth(10);
-    if (preferences.playbackMode === "tablet-touch") this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => handleTouch(pointer.x / Math.max(this.scale.width, 1), pointer.y / Math.max(this.scale.height, 1)));
+    foreground = scene.add.graphics().setDepth(10);
+    if (preferences.playbackMode === "tablet-touch") {
+      scene.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+        handleTouch(pointer.x / Math.max(scene.scale.width, 1), pointer.y / Math.max(scene.scale.height, 1));
+      });
+    }
     renderPhaser(simulation.snapshot());
   }
   function update(_time: number, delta: number): void {
@@ -160,8 +167,8 @@ export function createPhaserSimulationHost(options: PhaserSimulationHostOptions)
     }
     for (const actor of orderedActors(state)) drawCanvasActor(context, actor, width, height);
     if (options.sceneId === "red-string") {
-      const actor = state.actors[0];
-      if (actor?.visible) drawCanvasRopePath(context, actor, width, height);
+      const actor = state.actors.at(0);
+      if (actor && actor.visible) drawCanvasRopePath(context, actor, width, height);
     }
     drawCanvasSignature(context, state, width, height);
     drawCanvasOccluder(context, width, height);
@@ -216,20 +223,21 @@ export function createPhaserSimulationHost(options: PhaserSimulationHostOptions)
     redStringRope.setVisible(actor.visible).setAlpha(actor.alpha).setDepth(actor.depth).setScale(1, Math.max(.16, width / 1_900));
   }
   function drawPhaserOccluder(width: number, height: number, state: SceneSnapshot): void {
-    if (!foreground) return;
-    foreground.clear().setDepth(10);
+    const graphics = foreground;
+    if (!graphics) return;
+    graphics.clear().setDepth(10);
     const signature = state.signatureEffect;
     if (signature) {
       const x = signature.x * width; const y = signature.y * height;
-      if (signature.kind === "reflected-ring") foreground.lineStyle(Math.max(2, width * .002), 0xe6d5a3, signature.alpha).strokeEllipse(x, y, width * .15, height * .07);
-      else if (signature.kind === "perch-lights") { foreground.fillStyle(0xf2c98f, signature.alpha); for (const offset of [-.08, 0, .08]) foreground.fillCircle(x + width * offset, y + height * .1, Math.max(2, width * .003)); }
-      else if (signature.kind === "folded-shadow") foreground.fillStyle(0x17141a, signature.alpha).fillTriangle(x - width * .08, y + height * .08, x + width * .07, y + height * .04, x + width * .02, y + height * .13);
-      else if (signature.kind === "fern-shadow") foreground.fillStyle(0x102016, signature.alpha).fillEllipse(x, y + height * .04, width * .2, height * .08);
+      if (signature.kind === "reflected-ring") graphics.lineStyle(Math.max(2, width * .002), 0xe6d5a3, signature.alpha).strokeEllipse(x, y, width * .15, height * .07);
+      else if (signature.kind === "perch-lights") { graphics.fillStyle(0xf2c98f, signature.alpha); for (const offset of [-.08, 0, .08]) graphics.fillCircle(x + width * offset, y + height * .1, Math.max(2, width * .003)); }
+      else if (signature.kind === "folded-shadow") graphics.fillStyle(0x17141a, signature.alpha).fillTriangle(x - width * .08, y + height * .08, x + width * .07, y + height * .04, x + width * .02, y + height * .13);
+      else if (signature.kind === "fern-shadow") graphics.fillStyle(0x102016, signature.alpha).fillEllipse(x, y + height * .04, width * .2, height * .08);
     }
-    drawOccluder(options.sceneId, (color, alpha) => foreground!.fillStyle(color, alpha), (x, y, w, h) => foreground!.fillRect(x, y, w, h), (x, y, rx, ry) => foreground!.fillEllipse(x, y, rx, ry), width, height);
+    drawOccluder(options.sceneId, (color, alpha) => { graphics.fillStyle(color, alpha); }, (x, y, w, h) => { graphics.fillRect(x, y, w, h); }, (x, y, rx, ry) => { graphics.fillEllipse(x, y, rx, ry); }, width, height);
   }
   function drawCanvasOccluder(context: CanvasRenderingContext2D, width: number, height: number): void {
-    drawOccluder(options.sceneId, (color, alpha) => { context.fillStyle = `#${color.toString(16).padStart(6, "0")}`; context.globalAlpha = alpha; }, (x, y, w, h) => context.fillRect(x, y, w, h), (x, y, rx, ry) => { context.beginPath(); context.ellipse(x, y, rx / 2, ry / 2, 0, 0, Math.PI * 2); context.fill(); }, width, height);
+    drawOccluder(options.sceneId, (color, alpha) => { context.fillStyle = `#${color.toString(16).padStart(6, "0")}`; context.globalAlpha = alpha; }, (x, y, w, h) => { context.fillRect(x, y, w, h); }, (x, y, rx, ry) => { context.beginPath(); context.ellipse(x, y, rx / 2, ry / 2, 0, 0, Math.PI * 2); context.fill(); }, width, height);
     context.globalAlpha = 1;
   }
   function drawCanvasRopePath(context: CanvasRenderingContext2D, actor: SceneActorSnapshot, width: number, height: number): void {
@@ -264,14 +272,14 @@ export function createPhaserSimulationHost(options: PhaserSimulationHostOptions)
   function destroy(): void { stop(); game?.destroy(true); game = undefined; activeScene = undefined; background = undefined; foreground = undefined; redStringRope = undefined; actorImages.clear(); canvas.remove(); canvas.removeEventListener("pointerdown", onPointerDown); document.removeEventListener("visibilitychange", onVisibilityChange); }
   function setSoundEnabled(enabled: boolean): void { soundEnabled = enabled; if (!enabled) silence(); }
   function setSceneMotionMode(mode: SceneMotionMode): void { preferences.sceneMotionMode = mode; }
-  function setReducedMotion(_enabled: boolean): void { /* OS UI preference does not alter authored choreography. */ }
+  function setReducedMotion(_enabled: boolean): void { void _enabled; /* OS UI preference does not alter authored choreography. */ }
   function dismissReminder(): void { reminderId = undefined; simulation.dismissReminder(); }
   return { start, pause, resume, stop, destroy, setSoundEnabled, setSceneMotionMode, setReducedMotion, dismissReminder, snapshot: () => simulation.snapshot() };
 }
 
 function poseCrop(sceneId: SceneId, poseFrame: number): { x: number; y: number; width: number; height: number } {
   const column = ((Math.floor(poseFrame) % 8) + 8) % 8 % 4; const row = Math.floor((((Math.floor(poseFrame) % 8) + 8) % 8) / 4);
-  const sheet = poseSheets[sceneId];
+  const sheet = poseSheetFor(sceneId);
   const width = Math.floor(sheet.width / 4); const height = Math.floor(sheet.height / 2);
   return { x: column * width, y: row === 0 ? 0 : sheet.height - height, width, height };
 }
@@ -281,6 +289,13 @@ function poseTextureFrame(poseFrame: number): string { return `pose-${((Math.flo
 function actorDisplayWidth(sceneId: SceneId): number { return getSceneDefinition(sceneId).displayWidth; }
 function spriteRotation(_sceneId: SceneId, actor: SceneActorSnapshot): number { return actor.angle; }
 function spriteUsesHorizontalFlip(sceneId: SceneId): boolean { return sceneId === "balcony-birds"; }
+function poseSheetFor(sceneId: SceneId): { path: string; width: number; height: number } {
+  if (sceneId === "balcony-birds") return poseSheets["balcony-birds"];
+  if (sceneId === "koi-pool") return poseSheets["koi-pool"];
+  if (sceneId === "paper-moth") return poseSheets["paper-moth"];
+  if (sceneId === "beetle-under-the-fern") return poseSheets["beetle-under-the-fern"];
+  return poseSheets["red-string"];
+}
 function poseAnchor(sceneId: SceneId, poseFrame: number): Point {
   const frame = ((Math.floor(poseFrame) % 8) + 8) % 8;
   const anchors: Record<Exclude<SceneId, "red-string">, readonly Point[]> = {
@@ -289,7 +304,15 @@ function poseAnchor(sceneId: SceneId, poseFrame: number): Point {
     "paper-moth": [{ x: .48, y: .49 }, { x: .49, y: .5 }, { x: .5, y: .51 }, { x: .5, y: .52 }, { x: .6, y: .51 }, { x: .59, y: .51 }, { x: .58, y: .51 }, { x: .48, y: .52 }],
     "beetle-under-the-fern": [{ x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }],
   };
-  return sceneId === "red-string" ? { x: .5, y: .5 } : anchors[sceneId][frame];
+  if (sceneId === "red-string") return { x: .5, y: .5 };
+  const anchorsForScene = sceneId === "balcony-birds"
+    ? anchors["balcony-birds"]
+    : sceneId === "koi-pool"
+      ? anchors["koi-pool"]
+      : sceneId === "paper-moth"
+        ? anchors["paper-moth"]
+        : anchors["beetle-under-the-fern"];
+  return anchorsForScene.at(frame) ?? anchorsForScene[0];
 }
 function orderedActors(state: SceneSnapshot): SceneActorSnapshot[] { return [...state.actors].sort((left, right) => left.depth - right.depth); }
 function coverRect(sourceWidth: number, sourceHeight: number, targetWidth: number, targetHeight: number): { x: number; y: number; width: number; height: number } { const scale = Math.max(targetWidth / Math.max(sourceWidth, 1), targetHeight / Math.max(sourceHeight, 1)); const width = sourceWidth * scale; const height = sourceHeight * scale; return { x: (targetWidth - width) / 2, y: (targetHeight - height) / 2, width, height }; }
@@ -307,5 +330,5 @@ function quadraticPoints(startX: number, startY: number, controlX: number, contr
     return { x: inverse * inverse * startX + 2 * inverse * t * controlX + t * t * endX, y: inverse * inverse * startY + 2 * inverse * t * controlY + t * t * endY };
   });
 }
-function scheduleFrame(callback: FrameRequestCallback): number { return typeof window.requestAnimationFrame === "function" ? window.requestAnimationFrame(callback) : window.setTimeout(() => callback(performance.now()), 16); }
+function scheduleFrame(callback: FrameRequestCallback): number { return typeof window.requestAnimationFrame === "function" ? window.requestAnimationFrame(callback) : window.setTimeout(() => { callback(performance.now()); }, 16); }
 function cancelFrame(frameId: number): void { if (typeof window.cancelAnimationFrame === "function") window.cancelAnimationFrame(frameId); else window.clearTimeout(frameId); }
