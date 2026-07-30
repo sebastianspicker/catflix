@@ -102,6 +102,17 @@ function matchesFilters(manifest: ContentManifest, theme: string, subject: strin
   return (theme === 'all' || meta.theme === theme) && (subject === 'all' || manifest.subjectClass === subject) && (motion === 'all' || meta.motion === motion);
 }
 
+function mergeQueueIds(savedIds: readonly SceneId[], currentIds: readonly SceneId[]): SceneId[] {
+  const merged: SceneId[] = [];
+  for (const id of [...savedIds, ...currentIds]) if (!merged.includes(id)) merged.push(id);
+  return merged;
+}
+
+function queueRecords(ids: readonly SceneId[]): QueueItem[] {
+  const addedAt = new Date().toISOString();
+  return ids.map((sceneId) => ({ id: `queue:${sceneId}`, sceneId, variant: defaultVariant, addedAt }));
+}
+
 function SceneImage({ id, alt }: { id: SceneId; alt: string }) {
   const base = publicUrl(artByScene[id]);
   return <picture><source srcSet={`${base}.avif`} type="image/avif" /><source srcSet={`${base}.webp`} type="image/webp" /><img src={`${base}.png`} alt={alt} decoding="async" loading="lazy" /></picture>;
@@ -111,7 +122,7 @@ function TargetMark({ className = '' }: { className?: string }) {
   return <span className={`target-mark ${className}`} aria-hidden="true"><i /><b /></span>;
 }
 
-export function App() {
+function useCatalogueApp() {
   const [theme, setTheme] = useState('all');
   const [subject, setSubject] = useState('all');
   const [motion, setMotion] = useState('all');
@@ -133,7 +144,12 @@ export function App() {
   useEffect(() => {
     void Promise.all(manifests.flatMap((manifest) => manifest.assets.map((asset) => store.saveProvenance(asset))));
     void Promise.all([store.getQueue(), Promise.all(manifests.map((item) => store.getProgress(item.id))), store.listNotes(), store.listObservations(), store.listComparisons(), store.getSettings()]).then(([savedQueue, savedProgress, notes, observations, comparisons, settings]) => {
-      setQueue(savedQueue.map((item) => item.sceneId));
+      const savedIds = savedQueue.map((item) => item.sceneId);
+      setQueue((current) => {
+        const merged = mergeQueueIds(savedIds, current);
+        if (merged.length !== savedIds.length) void store.setQueue(queueRecords(merged));
+        return merged;
+      });
       setProgress(Object.fromEntries(savedProgress.filter((item) => item !== undefined).map((item) => [item.sceneId, item.elapsedMs / item.durationMs])));
       setRecordCounts({ notes: notes.length + observations.length, comparisons: comparisons.length });
       setSceneMotionMode(settings.sceneMotionMode);
@@ -158,7 +174,7 @@ export function App() {
     setPending({ manifest, variant: resolvedVariant, comparison, seed });
   };
   const persistQueue = (next: SceneId[]) => {
-    void store.setQueue(next.map<QueueItem>((sceneId) => ({ id: `queue:${sceneId}`, sceneId, variant: defaultVariant, addedAt: new Date().toISOString() })));
+    void store.setQueue(queueRecords(next));
   };
   const addToQueue = (id: SceneId) => {
     setQueue((current) => { const next = current.includes(id) ? current : [...current, id]; persistQueue(next); return next; });
@@ -192,9 +208,44 @@ export function App() {
   const exportData = async () => { const data = await store.exportData(); const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })); const link = document.createElement('a'); link.href = url; link.download = `catflix-local-export-${new Date().toISOString().slice(0, 10)}.json`; link.click(); URL.revokeObjectURL(url); };
   const importData = async (file: File) => { await store.importData(JSON.parse(await file.text())); window.location.reload(); };
 
-  if (active) {
-    return <Suspense fallback={<div className="player-loading" role="status">Preparing the scene…</div>}><Player plan={active} onSceneMotionModeChange={changeSceneMotionMode} onExit={endSession} /></Suspense>;
-  }
+  return { active, addToQueue, changeSceneMotionMode, completed, curatorOpen, dataOpen, endSession, evidenceOpen, exportData, filtered, importData, motion, pending, prepare, progress, queue, queueDialogRef, queueOpen, queuedSeconds, recordCounts, refereeDialogRef, refereesOpen, removeFromQueue, resumable, saveNotes, sceneMotionMode, setActive, setCompleted, setCuratorOpen, setDataOpen, setEvidenceOpen, setMotion, setPending, setQueueOpen, setRefereesOpen, setSubject, setTheme, subject, theme };
+}
+
+type CatalogueApp = ReturnType<typeof useCatalogueApp>;
+
+function CatalogueGrid({ app }: { app: CatalogueApp }) {
+  const { addToQueue, filtered, motion, prepare, queue, setMotion, setSubject, setTheme, subject, theme } = app;
+  const resetFilters = () => { setTheme('all'); setSubject('all'); setMotion('all'); };
+  return <section className="catalogue-section" aria-label={`${filtered.length} scenes in today's prey list`}>
+    <div className="filter-deck" role="group" aria-label="Catalogue filters">
+      <fieldset><legend>Theme</legend>{[['all', 'All'], ['nature', 'Nature'], ['inside', 'Inside']].map(([value, label]) => <button type="button" key={value} aria-pressed={theme === value} onClick={() => { setTheme(value); }}>{label}</button>)}</fieldset>
+      <fieldset><legend>Animal / subject</legend>{[['all', 'All'], ['bird', 'Birds'], ['fish', 'Fish'], ['insect', 'Bugs'], ['object', 'Objects']].map(([value, label]) => <button type="button" key={value} aria-pressed={subject === value} onClick={() => { setSubject(value); }}>{label}</button>)}</fieldset>
+      <fieldset><legend>Rhythm</legend>{[['all', 'All'], ['flowing', 'Flowing'], ['intermittent', 'Intermittent'], ['grounded', 'Grounded']].map(([value, label]) => <button type="button" key={value} aria-pressed={motion === value} onClick={() => { setMotion(value); }}>{label}</button>)}</fieldset>
+    </div>
+    <p className="catalogue-count" aria-live="polite">{filtered.length} found / {filtered.length ? 'Pick a beautiful distraction' : 'Try another combination'}</p>
+    <div className="prey-grid">
+      {filtered.length ? filtered.map((manifest) => <article className="prey-card" key={manifest.id}>
+        <button className="prey-card-image" type="button" onClick={() => { prepare(manifest); }} aria-label={`Play ${catalogueMeta[manifest.id].title}`}><SceneImage id={manifest.id} alt="" /><span /></button>
+        <div className="prey-card-copy"><span className="referee-stamp">Revision note / {refereeLine[manifest.id]}</span><h3>{catalogueMeta[manifest.id].title}</h3><b>{durationLabel(manifest.finiteDurationMs)} FINITE</b><p><i />{catalogueMeta[manifest.id].note}</p></div>
+        <div className="prey-card-actions"><button type="button" onClick={() => { prepare(manifest); }}>Play</button><button type="button" aria-pressed={queue.includes(manifest.id)} onClick={() => { addToQueue(manifest.id); }}>{queue.includes(manifest.id) ? 'Queued' : '+ Queue'}</button></div>
+      </article>) : <div className="catalogue-empty" role="status"><span>No prey in this cut</span><p>These filters do not overlap. Reset them to see the full programme.</p><button type="button" onClick={resetFilters}>Reset filters</button></div>}
+    </div>
+  </section>;
+}
+
+function ResumeSection({ app }: { app: CatalogueApp }) {
+  const { prepare, progress, queue, queuedSeconds, resumable, setQueueOpen } = app;
+  return <section className="continue-section" aria-labelledby="continue-title">
+    <div className="continue-heading"><p>Earlier unfinished sessions<br />Resume only by owner choice</p><h2 id="continue-title">Return, or choose<br />another family.</h2></div>
+    <div className="continue-stack">
+      {resumable.length ? resumable.map((manifest) => <button type="button" key={manifest.id} onClick={() => { prepare(manifest); }}><span>Earlier unfinished encounter</span><strong>{catalogueMeta[manifest.id].title}</strong><i><b style={{ width: `${Math.round((progress[manifest.id] ?? 0) * 100)}%` }} /></i><small>{Math.round((progress[manifest.id] ?? 0) * 100)}% elapsed · consider another novelty family</small></button>) : <div className="nothing-progress"><span>Nothing unfinished</span><p>Completed or ended encounters never continue automatically.</p></div>}
+      <button className="continue-queue" type="button" onClick={() => { setQueueOpen(true); }}><span>Today’s queue</span><strong>{queue.length} encounters · {Math.round(queuedSeconds)} sec</strong><small>Nothing starts automatically.</small></button>
+    </div>
+  </section>;
+}
+
+function Catalogue({ app }: { app: CatalogueApp }) {
+  const { queue, setEvidenceOpen, setQueueOpen } = app;
 
   return (
     <div className="catalogue-app">
@@ -215,47 +266,56 @@ export function App() {
           <h2 id="prey-title">Today’s<br />encounters</h2>
         </section>
 
-        <section className="catalogue-section" aria-label={`${filtered.length} scenes in today's prey list`}>
-          <div className="filter-deck" role="group" aria-label="Catalogue filters">
-            <fieldset><legend>Theme</legend>{[['all', 'All'], ['nature', 'Nature'], ['inside', 'Inside']].map(([value, label]) => <button type="button" key={value} aria-pressed={theme === value} onClick={() => { setTheme(value); }}>{label}</button>)}</fieldset>
-            <fieldset><legend>Animal / subject</legend>{[['all', 'All'], ['bird', 'Birds'], ['fish', 'Fish'], ['insect', 'Bugs'], ['object', 'Objects']].map(([value, label]) => <button type="button" key={value} aria-pressed={subject === value} onClick={() => { setSubject(value); }}>{label}</button>)}</fieldset>
-            <fieldset><legend>Rhythm</legend>{[['all', 'All'], ['flowing', 'Flowing'], ['intermittent', 'Intermittent'], ['grounded', 'Grounded']].map(([value, label]) => <button type="button" key={value} aria-pressed={motion === value} onClick={() => { setMotion(value); }}>{label}</button>)}</fieldset>
-          </div>
-          <p className="catalogue-count" aria-live="polite">{filtered.length} found / {filtered.length ? 'Pick a beautiful distraction' : 'Try another combination'}</p>
-          <div className="prey-grid">
-            {filtered.length ? filtered.map((manifest) => <article className="prey-card" key={manifest.id}>
-              <button className="prey-card-image" type="button" onClick={() => { prepare(manifest); }} aria-label={`Play ${catalogueMeta[manifest.id].title}`}><SceneImage id={manifest.id} alt="" /><span /></button>
-              <div className="prey-card-copy"><span className="referee-stamp">Revision note / {refereeLine[manifest.id]}</span><h3>{catalogueMeta[manifest.id].title}</h3><b>{durationLabel(manifest.finiteDurationMs)} FINITE</b><p><i />{catalogueMeta[manifest.id].note}</p></div>
-              <div className="prey-card-actions"><button type="button" onClick={() => { prepare(manifest); }}>Play</button><button type="button" aria-pressed={queue.includes(manifest.id)} onClick={() => { addToQueue(manifest.id); }}>{queue.includes(manifest.id) ? 'Queued' : '+ Queue'}</button></div>
-            </article>) : <div className="catalogue-empty" role="status"><span>No prey in this cut</span><p>These filters do not overlap. Reset them to see the full programme.</p><button type="button" onClick={() => { setTheme('all'); setSubject('all'); setMotion('all'); }}>Reset filters</button></div>}
-          </div>
-        </section>
+        <CatalogueGrid app={app} />
 
         <EvidenceSection onOpen={setEvidenceOpen} />
 
-        <section className="continue-section" aria-labelledby="continue-title">
-          <div className="continue-heading"><p>Earlier unfinished sessions<br />Resume only by owner choice</p><h2 id="continue-title">Return, or choose<br />another family.</h2></div>
-          <div className="continue-stack">
-            {resumable.length ? resumable.map((manifest) => <button type="button" key={manifest.id} onClick={() => { prepare(manifest); }}><span>Earlier unfinished encounter</span><strong>{catalogueMeta[manifest.id].title}</strong><i><b style={{ width: `${Math.round((progress[manifest.id] ?? 0) * 100)}%` }} /></i><small>{Math.round((progress[manifest.id] ?? 0) * 100)}% elapsed · consider another novelty family</small></button>) : <div className="nothing-progress"><span>Nothing unfinished</span><p>Completed or ended encounters never continue automatically.</p></div>}
-            <button className="continue-queue" type="button" onClick={() => { setQueueOpen(true); }}><span>Today’s queue</span><strong>{queue.length} encounters · {Math.round(queuedSeconds)} sec</strong><small>Nothing starts automatically.</small></button>
-          </div>
-        </section>
+        <ResumeSection app={app} />
       </main>
 
       <nav className="catalogue-nav" aria-label="Catflix sections">
-        <button className="active" type="button" onClick={() => { setQueueOpen(true); }}><Icon name="play" />Watchlist</button>
-        <button type="button" onClick={() => { setRefereesOpen(true); }}><span className="cat-icon">●</span>Referees</button>
-        <button type="button" onClick={() => { setCuratorOpen(true); }}><span className="copy-icon" />Curator</button>
-        <button type="button" onClick={() => { setDataOpen(true); }}><span className="gear-icon">✦</span>Settings</button>
+        <Navigation app={app} />
       </nav>
 
-      {pending ? <SafetyGate sceneTitle={catalogueMeta[pending.manifest.id].title} onCancel={() => { setPending(null); }} onContinue={(playbackMode, setup) => { setActive({ manifest: pending.manifest, variants: pending.variant, seed: pending.seed, playbackMode, sceneMotionMode, setup, ...(pending.comparison ? { comparison: pending.comparison } : {}) }); setPending(null); }} /> : null}
-      {completed ? <RefereeNotes sceneTitle={catalogueMeta[completed.plan.manifest.id].title} observedCat={completed.plan.setup.observedCat} touchTimestamps={completed.touches} completed={completed.complete} onClose={() => { setCompleted(null); }} onSave={saveNotes} /> : null}
-      {curatorOpen ? <CuratorPanel manifests={manifests} onClose={() => { setCuratorOpen(false); }} onStart={(id, variant, comparison) => { setCuratorOpen(false); const manifest = manifests.find((item) => item.id === id); if (manifest) prepare(manifest, variant, comparison); }} /> : null}
-      {dataOpen ? <DataPanel onClose={() => { setDataOpen(false); }} onExport={exportData} onImport={importData} countSummary={`${recordCounts.notes} local observation records and ${recordCounts.comparisons} comparison runs are stored.`} /> : null}
-      {evidenceOpen ? <Suspense fallback={<div className="panel-loading" role="status">Opening the evidence…</div>}><EvidencePanel key={evidenceOpen} initialTheme={evidenceOpen} onClose={() => { setEvidenceOpen(null); }} /></Suspense> : null}
-      {refereesOpen ? <div className="modal-backdrop"><section ref={refereeDialogRef} className="referee-intro" role="dialog" aria-modal="true" aria-labelledby="referee-title" tabIndex={-1}><button className="dialog-close" type="button" aria-label="Close referees" onClick={() => { setRefereesOpen(false); }}>×</button><p>Curated for three very serious viewers</p><h2 id="referee-title">The referees</h2><div><strong>ARRI</strong><strong>OZZY</strong><strong>MIKA</strong></div><span>Separate raw observations. No profiles, rankings, or automatic preference scores.</span></section></div> : null}
-      {queueOpen ? <aside ref={queueDialogRef} className="queue-drawer" role="dialog" aria-modal="true" aria-label="Queued scenes" tabIndex={-1}><header><TargetMark /><span>Saved encounters</span><button type="button" aria-label="Close queue" onClick={() => { setQueueOpen(false); }}>×</button></header><h2>Today’s encounter list</h2>{queue.length ? <ol>{queue.map((id) => { const item = manifests.find((manifest) => manifest.id === id); if (!item) return null; return <li key={id}><button type="button" onClick={() => { setQueueOpen(false); prepare(item); }}>{catalogueMeta[item.id].title}</button><button type="button" onClick={() => { removeFromQueue(id); }}>Remove</button></li>; })}</ol> : <p>Your queue is clear. Nothing starts automatically.</p>}</aside> : null}
+      <Overlays app={app} />
     </div>
   );
+}
+
+function Navigation({ app }: { app: CatalogueApp }) {
+  const { setCuratorOpen, setDataOpen, setQueueOpen, setRefereesOpen } = app;
+  return <><button className="active" type="button" onClick={() => { setQueueOpen(true); }}><Icon name="play" />Watchlist</button><button type="button" onClick={() => { setRefereesOpen(true); }}><span className="cat-icon">●</span>Referees</button><button type="button" onClick={() => { setCuratorOpen(true); }}><span className="copy-icon" />Curator</button><button type="button" onClick={() => { setDataOpen(true); }}><span className="gear-icon">✦</span>Settings</button></>;
+}
+
+function Overlays({ app }: { app: CatalogueApp }) {
+  return <><SessionOverlays app={app} /><PanelOverlays app={app} /><QueueDrawer app={app} /></>;
+}
+
+function SessionOverlays({ app }: { app: CatalogueApp }) {
+  const pending = app.pending;
+  return <>
+    {pending ? <SafetyGate sceneTitle={catalogueMeta[pending.manifest.id].title} onCancel={() => { app.setPending(null); }} onContinue={(playbackMode, setup) => { app.setActive({ manifest: pending.manifest, variants: pending.variant, seed: pending.seed, playbackMode, sceneMotionMode: app.sceneMotionMode, setup, ...(pending.comparison ? { comparison: pending.comparison } : {}) }); app.setPending(null); }} /> : null}
+    {app.completed ? <RefereeNotes sceneTitle={catalogueMeta[app.completed.plan.manifest.id].title} observedCat={app.completed.plan.setup.observedCat} touchTimestamps={app.completed.touches} completed={app.completed.complete} onClose={() => { app.setCompleted(null); }} onSave={app.saveNotes} /> : null}
+  </>;
+}
+
+function PanelOverlays({ app }: { app: CatalogueApp }) {
+  const startCuratedScene = (id: SceneId, variant: VariantSelection, comparison?: PendingSession['comparison']) => { app.setCuratorOpen(false); const manifest = manifests.find((item) => item.id === id); if (manifest) app.prepare(manifest, variant, comparison); };
+  return <>
+    {app.curatorOpen ? <CuratorPanel manifests={manifests} onClose={() => { app.setCuratorOpen(false); }} onStart={startCuratedScene} /> : null}
+    {app.dataOpen ? <DataPanel onClose={() => { app.setDataOpen(false); }} onExport={app.exportData} onImport={app.importData} countSummary={`${app.recordCounts.notes} local observation records and ${app.recordCounts.comparisons} comparison runs are stored.`} /> : null}
+    {app.evidenceOpen ? <Suspense fallback={<div className="panel-loading" role="status">Opening the evidence…</div>}><EvidencePanel key={app.evidenceOpen} initialTheme={app.evidenceOpen} onClose={() => { app.setEvidenceOpen(null); }} /></Suspense> : null}
+    {app.refereesOpen ? <div className="modal-backdrop"><section ref={app.refereeDialogRef} className="referee-intro" role="dialog" aria-modal="true" aria-labelledby="referee-title" tabIndex={-1}><button className="dialog-close" type="button" aria-label="Close referees" onClick={() => { app.setRefereesOpen(false); }}>×</button><p>Curated for three very serious viewers</p><h2 id="referee-title">The referees</h2><div><strong>ARRI</strong><strong>OZZY</strong><strong>MIKA</strong></div><span>Separate raw observations. No profiles, rankings, or automatic preference scores.</span></section></div> : null}
+  </>;
+}
+
+function QueueDrawer({ app }: { app: CatalogueApp }) {
+  if (!app.queueOpen) return null;
+  return <aside ref={app.queueDialogRef} className="queue-drawer" role="dialog" aria-modal="true" aria-label="Queued scenes" tabIndex={-1}><header><TargetMark /><span>Saved encounters</span><button type="button" aria-label="Close queue" onClick={() => { app.setQueueOpen(false); }}>×</button></header><h2>Today’s encounter list</h2>{app.queue.length ? <ol>{app.queue.map((id) => { const item = manifests.find((manifest) => manifest.id === id); if (!item) return null; return <li key={id}><button type="button" onClick={() => { app.setQueueOpen(false); app.prepare(item); }}>{catalogueMeta[item.id].title}</button><button type="button" onClick={() => { app.removeFromQueue(id); }}>Remove</button></li>; })}</ol> : <p>Your queue is clear. Nothing starts automatically.</p>}</aside>;
+}
+
+export function App() {
+  const app = useCatalogueApp();
+  if (app.active) return <Suspense fallback={<div className="player-loading" role="status">Preparing the scene…</div>}><Player plan={app.active} onSceneMotionModeChange={app.changeSceneMotionMode} onExit={app.endSession} /></Suspense>;
+  return <Catalogue app={app} />;
 }
