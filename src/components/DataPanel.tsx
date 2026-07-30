@@ -4,7 +4,7 @@ import { useModalDialog } from './useModalDialog';
 interface DataPanelProps {
   onClose: () => void;
   onExport: () => Promise<void>;
-  onImport: (file: File) => Promise<void>;
+  onImport: (_file: File) => Promise<void>;
   countSummary: string;
 }
 
@@ -23,8 +23,8 @@ export function DataPanel({ onClose, onExport, onImport, countSummary }: DataPan
         <button className="icon-button dialog-close" type="button" aria-label="Close local data" onClick={onClose}>×</button>
         <p className="section-index">On this device</p><h2 id="data-title">Your local record</h2>
         <p className="plain-language">Catflix has no account, server, analytics, or cloud sync. {countSummary}</p>
-        <div className="data-actions"><button type="button" onClick={onExport}><strong>Export JSON</strong><span>Download a lossless, versioned copy.</span></button><button type="button" onClick={() => inputRef.current?.click()}><strong>Import JSON</strong><span>Validate and restore a Catflix export.</span></button></div>
-        <input ref={inputRef} className="visually-hidden" type="file" accept="application/json,.json" onChange={(event) => void importFile(event.target.files?.[0])} />
+        <div className="data-actions"><button type="button" onClick={() => { void onExport(); }}><strong>Export JSON</strong><span>Download a lossless, versioned copy.</span></button><button type="button" onClick={() => { inputRef.current?.click(); }}><strong>Import JSON</strong><span>Validate and restore a Catflix export.</span></button></div>
+        <input ref={inputRef} className="visually-hidden" type="file" accept="application/json,.json" onChange={(event) => { void importFile(event.target.files?.[0]); }} />
         {status ? <p className="import-status" role="status">{status}</p> : null}
       </section>
     </div>

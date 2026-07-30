@@ -21,7 +21,7 @@ const headingSlug = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, 
 const headingPattern = /^(#{1,3})\s+(.+)$/;
 const unorderedPattern = /^[-*]\s+(.+)$/;
 const orderedPattern = /^\d+\.\s+(.+)$/;
-const linkPattern = /\[([^\]]+)\]\(([^\s)]+)(?:\s+"[^"]*")?\)/g;
+const linkPattern = /\[([^\]]{1,200})\]\(([^\s)]{1,2048})(?:\s+"[^"]{0,200}")?\)/g;
 const inlinePattern = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g;
 
 function tableCells(line: string) {
@@ -29,7 +29,18 @@ function tableCells(line: string) {
 }
 
 function isTableSeparator(line: string) {
-  return /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/.test(line);
+  const cells = tableCells(line);
+  return cells.length > 1 && cells.every((cell) => /^:?-{3,}:?$/.test(cell));
+}
+
+function safeHref(href: string) {
+  if (href.startsWith('/') || href.startsWith('./') || href.startsWith('../') || href.startsWith('#')) return href;
+  try {
+    const url = new URL(href);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? href : '#';
+  } catch {
+    return '#';
+  }
 }
 
 function parseBlocks(source: string): Block[] {
@@ -65,7 +76,7 @@ function parseBlocks(source: string): Block[] {
     }
     const unordered = line.match(unorderedPattern);
     const ordered = line.match(orderedPattern);
-    if (unordered || ordered) {
+    if (unordered ?? ordered) {
       const isOrdered = Boolean(ordered);
       const items: string[] = [];
       while (index < lines.length) {
@@ -90,9 +101,9 @@ function inline(text: string): ReactNode[] {
   const nodes: ReactNode[] = [];
   let cursor = 0;
   for (const match of text.matchAll(linkPattern)) {
-    const start = match.index ?? 0;
+    const start = match.index;
     if (start > cursor) nodes.push(...inlineFormatting(text.slice(cursor, start), `text-${cursor}`));
-    const href = match[2];
+    const href = safeHref(match[2]);
     const external = /^https?:\/\//i.test(href);
     nodes.push(<a key={`link-${start}`} href={href} {...(external ? { target: "_blank", rel: "noreferrer" } : {})}>{inlineFormatting(match[1], `link-text-${start}`)}</a>);
     cursor = start + match[0].length;

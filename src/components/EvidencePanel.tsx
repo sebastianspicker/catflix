@@ -32,7 +32,7 @@ export function EvidencePanel({ initialTheme, onClose }: EvidencePanelProps) {
 
         <div className="evidence-topics">
           {evidenceThemes.map((theme) => (
-            <details key={theme.id} open={expanded.has(theme.id)} onToggle={(event) => setThemeOpen(theme.id, event.currentTarget.open)}>
+            <details key={theme.id} open={expanded.has(theme.id)} onToggle={(event) => { setThemeOpen(theme.id, event.currentTarget.open); }}>
               <summary>
                 <span>{theme.title}</span>
                 <strong>{theme.tldr}</strong>
