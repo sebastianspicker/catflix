@@ -187,31 +187,31 @@ const isVariantSelection = (value: unknown): boolean => {
     && isOneOf(variant.sound, ["off", "on"] as const)
     && isOneOf(variant.novelty, ["familiar", "alternate"] as const));
 };
-function isQueueItem(value: unknown): value is QueueItem {
+const isQueueItem = (value: unknown): value is QueueItem => {
   const item = value as PartialQueueItem | null;
   return Boolean(item
     && typeof item.id === "string"
     && isSceneId(item.sceneId)
     && isVariantSelection(item.variant)
     && typeof item.addedAt === "string");
-}
-function isProgressRecord(value: unknown): value is ProgressRecord {
+};
+const isProgressRecord = (value: unknown): value is ProgressRecord => {
   const item = value as PartialProgress | null;
   return Boolean(item
     && isSceneId(item.sceneId)
     && typeof item.revision === "string"
     && hasValidProgressDuration(item.elapsedMs, item.durationMs)
     && typeof item.updatedAt === "string");
-}
+};
 
-function hasValidProgressDuration(elapsedMs: unknown, durationMs: unknown): boolean {
+const hasValidProgressDuration = (elapsedMs: unknown, durationMs: unknown): boolean => {
   return typeof elapsedMs === "number"
     && typeof durationMs === "number"
     && elapsedMs >= 0
     && durationMs > 0
     && elapsedMs <= durationMs;
-}
-function isRefereeNote(value: unknown): value is RefereeNote {
+};
+const isRefereeNote = (value: unknown): value is RefereeNote => {
   const item = value as PartialNote | null;
   return Boolean(item
     && typeof item.id === "string"
@@ -219,84 +219,84 @@ function isRefereeNote(value: unknown): value is RefereeNote {
     && isSceneId(item.sceneId)
     && typeof item.rawNote === "string"
     && Array.isArray(item.vocabulary));
-}
-function isSessionObservation(value: unknown): value is SessionObservation {
+};
+const isSessionObservation = (value: unknown): value is SessionObservation => {
   const item = value as PartialObservation | null;
   return Boolean(item && hasObservationIdentity(item) && hasObservationContext(item) && hasObservationOutcome(item));
-}
+};
 
-function hasObservationIdentity(item: PartialObservation): boolean {
+const hasObservationIdentity = (item: PartialObservation): boolean => {
   return item.schemaVersion === 2
     && typeof item.id === "string"
     && isSceneId(item.sceneId)
     && typeof item.contentRevision === "string"
     && isVariantSelection(item.variant);
-}
+};
 
-function hasObservationContext(item: PartialObservation): boolean {
+const hasObservationContext = (item: PartialObservation): boolean => {
   return isOneOf(item.playbackMode, ["tablet-touch", "tv-passive"] as const)
     && isOneOf(item.viewingDistanceBand, ["near-screen", "room-display"] as const)
     && isOneOf(item.roomLightBand, ["dim", "moderate", "bright"] as const)
     && typeof item.soundEnabled === "boolean"
     && (item.observedCat === undefined || isOneOf(item.observedCat, ["Arri", "Ozzy", "Mika"] as const));
-}
+};
 
-function hasObservationOutcome(item: PartialObservation): boolean {
+const hasObservationOutcome = (item: PartialObservation): boolean => {
   return hasObservationTiming(item)
     && hasObservationInteraction(item)
     && hasObservationRecord(item);
-}
-function hasObservationTiming(item: PartialObservation): boolean {
+};
+const hasObservationTiming = (item: PartialObservation): boolean => {
   return typeof item.elapsedMs === "number"
     && item.elapsedMs >= 0
     && isOneOf(item.endReason, ["completed", "owner-ended", "cat-left", "safety-stop"] as const);
-}
-function hasObservationInteraction(item: PartialObservation): boolean {
+};
+const hasObservationInteraction = (item: PartialObservation): boolean => {
   return Array.isArray(item.acceptedContactTimestamps)
     && item.acceptedContactTimestamps.every((timestamp) => typeof timestamp === "number")
     && isOneOf(item.physicalPlayHandoff, ["not-recorded", "offered", "ignored", "voluntarily-joined"] as const);
-}
-function hasObservationRecord(item: PartialObservation): boolean {
+};
+const hasObservationRecord = (item: PartialObservation): boolean => {
   return Array.isArray(item.vocabulary)
     && typeof item.rawNote === "string"
     && typeof item.confirmedAt === "string";
-}
-function isComparisonRecord(value: unknown): value is ComparisonRecord {
+};
+const isComparisonRecord = (value: unknown): value is ComparisonRecord => {
   try {
     createMatchedComparison(value as ComparisonRecord);
     return true;
   } catch {
     return false;
   }
-}
-function isAssetProvenance(value: unknown): value is AssetProvenance {
+};
+const isAssetProvenance = (value: unknown): value is AssetProvenance => {
   const asset = value as PartialAsset | null;
   return Boolean(asset && hasAssetIdentity(asset) && hasAssetDerivativeHistory(asset.derivativeHistory) && hasValidChecksum(asset.checksum) && isOneOf(asset.masteringFormat, ["webp", "avif", "png", "opus", "mp3", "wav"] as const) && hasNonEmptyText(asset.contentRevision));
-}
-function isOneOf<T extends readonly string[]>(value: unknown, values: T): value is T[number] {
+};
+const isOneOf = <T extends readonly string[]>(value: unknown, values: T): value is T[number] => {
   return typeof value === "string" && values.includes(value as T[number]);
-}
-function hasNonEmptyText(value: unknown): value is string {
+};
+const hasNonEmptyText = (value: unknown): value is string => {
   return typeof value === "string" && value.trim() !== "";
-}
-function hasAssetIdentity(asset: PartialAsset): boolean {
+};
+const hasAssetIdentity = (asset: PartialAsset): boolean => {
   return hasNonEmptyText(asset.assetId)
     && hasNonEmptyText(asset.creator)
     && hasNonEmptyText(asset.source)
     && asset.source.startsWith("/assets/")
     && hasNonEmptyText(asset.license);
-}
-function hasAssetDerivativeHistory(value: unknown): boolean {
+};
+const hasAssetDerivativeHistory = (value: unknown): boolean => {
   return Array.isArray(value) && value.length > 0 && value.every(hasNonEmptyText);
-}
-function hasValidChecksum(value: unknown): boolean {
+};
+const hasValidChecksum = (value: unknown): boolean => {
   return typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
-}
-function isStoredProvenance(value: unknown): value is StoredProvenance {
+};
+const isStoredProvenance = (value: unknown): value is StoredProvenance => {
   const record = value as PartialStoredProvenance | null;
   const savedAt = record?.savedAt;
   return Boolean(isAssetProvenance(record) && typeof savedAt === "string" && savedAt !== "");
-}
+};
 function requestValue<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
     request.onsuccess = () => { resolve(request.result); };
