@@ -1,7 +1,43 @@
 import { describe, expect, it } from 'vitest';
 import { sceneIds, type SceneId } from '../content/types';
 import type { SceneActorSnapshot } from './types';
-import { createSceneSimulation, defaultVariantSelection, getSceneDefinition, sceneScores } from './definitions';
+import { createSceneSimulation, defaultVariantSelection, getSceneDefinition, getSceneScore } from './definitions';
+
+const countPerchedFrames = (): number => {
+  const birds = createSceneSimulation('balcony-birds', defaultVariantSelection, 7319);
+  let perched = 0;
+  for (let index = 0; index < 1_800; index += 1) {
+    const birdActor = birds.advance(50).actors[0];
+    if (birdActor.animationState === 'perching' && birdActor.state === 'paused') {
+      perched += 1;
+      expect(birdActor.y).toBeGreaterThan(.68);
+    }
+  }
+  return perched;
+};
+
+const countEdgeLandings = (): number => {
+  const moth = createSceneSimulation('paper-moth', defaultVariantSelection, 7319);
+  let landedAtEdge = 0;
+  for (let index = 0; index < 1_800; index += 1) {
+    const actor = moth.advance(50).actors[0];
+    if (actor.animationState === 'landed' && (actor.x < .16 || actor.x > .84)) landedAtEdge += 1;
+  }
+  return landedAtEdge;
+};
+
+const countShelteredFrames = (): number => {
+  const beetle = createSceneSimulation('beetle-under-the-fern', defaultVariantSelection, 7319);
+  let shelteredNearFern = 0;
+  const zones = getSceneScore('beetle-under-the-fern').occlusionZones;
+  for (let index = 0; index < 1_800; index += 1) {
+    const beetleActor = beetle.advance(50).actors[0];
+    if (beetleActor.animationState !== 'sheltering') continue;
+    const nearFern = zones.some((zone) => beetleActor.x >= zone.minX - .1 && beetleActor.x <= zone.maxX + .1 && beetleActor.y >= zone.minY - .1 && beetleActor.y <= zone.maxY + .1);
+    if (nearFern) shelteredNearFern += 1;
+  }
+  return shelteredNearFern;
+};
 
 describe('deterministic finite simulations', () => {
   for (const sceneId of sceneIds) {
@@ -124,21 +160,21 @@ describe('deterministic finite simulations', () => {
   });
 
   it('keeps species pose cadences distinct and prevents fish-frame chatter', () => {
-    const transitions = {} as Record<SceneId, number>;
+    const transitions = new Map<SceneId, number>();
     for (const sceneId of sceneIds) {
       const simulation = createSceneSimulation(sceneId, defaultVariantSelection, 7319);
       let previousFrame = simulation.snapshot().actors[0].poseFrame;
-      transitions[sceneId] = 0;
+      transitions.set(sceneId, 0);
       for (let index = 0; index < 400; index += 1) {
         const frame = simulation.advance(50).actors[0].poseFrame;
-        if (frame !== previousFrame) transitions[sceneId] += 1;
+        if (frame !== previousFrame) transitions.set(sceneId, (transitions.get(sceneId) ?? 0) + 1);
         previousFrame = frame;
       }
     }
-    expect(transitions['koi-pool']).toBeLessThan(35);
-    expect(transitions['paper-moth']).toBeGreaterThan(transitions['koi-pool']);
-    expect(transitions['paper-moth']).toBeLessThan(150);
-    expect(transitions['beetle-under-the-fern']).toBeLessThan(100);
+    expect(transitions.get('koi-pool')).toBeLessThan(35);
+    expect(transitions.get('paper-moth')).toBeGreaterThan(transitions.get('koi-pool') ?? 0);
+    expect(transitions.get('paper-moth')).toBeLessThan(150);
+    expect(transitions.get('beetle-under-the-fern')).toBeLessThan(100);
   });
 
   it('uses projection-consistent pose families instead of unrelated novelty-frame offsets', () => {
@@ -159,36 +195,17 @@ describe('deterministic finite simulations', () => {
   });
 
   it('declares responsive subject sizing in the same scene score used by both renderers', () => {
-    expect(sceneScores['balcony-birds'].displayWidth).toBeGreaterThanOrEqual(.16);
-    expect(sceneScores['koi-pool'].displayWidth).toBeGreaterThanOrEqual(.18);
-    expect(sceneScores['paper-moth'].displayWidth).toBeGreaterThanOrEqual(.14);
-    expect(sceneScores['beetle-under-the-fern'].displayWidth).toBeGreaterThanOrEqual(.12);
-    for (const sceneId of sceneIds) expect(sceneScores[sceneId].displayWidth).toBeLessThanOrEqual(.22);
+    expect(getSceneDefinition('balcony-birds').displayWidth).toBeGreaterThanOrEqual(.16);
+    expect(getSceneDefinition('koi-pool').displayWidth).toBeGreaterThanOrEqual(.18);
+    expect(getSceneDefinition('paper-moth').displayWidth).toBeGreaterThanOrEqual(.14);
+    expect(getSceneDefinition('beetle-under-the-fern').displayWidth).toBeGreaterThanOrEqual(.12);
+    for (const sceneId of sceneIds) expect(getSceneDefinition(sceneId).displayWidth).toBeLessThanOrEqual(.22);
   });
 
   it('connects rest states to visible surfaces and cover', () => {
-    const birds = createSceneSimulation('balcony-birds', defaultVariantSelection, 7319);
-    const moth = createSceneSimulation('paper-moth', defaultVariantSelection, 7319);
-    const beetle = createSceneSimulation('beetle-under-the-fern', defaultVariantSelection, 7319);
-    let perched = 0;
-    let landedAtEdge = 0;
-    let shelteredNearFern = 0;
-    for (let index = 0; index < 1_800; index += 1) {
-      const birdActor = birds.advance(50).actors[0];
-      if (birdActor.animationState === 'perching' && birdActor.state === 'paused') {
-        perched += 1;
-        expect(birdActor.y).toBeGreaterThan(.68);
-      }
-      const mothActor = moth.advance(50).actors[0];
-      if (mothActor.animationState === 'landed') {
-        if (mothActor.x < .16 || mothActor.x > .84) landedAtEdge += 1;
-      }
-      const beetleActor = beetle.advance(50).actors[0];
-      if (beetleActor.animationState === 'sheltering') {
-        const nearFern = sceneScores['beetle-under-the-fern'].occlusionZones.some((zone) => beetleActor.x >= zone.minX - .1 && beetleActor.x <= zone.maxX + .1 && beetleActor.y >= zone.minY - .1 && beetleActor.y <= zone.maxY + .1);
-        if (nearFern) shelteredNearFern += 1;
-      }
-    }
+    const perched = countPerchedFrames();
+    const landedAtEdge = countEdgeLandings();
+    const shelteredNearFern = countShelteredFrames();
     expect(perched).toBeGreaterThan(20);
     expect(landedAtEdge).toBeGreaterThan(20);
     expect(shelteredNearFern).toBeGreaterThan(20);
@@ -204,9 +221,9 @@ describe('deterministic finite simulations', () => {
         const velocity = { x: (actor.x - previous.x) / .05, y: (actor.y - previous.y) / .05 };
         const speed = Math.hypot(velocity.x, velocity.y);
         const acceleration = Math.hypot(velocity.x - previousVelocity.x, velocity.y - previousVelocity.y) / .05;
-        expect(speed, `${sceneId} speed`).toBeLessThanOrEqual(sceneScores[sceneId].maxSpeed + .015);
+        expect(speed, `${sceneId} speed`).toBeLessThanOrEqual(getSceneDefinition(sceneId).maxSpeed + .015);
         // Position samples include steering as well as propulsive acceleration.
-        expect(acceleration, `${sceneId} acceleration at sample ${index}, ${actor.animationState}, ${actor.x}, ${actor.y}`).toBeLessThanOrEqual(sceneScores[sceneId].maxAcceleration * 1.35 + .08);
+        expect(acceleration, `${sceneId} acceleration at sample ${index}, ${actor.animationState}, ${actor.x}, ${actor.y}`).toBeLessThanOrEqual(getSceneDefinition(sceneId).maxAcceleration * 1.35 + .08);
         previous = actor;
         previousVelocity = velocity;
       }
@@ -220,7 +237,7 @@ describe('deterministic finite simulations', () => {
         for (const actor of simulation.advance(50).actors) {
           // Koi depth shading may reach .82 without cover; values below .8 are occlusion-specific.
           if (actor.alpha >= .8) continue;
-          const nearZone = sceneScores[sceneId].occlusionZones.some((zone) => actor.x >= zone.minX - .08 && actor.x <= zone.maxX + .08 && actor.y >= zone.minY - .08 && actor.y <= zone.maxY + .08);
+          const nearZone = getSceneScore(sceneId).occlusionZones.some((zone) => actor.x >= zone.minX - .08 && actor.x <= zone.maxX + .08 && actor.y >= zone.minY - .08 && actor.y <= zone.maxY + .08);
           expect(nearZone, `${sceneId} occlusion at ${actor.x}, ${actor.y}`).toBe(true);
         }
       }
