@@ -26,12 +26,21 @@ test('keeps the finite simulation responsive under four-times CPU throttling', a
 
   const stage = page.locator('.simulation-stage');
   await expect(stage).toHaveAttribute('data-actor-x', /\d/);
-  const actor = await stage.evaluate((element) => ({ x: Number((element as HTMLElement).dataset.actorX), y: Number((element as HTMLElement).dataset.actorY) }));
+  const actor = await stage.evaluate((element) => {
+    const { actorX, actorY } = (element as HTMLElement).dataset;
+    return { x: Number.parseFloat(actorX ?? 'NaN'), y: Number.parseFloat(actorY ?? 'NaN') };
+  });
+  expect(Number.isFinite(actor.x)).toBe(true);
+  expect(Number.isFinite(actor.y)).toBe(true);
   const canvas = stage.locator('canvas').first();
-  const bounds = (await canvas.boundingBox())!;
+  const bounds = await canvas.boundingBox();
+  if (!bounds) throw new Error('Simulation canvas has no visible bounds.');
   const startedAt = await page.evaluate(() => performance.now());
   await canvas.click({ position: { x: actor.x * bounds.width, y: actor.y * bounds.height } });
   await expect(stage).toHaveAttribute('data-last-contact-response', /.+/);
-  const responseLatencyMs = await stage.evaluate((element, started) => Number((element as HTMLElement).dataset.lastContactAt) - started, startedAt);
+  const responseLatencyMs = await stage.evaluate((element, started) => {
+    const lastContactAt = (element as HTMLElement).dataset.lastContactAt;
+    return Number.parseFloat(lastContactAt ?? 'NaN') - started;
+  }, startedAt);
   expect(responseLatencyMs).toBeLessThan(250);
 });
