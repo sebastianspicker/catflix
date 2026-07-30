@@ -102,6 +102,17 @@ function matchesFilters(manifest: ContentManifest, theme: string, subject: strin
   return (theme === 'all' || meta.theme === theme) && (subject === 'all' || manifest.subjectClass === subject) && (motion === 'all' || meta.motion === motion);
 }
 
+function mergeQueueIds(savedIds: readonly SceneId[], currentIds: readonly SceneId[]): SceneId[] {
+  const merged: SceneId[] = [];
+  for (const id of [...savedIds, ...currentIds]) if (!merged.includes(id)) merged.push(id);
+  return merged;
+}
+
+function queueRecords(ids: readonly SceneId[]): QueueItem[] {
+  const addedAt = new Date().toISOString();
+  return ids.map((sceneId) => ({ id: `queue:${sceneId}`, sceneId, variant: defaultVariant, addedAt }));
+}
+
 function SceneImage({ id, alt }: { id: SceneId; alt: string }) {
   const base = publicUrl(artByScene[id]);
   return <picture><source srcSet={`${base}.avif`} type="image/avif" /><source srcSet={`${base}.webp`} type="image/webp" /><img src={`${base}.png`} alt={alt} decoding="async" loading="lazy" /></picture>;
@@ -133,7 +144,12 @@ function useCatalogueApp() {
   useEffect(() => {
     void Promise.all(manifests.flatMap((manifest) => manifest.assets.map((asset) => store.saveProvenance(asset))));
     void Promise.all([store.getQueue(), Promise.all(manifests.map((item) => store.getProgress(item.id))), store.listNotes(), store.listObservations(), store.listComparisons(), store.getSettings()]).then(([savedQueue, savedProgress, notes, observations, comparisons, settings]) => {
-      setQueue(savedQueue.map((item) => item.sceneId));
+      const savedIds = savedQueue.map((item) => item.sceneId);
+      setQueue((current) => {
+        const merged = mergeQueueIds(savedIds, current);
+        if (merged.length !== savedIds.length) void store.setQueue(queueRecords(merged));
+        return merged;
+      });
       setProgress(Object.fromEntries(savedProgress.filter((item) => item !== undefined).map((item) => [item.sceneId, item.elapsedMs / item.durationMs])));
       setRecordCounts({ notes: notes.length + observations.length, comparisons: comparisons.length });
       setSceneMotionMode(settings.sceneMotionMode);
@@ -158,7 +174,7 @@ function useCatalogueApp() {
     setPending({ manifest, variant: resolvedVariant, comparison, seed });
   };
   const persistQueue = (next: SceneId[]) => {
-    void store.setQueue(next.map<QueueItem>((sceneId) => ({ id: `queue:${sceneId}`, sceneId, variant: defaultVariant, addedAt: new Date().toISOString() })));
+    void store.setQueue(queueRecords(next));
   };
   const addToQueue = (id: SceneId) => {
     setQueue((current) => { const next = current.includes(id) ? current : [...current, id]; persistQueue(next); return next; });
@@ -276,8 +292,9 @@ function Overlays({ app }: { app: CatalogueApp }) {
 }
 
 function SessionOverlays({ app }: { app: CatalogueApp }) {
+  const pending = app.pending;
   return <>
-    {app.pending ? <SafetyGate sceneTitle={catalogueMeta[app.pending.manifest.id].title} onCancel={() => { app.setPending(null); }} onContinue={(playbackMode, setup) => { app.setActive({ manifest: app.pending!.manifest, variants: app.pending!.variant, seed: app.pending!.seed, playbackMode, sceneMotionMode: app.sceneMotionMode, setup, ...(app.pending!.comparison ? { comparison: app.pending!.comparison } : {}) }); app.setPending(null); }} /> : null}
+    {pending ? <SafetyGate sceneTitle={catalogueMeta[pending.manifest.id].title} onCancel={() => { app.setPending(null); }} onContinue={(playbackMode, setup) => { app.setActive({ manifest: pending.manifest, variants: pending.variant, seed: pending.seed, playbackMode, sceneMotionMode: app.sceneMotionMode, setup, ...(pending.comparison ? { comparison: pending.comparison } : {}) }); app.setPending(null); }} /> : null}
     {app.completed ? <RefereeNotes sceneTitle={catalogueMeta[app.completed.plan.manifest.id].title} observedCat={app.completed.plan.setup.observedCat} touchTimestamps={app.completed.touches} completed={app.completed.complete} onClose={() => { app.setCompleted(null); }} onSave={app.saveNotes} /> : null}
   </>;
 }

@@ -1,7 +1,8 @@
 import { getContentManifest } from "../content/registry";
 import { SceneId, VariantSelection } from "../content/types";
+import { createActors, type MutableActor } from "./actorFactory";
 import { AnimationState, EncounterBeat, InteractionPolicy, Point, SceneActorSnapshot, SceneDefinition, SceneEvent, SceneScore, SceneSimulation, SceneSnapshot, SimulationPreferences, SoundEvent, TouchResponse } from "./types";
-import { behaviorAt, clamp, contactResponseFor, initialPlacement, isLowMotion, lerp, normalize, poseProgressFor, pulse, sceneAnimationState, signatureEffect, smoothstep } from "./simulationPrimitives";
+import { behaviorAt, clamp, contactResponseFor, isLowMotion, lerp, normalize, poseProgressFor, pulse, sceneAnimationState, signatureEffect, smoothstep } from "./simulationPrimitives";
 
 export const defaultVariantSelection: VariantSelection = { figureGround: "natural", motion: "intermittent", sound: "off", novelty: "familiar" };
 
@@ -31,26 +32,6 @@ function completeScore(score: RawSceneScore): SceneScore {
 }
 export const sceneScores: Readonly<Record<SceneId, SceneScore>> = Object.fromEntries(Object.entries(authoredSceneScores).map(([id, score]) => [id, completeScore(id === "balcony-birds" ? { ...score, touchPolicy: { refractoryMs: 5_000, allowedResponses: ["head-turn", "hop"] } } : score)])) as unknown as Readonly<Record<SceneId, SceneScore>>;
 export const sceneDefinitions: Readonly<Record<SceneId, SceneDefinition>> = sceneScores;
-
-interface MutableActor extends SceneActorSnapshot {
-  stretchX: number;
-  stretchY: number;
-  motionEnergy: number;
-  vx: number;
-  vy: number;
-  pauseUntilMs: number;
-  hiddenUntilMs: number;
-  responseUntilMs: number;
-  baseScale: number;
-  phase: number;
-  anchorY: number;
-  turnBias: number;
-  currentSpeed: number;
-  propulsion: number;
-  posePhase: number;
-  surfaceVx: number;
-  surfaceVy: number;
-}
 
 function snapshotActor(actor: MutableActor): SceneActorSnapshot {
   return {
@@ -117,27 +98,49 @@ export function createSceneSimulation(sceneId: SceneId, variants: VariantSelecti
     const boundedDelta = Math.min(stepMs, definition.durationMs - elapsedMs);
     elapsedMs = Math.min(definition.durationMs, elapsedMs + boundedDelta);
     const encounter = phaseAt(elapsedMs);
+    recordPhaseChange(encounter);
+    advanceActorsForFixedStep(encounter, boundedDelta);
+    updateSoundEvents();
+    recordCompletion();
+  }
+  function recordPhaseChange(encounter: EncounterBeat): void {
     if (encounter.phase !== lastPhase) { frameEvents.push({ type: "phase-change", phase: encounter.phase, beatId: encounter.id, atMs: elapsedMs }); lastPhase = encounter.phase; }
-    for (const actor of actors) {
-      resetVisualState(actor);
-      if (elapsedMs < forcedRestUntilMs || encounter.phase === "finale") {
-        actor.visible = true; actor.state = "paused"; actor.currentSpeed = 0; actor.propulsion = 0; actor.motionEnergy = 0; actor.animationState = encounter.behaviorState; syncRendererFields(actor, elapsedMs, variants); continue;
-      }
-      if (actor.hiddenUntilMs > elapsedMs) { actor.visible = false; actor.state = "hidden"; syncRendererFields(actor, elapsedMs, variants); continue; }
-      actor.visible = true;
-      if (actor.pauseUntilMs > elapsedMs) {
-        actor.state = "paused";
-        actor.currentSpeed = 0;
-        actor.propulsion = 0;
-        actor.motionEnergy = 0;
-        actor.scale = actor.baseScale * (1 + (actor.responseUntilMs > elapsedMs ? 0.055 : 0));
-        syncRendererFields(actor, elapsedMs, variants);
-        continue;
-      }
-      advanceAuthoredActor(actor, boundedDelta);
-      applyOcclusion(actor);
-      syncRendererFields(actor, elapsedMs, variants);
+  }
+  function advanceActorsForFixedStep(encounter: EncounterBeat, boundedDelta: number): void {
+    for (const actor of actors) advanceActorForFixedStep(actor, encounter, boundedDelta);
+  }
+  function advanceActorForFixedStep(actor: MutableActor, encounter: EncounterBeat, boundedDelta: number): void {
+    resetVisualState(actor);
+    if (elapsedMs < forcedRestUntilMs || encounter.phase === "finale") {
+      pauseActorForFixedStep(actor, encounter.behaviorState, false);
+      return;
     }
+    if (actor.hiddenUntilMs > elapsedMs) {
+      actor.visible = false;
+      actor.state = "hidden";
+      syncRendererFields(actor, elapsedMs, variants);
+      return;
+    }
+    actor.visible = true;
+    if (actor.pauseUntilMs > elapsedMs) {
+      pauseActorForFixedStep(actor, actor.animationState, true);
+      return;
+    }
+    advanceAuthoredActor(actor, boundedDelta);
+    applyOcclusion(actor);
+    syncRendererFields(actor, elapsedMs, variants);
+  }
+  function pauseActorForFixedStep(actor: MutableActor, animationState: AnimationState, showContactResponse: boolean): void {
+    actor.visible = true;
+    actor.state = "paused";
+    actor.currentSpeed = 0;
+    actor.propulsion = 0;
+    actor.motionEnergy = 0;
+    actor.animationState = animationState;
+    if (showContactResponse) actor.scale = actor.baseScale * (1 + (actor.responseUntilMs > elapsedMs ? 0.055 : 0));
+    syncRendererFields(actor, elapsedMs, variants);
+  }
+  function updateSoundEvents(): void {
     const soundBucket = Math.floor(elapsedMs / (sceneId === "koi-pool" ? 14_000 : 7_000));
     if (variants.sound === "on" && manifest.audio && soundBucket > 0 && soundBucket !== lastSoundBucket) {
       const actor = actors[Math.floor(elapsedMs / 7000) % actors.length];
@@ -148,6 +151,8 @@ export function createSceneSimulation(sceneId: SceneId, variants: VariantSelecti
         lastSoundBucket = soundBucket;
       } else soundEvents = [];
     } else soundEvents = [];
+  }
+  function recordCompletion(): void {
     if (elapsedMs >= definition.durationMs && !completionEventSent) { frameEvents.push({ type: "complete", atMs: elapsedMs }); completionEventSent = true; }
   }
   function touch(point: Point, timestampMs = elapsedMs): TouchResponse {
@@ -511,19 +516,3 @@ function approachSurface(actor: MutableActor, targetX: number, targetY: number, 
 function touchRadius(sceneId: SceneId): number { return sceneDefinitions[sceneId].subjectHitRadius; }
 
 export function getSceneDefinition(id: SceneId): SceneDefinition { return sceneDefinitions[id]; }
-
-function createActors(sceneId: SceneId, actorCount: number, random: SeededRandom): MutableActor[] {
-  const actors: MutableActor[] = []; for (let index = 0; index < actorCount; index += 1) actors.push(createActor(sceneId, index, random));
-  return actors;
-}
-
-function createActor(sceneId: SceneId, index: number, random: SeededRandom): MutableActor {
-  const direction = normalize(random.signed(), random.signed()); const placement = initialPlacement(sceneId, random.next(), random.next());
-  const baseScale = 0.92 + random.next() * 0.16;
-  return {
-    id: `${sceneId}-${index + 1}`, x: placement.x, y: placement.y, vx: direction.x || 1, vy: direction.y, angle: 0, state: "moving", visible: true, scale: baseScale, opacity: 1,
-    stretchX: 1, stretchY: 1, facing: direction.x < 0 ? -1 : 1, motionEnergy: 0, animationState: "resting", poseFrame: 0, stateProgress: 0,
-    depth: 2 + placement.y, alpha: 1, scaleX: 1, scaleY: 1, pauseUntilMs: 0, hiddenUntilMs: 0, responseUntilMs: 0, baseScale,
-    phase: random.next() * 1_200 + index * 650, anchorY: placement.y, turnBias: random.signed(), currentSpeed: 0, propulsion: 0, posePhase: random.next(), surfaceVx: 0, surfaceVy: 0,
-  };
-}

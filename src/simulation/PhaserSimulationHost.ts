@@ -199,13 +199,13 @@ export function createPhaserSimulationHost(options: PhaserSimulationHostOptions)
     const width = activeScene.scale.width; const height = activeScene.scale.height;
     const cover = coverRect(background.width, background.height, width, height);
     background.setPosition(width / 2, height / 2).setDisplaySize(cover.width, cover.height).setAlpha(options.variant.figureGround === "enhanced" ? 0.52 : 0.78);
-    for (const actor of orderedActors(state)) renderPhaserActor(actor, width, height);
+    for (const actor of orderedActors(state)) renderPhaserActor(activeScene, actor, width, height);
     drawPhaserOccluder(width, height, state);
   }
-  function renderPhaserActor(actor: SceneActorSnapshot, width: number, height: number): void {
+  function renderPhaserActor(scene: Phaser.Scene, actor: SceneActorSnapshot, width: number, height: number): void {
     if (options.sceneId === "red-string") { renderPhaserRope(actor, width, height); return; }
     let image = actorImages.get(actor.id);
-    if (!image) { image = activeScene!.add.image(0, 0, "catflix-poses", poseTextureFrame(actor.poseFrame)); actorImages.set(actor.id, image); }
+    if (!image) { image = scene.add.image(0, 0, "catflix-poses", poseTextureFrame(actor.poseFrame)); actorImages.set(actor.id, image); }
     const crop = poseCrop(options.sceneId, actor.poseFrame);
     const anchor = poseAnchor(options.sceneId, actor.poseFrame);
     const displayWidth = actorDisplayWidth(options.sceneId) * width * actor.scale;
