@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from 'react';
 import type { SceneId } from '../content/types';
 import type { SceneMotionMode, SessionPlan } from '../simulation/types';
 import { createPhaserSimulationHost } from '../simulation/PhaserSimulationHost';
@@ -32,11 +32,11 @@ interface ContactReminderProps {
   onDismissReminder: () => void;
 }
 
-function ContactReminder({ onStop, onOfferPhysicalPlay, onPauseAndObserve, onDismissReminder }: ContactReminderProps) {
+const ContactReminder = ({ onStop, onOfferPhysicalPlay, onPauseAndObserve, onDismissReminder }: ContactReminderProps) => {
   return <div className="contact-reminder" role="status"><p>Editorial safety cap reached: three accepted contacts within 20 seconds. The scene is resting for 10–12 seconds.</p><div><button type="button" onClick={onPauseAndObserve}>Pause and observe</button><button type="button" onClick={onStop}>End session</button><button type="button" onClick={onOfferPhysicalPlay}>End and offer voluntary physical play</button><button type="button" onClick={onDismissReminder}>Continue quietly</button></div></div>;
-}
+};
 
-function PlayerControls(props: PlayerControlsProps) {
+const PlayerControls = (props: PlayerControlsProps) => {
   const { playing, sound, soundVariantEnabled, audioEligible, sceneMotionMode, onTogglePlay, onToggleSound, onChangeMotion, onStop, reminder } = props;
   return <aside className="owner-rail" aria-label="Owner controls">
     <div className="rail-status"><strong>{playing ? 'Encounter running' : 'Encounter paused'}</strong><span>Finite · muted start · no autoplay</span></div>
@@ -46,7 +46,19 @@ function PlayerControls(props: PlayerControlsProps) {
     <button className="end-control" type="button" onClick={() => { onStop(); }}><strong>End session</strong></button>
     {reminder}
   </aside>;
-}
+};
+
+const usePauseWhenHidden = (hostRef: RefObject<ReturnType<typeof createPhaserSimulationHost> | null>, setPlaying: Dispatch<SetStateAction<boolean>>): void => {
+  useEffect(() => {
+    const onVisibility = () => {
+      if (!document.hidden) return;
+      hostRef.current?.pause();
+      setPlaying(false);
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => { document.removeEventListener('visibilitychange', onVisibility); };
+  }, [hostRef, setPlaying]);
+};
 
 export function Player({ plan, onSceneMotionModeChange, onExit }: PlayerProps) {
   const { manifest, variants, seed, playbackMode, setup } = plan;
@@ -59,7 +71,7 @@ export function Player({ plan, onSceneMotionModeChange, onExit }: PlayerProps) {
     const host = createPhaserSimulationHost({ container, sceneId: manifest.id, variant: variants, seed, renderer, playbackMode, soundEnabled: false, sceneMotionMode, onProgress: (elapsedMs) => { elapsedRef.current = elapsedMs; setElapsed(elapsedMs); setPhase(host.snapshot().phase); }, onComplete: () => { onExit({ elapsedMs: manifest.finiteDurationMs, complete: true, touchTimestamps: touchesRef.current, soundEnabled: soundRef.current }); }, onTouch: (timestamp) => { touchesRef.current = [...touchesRef.current, timestamp]; }, onReminder: () => { setShowContactReminder(true); } });
     hostRef.current = host; host.start(); return () => { host.destroy(); hostRef.current = null; };
   }, [manifest, onExit, playbackMode, seed, variants]);
-  useEffect(() => { const onVisibility = () => { if (document.hidden) { hostRef.current?.pause(); setPlaying(false); } }; document.addEventListener('visibilitychange', onVisibility); return () => { document.removeEventListener('visibilitychange', onVisibility); }; }, []);
+  usePauseWhenHidden(hostRef, setPlaying);
   const togglePlay = () => {
     if (playing) hostRef.current?.pause(); else hostRef.current?.resume();
     setPlaying(!playing);
@@ -74,10 +86,29 @@ export function Player({ plan, onSceneMotionModeChange, onExit }: PlayerProps) {
   const soundVariantEnabled = variants.sound !== 'off';
   const pauseAndObserve = () => { hostRef.current?.pause(); setPlaying(false); dismissReminder(); };
 
+  return renderPlayer({
+    plan, elapsed, phase, playing, sound,
+    soundVariantEnabled, audioEligible, sceneMotionMode, stageRef,
+    onTogglePlay: togglePlay, onToggleSound: toggleSound,
+    onChangeMotion: changeMotion, onStop: stop,
+    reminder: showContactReminder ? <ContactReminder onStop={stop} onOfferPhysicalPlay={offerPhysicalPlay} onPauseAndObserve={pauseAndObserve} onDismissReminder={dismissReminder} /> : null,
+  });
+}
+
+type PlayerRenderData = Pick<PlayerControlsProps, "playing" | "sound" | "soundVariantEnabled" | "audioEligible" | "sceneMotionMode" | "onTogglePlay" | "onToggleSound" | "onChangeMotion" | "onStop" | "reminder"> & {
+  plan: SessionPlan;
+  elapsed: number;
+  phase: string;
+  stageRef: RefObject<HTMLDivElement | null>;
+};
+
+const renderPlayer = (data: PlayerRenderData) => {
+  const { plan, elapsed, phase, stageRef } = data;
+  const { manifest, variants, playbackMode, setup } = plan;
   return <section className="player-shell encounter-player" role="dialog" aria-modal="true" aria-labelledby="player-title" data-playback-mode={playbackMode}>
     <header className="player-topbar"><span>CATFLIX / FINITE ENCOUNTER</span><h1 id="player-title">{displayTitle[manifest.id]}</h1><span>{timecode(elapsed)} / {timecode(manifest.finiteDurationMs)}</span></header>
     <div className="session-context" aria-label="Owner session context"><span>{playbackMode === 'tablet-touch' ? 'Tablet / touch-reactive' : 'Television / passive'}</span><span>{setup.observedCat ? `Observation: ${setup.observedCat}` : 'Not recording a cat'}</span><span>{setup.roomLightBand} light · {setup.viewingDistanceBand.replace('-', ' ')}</span><span>Phase: {phase}</span></div>
-    <div className="stage-wrap" data-scene={manifest.id}><div className="simulation-stage" data-scene-motion={sceneMotionMode} data-playback-mode={playbackMode} data-figure-ground={variants.figureGround} ref={stageRef} aria-label={`${displayTitle[manifest.id]} ${playbackMode === 'tablet-touch' ? 'target-touch encounter' : 'passive encounter'}`} /></div>
-    <PlayerControls playing={playing} sound={sound} soundVariantEnabled={soundVariantEnabled} audioEligible={audioEligible} sceneMotionMode={sceneMotionMode} onTogglePlay={togglePlay} onToggleSound={toggleSound} onChangeMotion={changeMotion} onStop={stop} reminder={showContactReminder ? <ContactReminder onStop={stop} onOfferPhysicalPlay={offerPhysicalPlay} onPauseAndObserve={pauseAndObserve} onDismissReminder={dismissReminder} /> : null} />
+    <div className="stage-wrap" data-scene={manifest.id}><div className="simulation-stage" data-scene-motion={data.sceneMotionMode} data-playback-mode={playbackMode} data-figure-ground={variants.figureGround} ref={stageRef} aria-label={`${displayTitle[manifest.id]} ${playbackMode === 'tablet-touch' ? 'target-touch encounter' : 'passive encounter'}`} /></div>
+    <PlayerControls playing={data.playing} sound={data.sound} soundVariantEnabled={data.soundVariantEnabled} audioEligible={data.audioEligible} sceneMotionMode={data.sceneMotionMode} onTogglePlay={data.onTogglePlay} onToggleSound={data.onToggleSound} onChangeMotion={data.onChangeMotion} onStop={data.onStop} reminder={data.reminder} />
   </section>;
-}
+};

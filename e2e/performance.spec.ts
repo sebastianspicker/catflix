@@ -28,25 +28,22 @@ test('keeps the finite simulation responsive under four-times CPU throttling', a
 
   const stage = page.locator('.simulation-stage');
   await expect(stage).toHaveAttribute('data-actor-x', /\d/);
-  const canvas = stage.locator('canvas').first();
-  const measurement = await canvas.evaluate((element) => {
-    const stageElement = element.closest('.simulation-stage');
-    if (!stageElement) throw new Error('Simulation stage is unavailable.');
-    const actorX = Number.parseFloat(stageElement.getAttribute('data-actor-x') ?? 'NaN');
-    const actorY = Number.parseFloat(stageElement.getAttribute('data-actor-y') ?? 'NaN');
-    const bounds = element.getBoundingClientRect();
-    const startedAt = performance.now();
-    element.dispatchEvent(new PointerEvent('pointerdown', {
-      bubbles: true,
-      clientX: bounds.left + actorX * bounds.width,
-      clientY: bounds.top + actorY * bounds.height,
-    }));
-    const responseAt = Number.parseFloat(stageElement.getAttribute('data-last-contact-at') ?? 'NaN');
-    return { actorX, actorY, responseLatencyMs: responseAt - startedAt };
+  const actor = await stage.evaluate((element) => {
+    const actorX = element.getAttribute('data-actor-x');
+    const actorY = element.getAttribute('data-actor-y');
+    return { x: Number.parseFloat(actorX ?? 'NaN'), y: Number.parseFloat(actorY ?? 'NaN') };
   });
-  expect(Number.isFinite(measurement.actorX)).toBe(true);
-  expect(Number.isFinite(measurement.actorY)).toBe(true);
+  expect(Number.isFinite(actor.x)).toBe(true);
+  expect(Number.isFinite(actor.y)).toBe(true);
+  const canvas = stage.locator('canvas').first();
+  const bounds = await canvas.boundingBox();
+  if (!bounds) throw new Error('Simulation canvas has no visible bounds.');
+  const startedAt = await page.evaluate(() => performance.now());
+  await canvas.click({ position: { x: actor.x * bounds.width, y: actor.y * bounds.height } });
   await expect(stage).toHaveAttribute('data-last-contact-response', /.+/);
-  expect(Number.isFinite(measurement.responseLatencyMs)).toBe(true);
-  expect(measurement.responseLatencyMs).toBeLessThan(MAX_THROTTLED_RESPONSE_MS);
+  const responseLatencyMs = await stage.evaluate((element, started) => {
+    const lastContactAt = element.getAttribute('data-last-contact-at');
+    return Number.parseFloat(lastContactAt ?? 'NaN') - started;
+  }, startedAt);
+  expect(responseLatencyMs).toBeLessThan(MAX_THROTTLED_RESPONSE_MS);
 });

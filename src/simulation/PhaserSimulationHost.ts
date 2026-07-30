@@ -150,34 +150,28 @@ export function createPhaserSimulationHost(options: PhaserSimulationHostOptions)
   }
   function drawFallback(state: SceneSnapshot): void {
     if (!canvas.isConnected) return;
-    const { context, width, height } = fallbackCanvasContext();
-    if (!context) return;
-    context.setTransform(1, 0, 0, 1, 0, 0);
-    context.fillStyle = "#111411";
-    context.fillRect(0, 0, width, height);
-    drawFallbackBackdrop(context, width, height);
-    for (const actor of orderedActors(state)) drawCanvasActor(context, actor, width, height);
-    drawFallbackRope(context, state, width, height);
-    drawCanvasSignature(context, state, width, height);
-    drawCanvasOccluder(context, width, height);
-  }
-  function fallbackCanvasContext(): { context: CanvasRenderingContext2D | null; width: number; height: number } {
     const ratio = window.devicePixelRatio || 1;
     const width = Math.max(1, Math.round(canvas.clientWidth * ratio));
     const height = Math.max(1, Math.round(canvas.clientHeight * ratio));
     if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
-    return { context: canvas.getContext("2d"), width, height };
-  }
-  function drawFallbackBackdrop(context: CanvasRenderingContext2D, width: number, height: number): void {
-    if (!backdrop.complete || !backdrop.naturalWidth) return;
-    const cover = coverRect(backdrop.naturalWidth, backdrop.naturalHeight, width, height);
-    context.globalAlpha = options.variant.figureGround === "enhanced" ? 0.52 : 0.78;
-    context.drawImage(backdrop, cover.x, cover.y, cover.width, cover.height);
-    context.globalAlpha = 1;
-  }
-  function drawFallbackRope(context: CanvasRenderingContext2D, state: SceneSnapshot, width: number, height: number): void {
-    const actor = options.sceneId === "red-string" ? state.actors.at(0) : undefined;
-    if (actor?.visible) drawCanvasRopePath(context, actor, width, height);
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.fillStyle = "#111411";
+    context.fillRect(0, 0, width, height);
+    if (backdrop.complete && backdrop.naturalWidth) {
+      const cover = coverRect(backdrop.naturalWidth, backdrop.naturalHeight, width, height);
+      context.globalAlpha = options.variant.figureGround === "enhanced" ? 0.52 : 0.78;
+      context.drawImage(backdrop, cover.x, cover.y, cover.width, cover.height);
+      context.globalAlpha = 1;
+    }
+    for (const actor of orderedActors(state)) drawCanvasActor(context, actor, width, height);
+    if (options.sceneId === "red-string") {
+      const actor = state.actors.at(0);
+      if (actor?.visible) drawCanvasRopePath(context, actor, width, height);
+    }
+    drawCanvasSignature(context, state, width, height);
+    drawCanvasOccluder(context, width, height);
   }
   function drawCanvasActor(context: CanvasRenderingContext2D, actor: SceneActorSnapshot, width: number, height: number): void {
     if (!actor.visible || !poses.complete || !poses.naturalWidth) return;
@@ -199,24 +193,23 @@ export function createPhaserSimulationHost(options: PhaserSimulationHostOptions)
     const width = activeScene.scale.width; const height = activeScene.scale.height;
     const cover = coverRect(background.width, background.height, width, height);
     background.setPosition(width / 2, height / 2).setDisplaySize(cover.width, cover.height).setAlpha(options.variant.figureGround === "enhanced" ? 0.52 : 0.78);
-    for (const actor of orderedActors(state)) renderPhaserActor(activeScene, actor, width, height);
+    for (const actor of orderedActors(state)) {
+      if (options.sceneId === "red-string") { renderPhaserRope(actor, width, height); continue; }
+      let image = actorImages.get(actor.id);
+      if (!image) { image = activeScene.add.image(0, 0, "catflix-poses", poseTextureFrame(actor.poseFrame)); actorImages.set(actor.id, image); }
+      const crop = poseCrop(options.sceneId, actor.poseFrame);
+      const anchor = poseAnchor(options.sceneId, actor.poseFrame);
+      const displayWidth = actorDisplayWidth(options.sceneId) * width * actor.scale;
+      image.setFrame(poseTextureFrame(actor.poseFrame))
+        .setOrigin(anchor.x, anchor.y)
+        .setPosition(actor.x * width, actor.y * height)
+        .setScale(displayWidth / crop.width * Math.abs(actor.scaleX), displayWidth * crop.height / crop.width / crop.height * actor.scaleY)
+        .setRotation(spriteRotation(options.sceneId, actor))
+        .setFlipX(spriteUsesHorizontalFlip(options.sceneId) && actor.facing < 0)
+        .setVisible(actor.visible).setAlpha(actor.alpha).setDepth(actor.depth);
+      if (options.variant.figureGround === "enhanced") image.setTint(0xfff2d5); else image.clearTint();
+    }
     drawPhaserOccluder(width, height, state);
-  }
-  function renderPhaserActor(scene: Phaser.Scene, actor: SceneActorSnapshot, width: number, height: number): void {
-    if (options.sceneId === "red-string") { renderPhaserRope(actor, width, height); return; }
-    let image = actorImages.get(actor.id);
-    if (!image) { image = scene.add.image(0, 0, "catflix-poses", poseTextureFrame(actor.poseFrame)); actorImages.set(actor.id, image); }
-    const crop = poseCrop(options.sceneId, actor.poseFrame);
-    const anchor = poseAnchor(options.sceneId, actor.poseFrame);
-    const displayWidth = actorDisplayWidth(options.sceneId) * width * actor.scale;
-    image.setFrame(poseTextureFrame(actor.poseFrame))
-      .setOrigin(anchor.x, anchor.y)
-      .setPosition(actor.x * width, actor.y * height)
-      .setScale(displayWidth / crop.width * Math.abs(actor.scaleX), displayWidth * crop.height / crop.width / crop.height * actor.scaleY)
-      .setRotation(spriteRotation(options.sceneId, actor))
-      .setFlipX(spriteUsesHorizontalFlip(options.sceneId) && actor.facing < 0)
-      .setVisible(actor.visible).setAlpha(actor.alpha).setDepth(actor.depth);
-    if (options.variant.figureGround === "enhanced") image.setTint(0xfff2d5); else image.clearTint();
   }
   function renderPhaserRope(actor: SceneActorSnapshot, width: number, height: number): void {
     if (!activeScene) return;

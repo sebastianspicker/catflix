@@ -1,5 +1,4 @@
 import { defineConfig, devices } from '@playwright/test';
-import process from 'node:process';
 
 const port = Number(process.env.CATFLIX_E2E_PORT ?? 4173);
 const baseURL = `http://127.0.0.1:${port}`;
