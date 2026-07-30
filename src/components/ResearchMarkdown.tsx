@@ -21,8 +21,38 @@ const headingSlug = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, 
 const headingPattern = /^(#{1,3})\s+(.+)$/;
 const unorderedPattern = /^[-*]\s+(.+)$/;
 const orderedPattern = /^\d+\.\s+(.+)$/;
-const linkPattern = /\[([^\]]{1,200})\]\(([^\s)]{1,2048})(?:\s+"[^"]{0,200}")?\)/g;
 const inlinePattern = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g;
+
+interface MarkdownLink {
+  end: number;
+  href: string;
+  text: string;
+}
+
+class LineReader {
+  private readonly iterator: Iterator<string>;
+  private currentResult: IteratorResult<string>;
+  private nextResult: IteratorResult<string>;
+
+  constructor(source: string) {
+    this.iterator = source.replace(/\r\n?/g, "\n").split("\n").values();
+    this.currentResult = this.iterator.next();
+    this.nextResult = this.iterator.next();
+  }
+
+  current() {
+    return this.currentResult.done ? undefined : this.currentResult.value;
+  }
+
+  peek() {
+    return this.nextResult.done ? undefined : this.nextResult.value;
+  }
+
+  advance() {
+    this.currentResult = this.nextResult;
+    this.nextResult = this.iterator.next();
+  }
+}
 
 function tableCells(line: string) {
   return line.trim().replace(/^\||\|$/g, "").split("|").map((cell) => cell.trim());
@@ -43,34 +73,67 @@ function safeHref(href: string) {
   }
 }
 
-function parseBlocks(source: string): Block[] {
-  const lines = source.replace(/\r\n?/g, "\n").split("\n");
-  const blocks: Block[] = [];
-  let index = 0;
+function parseLink(text: string, start: number): MarkdownLink | undefined {
+  const titleEnd = text.indexOf("](", start + 1);
+  if (titleEnd === -1 || titleEnd - start - 1 > 200) return undefined;
 
-  while (index < lines.length) {
-    const line = lines[index];
-    if (line.trim() === "") { index += 1; continue; }
+  const destinationStart = titleEnd + 2;
+  const destinationEnd = text.indexOf(")", destinationStart);
+  if (destinationEnd === -1) return undefined;
+
+  const destination = text.slice(destinationStart, destinationEnd);
+  const titleStart = destination.search(/\s/);
+  const href = titleStart === -1 ? destination : destination.slice(0, titleStart);
+  const title = titleStart === -1 ? "" : destination.slice(titleStart);
+  if (href.length === 0 || href.length > 2048 || !isLinkTitle(title)) return undefined;
+
+  return { end: destinationEnd + 1, href, text: text.slice(start + 1, titleEnd) };
+}
+
+function isLinkTitle(title: string) {
+  return title === "" || (title.length <= 203 && /^\s+"[^"]{0,200}"$/.test(title));
+}
+
+function isParagraphContinuation(line: string) {
+  return line.trim() !== "" && !headingPattern.test(line) && !line.startsWith("```") && !line.startsWith("|") && !unorderedPattern.test(line) && !orderedPattern.test(line);
+}
+
+function parseBlocks(source: string): Block[] {
+  const lines = new LineReader(source);
+  const blocks: Block[] = [];
+
+  for (let line = lines.current(); line !== undefined; line = lines.current()) {
+    if (line.trim() === "") { lines.advance(); continue; }
 
     const heading = line.match(headingPattern);
     if (heading) {
       blocks.push({ type: "heading", level: heading[1].length as 1 | 2 | 3, text: heading[2] });
-      index += 1;
+      lines.advance();
       continue;
     }
     if (line.startsWith("```")) {
       const code: string[] = [];
-      index += 1;
-      while (index < lines.length && !lines[index].startsWith("```")) code.push(lines[index++]);
-      if (index < lines.length) index += 1;
+      lines.advance();
+      for (let codeLine = lines.current(); codeLine !== undefined && !codeLine.startsWith("```"); codeLine = lines.current()) {
+        code.push(codeLine);
+        lines.advance();
+      }
+      if (lines.current() !== undefined) lines.advance();
       blocks.push({ type: "code", text: code.join("\n") });
       continue;
     }
-    if (line.startsWith("|") && index + 1 < lines.length && isTableSeparator(lines[index + 1])) {
+    const nextLine = lines.peek();
+    if (line.startsWith("|") && nextLine !== undefined && isTableSeparator(nextLine)) {
       const header = tableCells(line);
       const rows: string[][] = [];
-      index += 2;
-      while (index < lines.length && lines[index].startsWith("|")) rows.push(tableCells(lines[index++]));
+      lines.advance();
+      lines.advance();
+      while (lines.current()?.startsWith("|")) {
+        const row = lines.current();
+        if (row === undefined) break;
+        rows.push(tableCells(row));
+        lines.advance();
+      }
       blocks.push({ type: "table", header, rows });
       continue;
     }
@@ -79,18 +142,21 @@ function parseBlocks(source: string): Block[] {
     if (unordered ?? ordered) {
       const isOrdered = Boolean(ordered);
       const items: string[] = [];
-      while (index < lines.length) {
-        const item = lines[index].match(isOrdered ? orderedPattern : unorderedPattern);
+      for (let itemLine = lines.current(); itemLine !== undefined; itemLine = lines.current()) {
+        const item = itemLine.match(isOrdered ? orderedPattern : unorderedPattern);
         if (!item) break;
         items.push(item[1]);
-        index += 1;
+        lines.advance();
       }
       blocks.push({ type: "list", ordered: isOrdered, items });
       continue;
     }
     const paragraph = [line];
-    index += 1;
-    while (index < lines.length && lines[index].trim() !== "" && !headingPattern.test(lines[index]) && !lines[index].startsWith("```") && !lines[index].startsWith("|") && !unorderedPattern.test(lines[index]) && !orderedPattern.test(lines[index])) paragraph.push(lines[index++]);
+    lines.advance();
+    for (let paragraphLine = lines.current(); paragraphLine !== undefined && isParagraphContinuation(paragraphLine); paragraphLine = lines.current()) {
+      paragraph.push(paragraphLine);
+      lines.advance();
+    }
     const paragraphText = paragraph.map((paragraphLine) => paragraphLine.endsWith("  ") ? `${paragraphLine.trimEnd()}\n` : paragraphLine).join(" ").replace(/\n /g, "\n");
     blocks.push({ type: "paragraph", text: paragraphText });
   }
@@ -100,13 +166,21 @@ function parseBlocks(source: string): Block[] {
 function inline(text: string): ReactNode[] {
   const nodes: ReactNode[] = [];
   let cursor = 0;
-  for (const match of text.matchAll(linkPattern)) {
-    const start = match.index;
+  let linkSearchStart = 0;
+  while (linkSearchStart < text.length) {
+    const start = text.indexOf("[", linkSearchStart);
+    if (start === -1) break;
+    const link = parseLink(text, start);
+    if (!link) {
+      linkSearchStart = start + 1;
+      continue;
+    }
     if (start > cursor) nodes.push(...inlineFormatting(text.slice(cursor, start), `text-${cursor}`));
-    const href = safeHref(match[2]);
+    const href = safeHref(link.href);
     const external = /^https?:\/\//i.test(href);
-    nodes.push(<a key={`link-${start}`} href={href} {...(external ? { target: "_blank", rel: "noreferrer" } : {})}>{inlineFormatting(match[1], `link-text-${start}`)}</a>);
-    cursor = start + match[0].length;
+    nodes.push(<a key={`link-${start}`} href={href} {...(external ? { target: "_blank", rel: "noreferrer" } : {})}>{inlineFormatting(link.text, `link-text-${start}`)}</a>);
+    cursor = link.end;
+    linkSearchStart = link.end;
   }
   if (cursor < text.length) nodes.push(...inlineFormatting(text.slice(cursor), `text-${cursor}`));
   return nodes;
