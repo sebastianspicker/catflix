@@ -23,19 +23,33 @@ export function initialPlacement(sceneId: SceneId, xRandom: number, yRandom: num
 
 export function signatureEffect(sceneId: SceneId, phase: EncounterPhase, actor: Pick<SceneActorSnapshot, "x" | "y">): SceneSnapshot["signatureEffect"] {
   if (phase !== "contact-response" && phase !== "finale") return undefined;
-  const kind = { "balcony-birds": "perch-lights", "koi-pool": "reflected-ring", "paper-moth": "folded-shadow", "beetle-under-the-fern": "fern-shadow", "red-string": "slack-curve" } as const;
-  return { kind: kind[sceneId], x: actor.x, y: actor.y, alpha: phase === "finale" ? .16 : .11 };
+  return { kind: signatureKindFor(sceneId), x: actor.x, y: actor.y, alpha: phase === "finale" ? .16 : .11 };
+}
+
+function signatureKindFor(sceneId: SceneId): NonNullable<SceneSnapshot["signatureEffect"]>["kind"] {
+  if (sceneId === "balcony-birds") return "perch-lights";
+  if (sceneId === "koi-pool") return "reflected-ring";
+  if (sceneId === "paper-moth") return "folded-shadow";
+  if (sceneId === "beetle-under-the-fern") return "fern-shadow";
+  return "slack-curve";
 }
 
 export function contactResponseFor(sceneId: SceneId, state: AnimationState, phase: EncounterPhase, allowed: readonly NonNullable<TouchResponse["response"]>[]): NonNullable<TouchResponse["response"]> {
-  const preferred: Record<SceneId, NonNullable<TouchResponse["response"]>> = {
-    "balcony-birds": state === "perching" ? "head-turn" : "hop",
-    "koi-pool": "redirect",
-    "paper-moth": state === "landed" ? "land" : "reroute",
-    "beetle-under-the-fern": state === "sheltering" || phase === "occlusion" ? "hide" : phase === "reappearance" ? "reverse" : "pause",
-    "red-string": state === "resting" ? "pause" : "redirect",
-  };
-  return allowed.includes(preferred[sceneId]) ? preferred[sceneId] : allowed[0];
+  const preferred = preferredContactResponse(sceneId, state, phase);
+  return allowed.includes(preferred) ? preferred : allowed[0];
+}
+
+function preferredContactResponse(sceneId: SceneId, state: AnimationState, phase: EncounterPhase): NonNullable<TouchResponse["response"]> {
+  if (sceneId === "balcony-birds") return state === "perching" ? "head-turn" : "hop";
+  if (sceneId === "koi-pool") return "redirect";
+  if (sceneId === "paper-moth") return state === "landed" ? "land" : "reroute";
+  if (sceneId === "beetle-under-the-fern") return beetleContactResponse(state, phase);
+  return state === "resting" ? "pause" : "redirect";
+}
+
+function beetleContactResponse(state: AnimationState, phase: EncounterPhase): NonNullable<TouchResponse["response"]> {
+  if (state === "sheltering" || phase === "occlusion") return "hide";
+  return phase === "reappearance" ? "reverse" : "pause";
 }
 
 export function isLowMotion(preferences: SimulationPreferences): boolean {
@@ -50,20 +64,20 @@ export function poseProgressFor(sceneId: SceneId, state: AnimationState, progres
 }
 
 export function behaviorAt(score: SceneScore, timeMs: number, continuous: boolean, seedPhase = 0): { behavior: SceneScore["behaviors"][number]; progress: number } {
-  const durations = score.behaviors.map((behavior, index) => {
+  const segments = score.behaviors.map((behavior, index) => {
     const [minimum, maximum] = behavior.durationMs;
     const seededFraction = Math.abs(Math.sin((index + 1) * 91.7 + score.durationMs * .0001 + seedPhase * .0013)) % 1;
     const authoredDuration = minimum + (maximum - minimum) * seededFraction;
     const isLongRest = ["perching", "gliding", "landed", "sheltering", "resting"].includes(behavior.state);
-    return continuous && isLongRest ? Math.min(authoredDuration, 900) : authoredDuration;
+    return { behavior, duration: continuous && isLongRest ? Math.min(authoredDuration, 900) : authoredDuration };
   });
-  const cycle = durations.reduce((sum, duration) => sum + duration, 0);
+  const cycle = segments.reduce((sum, segment) => sum + segment.duration, 0);
   let cursor = ((timeMs % cycle) + cycle) % cycle;
-  for (let index = 0; index < score.behaviors.length; index += 1) {
-    if (cursor <= durations[index]) return { behavior: score.behaviors[index], progress: clamp(cursor / durations[index], 0, 1) };
-    cursor -= durations[index];
+  for (const segment of segments) {
+    if (cursor <= segment.duration) return { behavior: segment.behavior, progress: clamp(cursor / segment.duration, 0, 1) };
+    cursor -= segment.duration;
   }
-  return { behavior: score.behaviors[0], progress: 0 };
+  return { behavior: segments[0].behavior, progress: 0 };
 }
 
 export function sceneAnimationState(sceneId: SceneId, state: ActorState): AnimationState {

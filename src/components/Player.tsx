@@ -21,7 +21,7 @@ interface PlayerControlsProps {
   onTogglePlay: () => void;
   onToggleSound: () => void;
   onChangeMotion: () => void;
-  onStop: (physicalPlaySuggested?: boolean) => void;
+  onStop: (_physicalPlaySuggested?: boolean) => void;
   reminder: ReactNode;
 }
 
@@ -31,8 +31,8 @@ interface ContactReminderProps {
   onDismissReminder: () => void;
 }
 
-function endReminderSession(onStop: (physicalPlaySuggested?: boolean) => void) { onStop(); }
-function offerReminderPhysicalPlay(onStop: (physicalPlaySuggested?: boolean) => void) { onStop(true); }
+function endReminderSession(onStop: (_physicalPlaySuggested?: boolean) => void) { onStop(); }
+function offerReminderPhysicalPlay(onStop: (_physicalPlaySuggested?: boolean) => void) { onStop(true); }
 
 function ContactReminder({ onStop, onPauseAndObserve, onDismissReminder }: ContactReminderProps) {
   const endSession = endReminderSession.bind(undefined, onStop);
