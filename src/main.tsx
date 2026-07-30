@@ -12,7 +12,11 @@ const isResearchRoute = pathname === '/research';
 
 if (isResearchRoute) document.title = 'Scientific foundation — Catflix';
 
-createRoot(document.getElementById('root')!).render(
+const rootElement = document.getElementById('root');
+
+if (!rootElement) throw new Error('Catflix requires a root element.');
+
+createRoot(rootElement).render(
   <StrictMode>
     {isResearchRoute
       ? <Suspense fallback={<main className="research-loading" role="status">Opening the research record…</main>}><ResearchPage /></Suspense>
