@@ -1,6 +1,7 @@
 import { getContentManifest } from "../content/registry";
 import { SceneId, VariantSelection } from "../content/types";
-import { ActorState, AnimationState, EncounterBeat, EncounterPhase, InteractionPolicy, Point, SceneActorSnapshot, SceneDefinition, SceneEvent, SceneScore, SceneSimulation, SceneSnapshot, SimulationPreferences, SoundEvent, TouchResponse } from "./types";
+import { AnimationState, EncounterBeat, InteractionPolicy, Point, SceneActorSnapshot, SceneDefinition, SceneEvent, SceneScore, SceneSimulation, SceneSnapshot, SimulationPreferences, SoundEvent, TouchResponse } from "./types";
+import { behaviorAt, clamp, contactResponseFor, initialPlacement, isLowMotion, lerp, normalize, poseProgressFor, pulse, sceneAnimationState, signatureEffect, smoothstep } from "./simulationPrimitives";
 
 export const defaultVariantSelection: VariantSelection = { figureGround: "natural", motion: "intermittent", sound: "off", novelty: "familiar" };
 
@@ -49,21 +50,33 @@ interface MutableActor extends SceneActorSnapshot {
   surfaceVx: number;
   surfaceVy: number;
 }
+
+function snapshotActor(actor: MutableActor): SceneActorSnapshot {
+  return {
+    id: actor.id,
+    x: actor.x,
+    y: actor.y,
+    angle: actor.angle,
+    state: actor.state,
+    visible: actor.visible,
+    scale: actor.scale,
+    opacity: actor.opacity,
+    facing: actor.facing,
+    animationState: actor.animationState,
+    poseFrame: actor.poseFrame,
+    stateProgress: actor.stateProgress,
+    depth: actor.depth,
+    alpha: actor.alpha,
+    scaleX: actor.scaleX,
+    scaleY: actor.scaleY,
+  };
+}
 class SeededRandom {
   private state: number;
   constructor(seed: number) { this.state = seed >>> 0 || 0x9e3779b9; }
   next(): number { this.state = (this.state * 1664525 + 1013904223) >>> 0; return this.state / 0x1_0000_0000; }
   signed(): number { return this.next() * 2 - 1; }
 }
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-const normalize = (x: number, y: number): Point => { const length = Math.hypot(x, y) || 1; return { x: x / length, y: y / length }; };
-const lerp = (from: number, to: number, amount: number) => from + (to - from) * clamp(amount, 0, 1);
-const smoothstep = (edge0: number, edge1: number, value: number) => {
-  const progress = clamp((value - edge0) / Math.max(edge1 - edge0, Number.EPSILON), 0, 1);
-  return progress * progress * (3 - 2 * progress);
-};
-const pulse = (value: number, start: number, end: number, feather = 350) => smoothstep(start, start + feather, value) * (1 - smoothstep(end - feather, end, value));
-
 export function createSceneSimulation(sceneId: SceneId, variants: VariantSelection = defaultVariantSelection, seed = 1, preferences: SimulationPreferences = {}): SceneSimulation {
   const definition = sceneDefinitions[sceneId];
   const score = sceneScores[sceneId];
@@ -218,7 +231,7 @@ export function createSceneSimulation(sceneId: SceneId, variants: VariantSelecti
       beatId: encounter.id,
       remainingMs: Math.max(0, definition.durationMs - elapsedMs),
       signatureEffect: signatureEffect(sceneId, encounter.phase, actors[0]),
-      actors: actors.map(({ vx: _vx, vy: _vy, pauseUntilMs: _pause, hiddenUntilMs: _hidden, responseUntilMs: _response, baseScale: _base, phase: _phase, anchorY: _anchor, turnBias: _turn, currentSpeed: _speed, propulsion: _propulsion, posePhase: _posePhase, surfaceVx: _surfaceVx, surfaceVy: _surfaceVy, stretchX: _stretchX, stretchY: _stretchY, motionEnergy: _energy, ...actor }) => ({ ...actor })),
+      actors: actors.map(snapshotActor),
       soundEvents: [...soundEvents],
       events: reminder && ![...frameEvents, ...pendingEvents].some((event) => event.type === "contact-reminder") ? [...frameEvents, ...pendingEvents, reminder] : [...frameEvents, ...pendingEvents],
       reminder,
@@ -241,16 +254,13 @@ export function createSceneSimulation(sceneId: SceneId, variants: VariantSelecti
     const reducedScale = isLowMotion(preferences) ? score.lowMotionOverride.travelScale : 1;
     const time = elapsedMs + actor.phase;
     const authored = behaviorAt(score, time, variants.motion === "continuous", actor.phase);
-    const strategies: Record<SceneId, (target: MutableActor, localTime: number, seconds: number, motionScale: number, behavior: SceneScore["behaviors"][number], progress: number) => void> = {
-      "balcony-birds": advanceBird,
-      "koi-pool": advanceKoi,
-      "paper-moth": advanceMoth,
-      "beetle-under-the-fern": advanceBeetle,
-      "red-string": advanceString,
-    };
     actor.animationState = authored.behavior.state;
     actor.stateProgress = authored.progress;
-    strategies[sceneId](actor, time, deltaSeconds, reducedScale, authored.behavior, authored.progress);
+    if (sceneId === "balcony-birds") advanceBird(actor, time, deltaSeconds, reducedScale, authored.behavior, authored.progress);
+    else if (sceneId === "koi-pool") advanceKoi(actor, time, deltaSeconds, reducedScale, authored.behavior);
+    else if (sceneId === "paper-moth") advanceMoth(actor, time, deltaSeconds, reducedScale, authored.behavior, authored.progress);
+    else if (sceneId === "beetle-under-the-fern") advanceBeetle(actor, time, deltaSeconds, reducedScale, authored.behavior, authored.progress);
+    else advanceString(actor, time, deltaSeconds, reducedScale, authored.behavior, authored.progress);
     actor.facing = actor.vx < 0 ? -1 : 1;
     keepInsideFrame(actor, deltaSeconds);
     actor.x = clamp(actor.x, definition.containment.minX, definition.containment.maxX);
@@ -281,7 +291,7 @@ export function createSceneSimulation(sceneId: SceneId, variants: VariantSelecti
     actor.state = perching && !settlingToPerch ? "paused" : "moving";
   }
 
-  function advanceKoi(actor: MutableActor, time: number, deltaSeconds: number, reducedScale: number, behavior: SceneScore["behaviors"][number], progress: number): void {
+  function advanceKoi(actor: MutableActor, time: number, deltaSeconds: number, reducedScale: number, behavior: SceneScore["behaviors"][number]): void {
     const seconds = time / 1000;
     const pattern = Math.abs(Math.floor(time / 8_500)) % 3;
     const bout = ((seconds / 1.8 + actor.phase * .00011) % 1 + 1) % 1;
@@ -386,7 +396,7 @@ export function createSceneSimulation(sceneId: SceneId, variants: VariantSelecti
   }
 
   function applyOcclusion(actor: MutableActor): void {
-    const occlusion = occlusionStrength(sceneId, actor, elapsedMs);
+    const occlusion = occlusionStrength(sceneId, actor);
     if (occlusion > 0.04) {
       actor.opacity *= lerp(1, sceneId === "koi-pool" ? 0.38 : 0.2, occlusion);
       actor.state = occlusion > 0.52 ? "occluded" : actor.state;
@@ -399,34 +409,6 @@ export function createSceneSimulation(sceneId: SceneId, variants: VariantSelecti
   }
 }
 
-function initialPlacement(sceneId: SceneId, xRandom: number, yRandom: number): Point {
-  if (sceneId === "balcony-birds") {
-    const x = 0.18 + xRandom * 0.64;
-    return { x, y: clamp(.93 - x * .2 + yRandom * .018, .74, .9) };
-  }
-  if (sceneId === "koi-pool") return { x: 0.14 + xRandom * 0.72, y: 0.2 + yRandom * 0.6 };
-  if (sceneId === "paper-moth") return { x: 0.2 + xRandom * 0.6, y: 0.28 + yRandom * 0.42 };
-  if (sceneId === "beetle-under-the-fern") return { x: 0.16 + xRandom * 0.68, y: 0.56 + yRandom * 0.12 };
-  return { x: 0.16 + xRandom * 0.68, y: 0.28 + yRandom * 0.48 };
-}
-
-function signatureEffect(sceneId: SceneId, phase: EncounterPhase, actor: MutableActor): SceneSnapshot["signatureEffect"] {
-  if (phase !== "contact-response" && phase !== "finale") return undefined;
-  const kind = { "balcony-birds": "perch-lights", "koi-pool": "reflected-ring", "paper-moth": "folded-shadow", "beetle-under-the-fern": "fern-shadow", "red-string": "slack-curve" } as const;
-  return { kind: kind[sceneId], x: actor.x, y: actor.y, alpha: phase === "finale" ? .16 : .11 };
-}
-
-function contactResponseFor(sceneId: SceneId, state: AnimationState, phase: EncounterPhase, allowed: readonly NonNullable<TouchResponse["response"]>[]): NonNullable<TouchResponse["response"]> {
-  const preferred: Record<SceneId, NonNullable<TouchResponse["response"]>> = {
-    "balcony-birds": state === "perching" ? "head-turn" : "hop",
-    "koi-pool": "redirect",
-    "paper-moth": state === "landed" ? "land" : "reroute",
-    "beetle-under-the-fern": state === "sheltering" || phase === "occlusion" ? "hide" : phase === "reappearance" ? "reverse" : "pause",
-    "red-string": state === "resting" ? "pause" : "redirect",
-  };
-  return allowed.includes(preferred[sceneId]) ? preferred[sceneId] : allowed[0];
-}
-
 function resetVisualState(actor: MutableActor): void {
   actor.opacity = 1;
   actor.stretchX = 1;
@@ -434,10 +416,6 @@ function resetVisualState(actor: MutableActor): void {
   actor.scale = actor.baseScale;
   actor.motionEnergy = 0;
   actor.state = "moving";
-}
-
-function isLowMotion(preferences: SimulationPreferences): boolean {
-  return preferences.sceneMotionMode === "low";
 }
 
 function syncRendererFields(actor: MutableActor, elapsedMs: number, variants: VariantSelection): void {
@@ -450,11 +428,7 @@ function syncRendererFields(actor: MutableActor, elapsedMs: number, variants: Va
   const authored = behaviorAt(score, poseTime, variants.motion === "continuous", actor.phase);
   actor.stateProgress = authored.progress;
   const sceneId = sceneIdForActor(actor);
-  let poseProgress = authored.progress;
-  if (sceneId === "koi-pool") poseProgress = actor.posePhase;
-  if (sceneId === "paper-moth" && authored.behavior.state !== "landed") poseProgress = actor.posePhase;
-  if (sceneId === "beetle-under-the-fern" && authored.behavior.state === "crawling") poseProgress = actor.posePhase;
-  if (sceneId === "balcony-birds" && authored.behavior.state === "flying") poseProgress = actor.posePhase;
+  const poseProgress = poseProgressFor(sceneId, authored.behavior.state, authored.progress, actor.posePhase);
   if (sceneId === "red-string") actor.stateProgress = actor.propulsion;
   const frameIndex = Math.min(authored.behavior.poseFrames.length - 1, Math.floor(poseProgress * authored.behavior.poseFrames.length));
   actor.poseFrame = authored.behavior.poseFrames[frameIndex];
@@ -463,39 +437,14 @@ function syncRendererFields(actor: MutableActor, elapsedMs: number, variants: Va
     return;
   }
   if (actor.state === "occluded") {
-    actor.animationState = sceneAnimationState(sceneIdForActor(actor), "occluded");
+    actor.animationState = sceneAnimationState(sceneId, "occluded");
     return;
   }
-  actor.animationState = actor.state === "paused" ? sceneAnimationState(sceneIdForActor(actor), actor.state) : authored.behavior.state;
-}
-
-function behaviorAt(score: SceneScore, timeMs: number, continuous: boolean, seedPhase = 0): { behavior: SceneScore["behaviors"][number]; progress: number } {
-  const durations = score.behaviors.map((behavior, index) => {
-    const [minimum, maximum] = behavior.durationMs;
-    const seededFraction = Math.abs(Math.sin((index + 1) * 91.7 + score.durationMs * .0001 + seedPhase * .0013)) % 1;
-    const authoredDuration = minimum + (maximum - minimum) * seededFraction;
-    const isLongRest = ["perching", "gliding", "landed", "sheltering", "resting"].includes(behavior.state);
-    return continuous && isLongRest ? Math.min(authoredDuration, 900) : authoredDuration;
-  });
-  const cycle = durations.reduce((sum, duration) => sum + duration, 0);
-  let cursor = ((timeMs % cycle) + cycle) % cycle;
-  for (let index = 0; index < score.behaviors.length; index += 1) {
-    if (cursor <= durations[index]) return { behavior: score.behaviors[index], progress: clamp(cursor / durations[index], 0, 1) };
-    cursor -= durations[index];
-  }
-  return { behavior: score.behaviors[0], progress: 0 };
+  actor.animationState = actor.state === "paused" ? sceneAnimationState(sceneId, actor.state) : authored.behavior.state;
 }
 
 // Actor ids are namespaced by scene, keeping snapshots self-contained for renderers.
 function sceneIdForActor(actor: MutableActor): SceneId { return actor.id.replace(/-\d+$/, "") as SceneId; }
-function sceneAnimationState(sceneId: SceneId, state: ActorState): AnimationState {
-  if (state === "hidden" || state === "occluded") return "reappearing";
-  if (sceneId === "balcony-birds") return state === "paused" ? "perching" : "flying";
-  if (sceneId === "koi-pool") return "swimming";
-  if (sceneId === "paper-moth") return state === "paused" ? "landed" : "fluttering";
-  if (sceneId === "beetle-under-the-fern") return state === "paused" ? "sheltering" : "crawling";
-  return state === "paused" ? "resting" : "dragging";
-}
 
 function rotateVelocity(actor: MutableActor, radians: number): void {
   const cosine = Math.cos(radians);
@@ -544,7 +493,7 @@ function keepInsideFrame(actor: MutableActor, deltaSeconds: number): void {
   steer(actor, avoidX, avoidY, deltaSeconds, 5.5);
 }
 
-function occlusionStrength(sceneId: SceneId, actor: MutableActor, _elapsedMs: number): number {
+function occlusionStrength(sceneId: SceneId, actor: MutableActor): number {
   const zoneStrength = sceneScores[sceneId].occlusionZones.reduce((strongest, zone) => {
     const feather = sceneId === "koi-pool" ? .07 : .035;
     const horizontal = smoothstep(zone.minX - feather, zone.minX + feather, actor.x) * (1 - smoothstep(zone.maxX - feather, zone.maxX + feather, actor.x));
