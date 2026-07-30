@@ -1,4 +1,4 @@
-import { ContentManifest, SceneId, sceneIds, validateContentManifest } from "./types";
+import { ContentManifest, SceneId, validateContentManifest } from "./types";
 
 const revision = "2026.07.29.1";
 const repositoryPlate = (assetId: string, source: string, checksum: string) => ({
@@ -35,15 +35,17 @@ const generatedBackground = (assetId: string, source: string, checksum: string) 
 });
 const generatedRopeTile = () => ({ assetId: "red-string-rope-tile-v2", creator: "Catflix studio with OpenAI image generation", source: "/assets/scenes/v2/red-string-tile.png", license: "Project-generated asset; use subject to OpenAI terms", derivativeHistory: ["Cropped from the checksummed red-string texture package", "Rotated and resized into a transparent horizontal Phaser rope texture"], checksum: "63f56af6fb79fccbeed32e20621a6675ffd4b12a5bf3e7905b8efb37308ad28c", masteringFormat: "png" as const, contentRevision: revision });
 const apparentSize = (minimum: number, maximum: number) => ({ frameWidthPercent: [minimum, maximum] as const, intendedViewingDistance: "mixed" as const, visualAngle: "device-dependent" as const, basis: "editorial-legibility" as const });
-const encounterCopy: Record<SceneId, readonly [string, string, string, string]> = {
-  "balcony-birds": ["Four perch-to-perch encounters with one short rail flight and plausible planter or rail occlusion.", "A bird remains visibly settled on a perch while the scene dims.", "A perched bird turns or makes one adjacent hop; a moving bird settles at the next safe perch.", "Perches and the short rail corridor keep the bird against uncluttered sky and masonry."],
-  "koi-pool": ["Three long curved passages with gradual turns, reflected light, and plant-shadow occlusion.", "Calm water remains with one visible fish in a slow glide.", "Contact creates one coherent ripple event and a slow curved redirect.", "Broad, separated arcs avoid confusing multi-fish crossings and reflected highlights."],
-  "paper-moth": ["Five short heading-persistent flutter-and-land passages with frame and lamp occlusion.", "The moth remains visibly landed rather than escaping through an edge.", "A moving moth reroutes once or lands nearby; a landed moth adjusts its wings once and stays still.", "The flight corridor crosses subdued wall and window fields with longer still landings."],
-  "beetle-under-the-fern": ["Four grounded fern-margin crossings with antenna pauses and brief shelter states.", "The beetle remains partially legible and settled under cover.", "Contact pauses, reverses, or guides the beetle beneath the nearest fern without a faster scurry.", "Ground paths follow quiet fern margins and avoid dense leaf-litter texture."],
-  "red-string": ["Five bounded tension-and-slack passages with coherent spline movement and partial edge exits.", "The string resolves into a visible sculptural slack curve.", "Contact changes local tension once, producing one controlled pull or slack response.", "The spline remains on a neutral surface and edge exits never repeat as a chase loop."],
-};
+const encounterCopy = new Map<SceneId, readonly [string, string, string, string]>([
+  ["balcony-birds", ["Four perch-to-perch encounters with one short rail flight and plausible planter or rail occlusion.", "A bird remains visibly settled on a perch while the scene dims.", "A perched bird turns or makes one adjacent hop; a moving bird settles at the next safe perch.", "Perches and the short rail corridor keep the bird against uncluttered sky and masonry."]],
+  ["koi-pool", ["Three long curved passages with gradual turns, reflected light, and plant-shadow occlusion.", "Calm water remains with one visible fish in a slow glide.", "Contact creates one coherent ripple event and a slow curved redirect.", "Broad, separated arcs avoid confusing multi-fish crossings and reflected highlights."]],
+  ["paper-moth", ["Five short heading-persistent flutter-and-land passages with frame and lamp occlusion.", "The moth remains visibly landed rather than escaping through an edge.", "A moving moth reroutes once or lands nearby; a landed moth adjusts its wings once and stays still.", "The flight corridor crosses subdued wall and window fields with longer still landings."]],
+  ["beetle-under-the-fern", ["Four grounded fern-margin crossings with antenna pauses and brief shelter states.", "The beetle remains partially legible and settled under cover.", "Contact pauses, reverses, or guides the beetle beneath the nearest fern without a faster scurry.", "Ground paths follow quiet fern margins and avoid dense leaf-litter texture."]],
+  ["red-string", ["Five bounded tension-and-slack passages with coherent spline movement and partial edge exits.", "The string resolves into a visible sculptural slack curve.", "Contact changes local tension once, producing one controlled pull or slack response.", "The spline remains on a neutral surface and edge exits never repeat as a chase loop."]],
+]);
 const encounterMetadata = (id: SceneId) => {
-  const [authoredScore, finale, contactResponseSemantics, targetCorridorRationale] = encounterCopy[id];
+  const encounter = encounterCopy.get(id);
+  if (!encounter) throw new Error(`Missing encounter metadata for ${id}.`);
+  const [authoredScore, finale, contactResponseSemantics, targetCorridorRationale] = encounter;
   return { encounter: { authoredScore, finale, presentation: { tablet: { distance: "near-screen" as const, frameWidthPercent: [8, 22] as const }, television: { distance: "room-display" as const, frameWidthPercent: [10, 24] as const } }, targetCorridorRationale, backgroundComplexityRationale: "The authored route avoids the plate's highest-frequency texture so the subject remains locally separable.", contactResponseSemantics, restBehavior: "Three accepted contacts within 20 seconds trigger a 10 to 12 second quiet rest. This is an editorial safety cap, not a validated feline threshold.", riskRationale: { edgeExits: "Partial exits are bounded and re-entry remains spatially coherent.", repeatedContact: "Responses settle motion and never add speed, actors, sound, contrast, or duration.", occlusion: "Cover is brief, authored, and followed by reappearance from a plausible location.", audio: "Playback starts muted; source-coherent events require cleared provenance before publication." }, editorialClaims: [{ claim: "Coherent motion and local figure-ground separation support legibility and tracking without establishing enjoyment.", evidenceEndpoint: "docs/research/feline-perception.md#motion-trajectory-and-occlusion", confidence: "limited" as const }] } };
 };
 
@@ -99,16 +101,26 @@ const rawContentRegistry: Readonly<Record<SceneId, ContentManifest>> = {
   },
 };
 
-export const contentRegistry: Readonly<Record<SceneId, ContentManifest>> = Object.fromEntries(sceneIds.map((id) => {
-  const manifest = rawContentRegistry[id];
+const contentManifests = Object.values(rawContentRegistry).map((manifest) => {
   const audio = manifest.audio ? { ...manifest.audio, provenance: manifest.audio.eventKinds.map((eventKind) => ({ eventKind, source: "No cleared environmental recording bundled in this revision", license: "Ineligible until recording provenance and clearance are added", eligible: false })) } : undefined;
-  return [id, { ...manifest, ...(audio ? { audio } : {}) }];
-})) as unknown as Readonly<Record<SceneId, ContentManifest>>;
+  return { ...manifest, ...(audio ? { audio } : {}) };
+});
 
-for (const id of sceneIds) {
-  const result = validateContentManifest(contentRegistry[id]);
-  if (!result.ok) throw new Error(`Invalid content manifest ${id}: ${result.errors.join(" ")}`);
+const contentManifestById = new Map(contentManifests.map((manifest) => [manifest.id, manifest]));
+
+export const contentRegistry: Readonly<Record<SceneId, ContentManifest>> = Object.fromEntries(
+  contentManifests.map((manifest) => [manifest.id, manifest]),
+) as Readonly<Record<SceneId, ContentManifest>>;
+
+for (const manifest of contentManifests) {
+  const result = validateContentManifest(manifest);
+  if (!result.ok) throw new Error(`Invalid content manifest ${manifest.id}: ${result.errors.join(" ")}`);
 }
 
-export function getContentManifest(id: SceneId): ContentManifest { return contentRegistry[id]; }
-export function listContentManifests(): readonly ContentManifest[] { return sceneIds.map((id) => contentRegistry[id]); }
+export function getContentManifest(id: SceneId): ContentManifest {
+  const manifest = contentManifestById.get(id);
+  if (!manifest) throw new Error(`Unknown content manifest ${id}.`);
+  return manifest;
+}
+
+export function listContentManifests(): readonly ContentManifest[] { return [...contentManifests]; }
