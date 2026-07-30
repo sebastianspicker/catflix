@@ -7,6 +7,7 @@ export const defaultVariantSelection: VariantSelection = { figureGround: "natura
 
 const frame = { minX: .045, maxX: .955, minY: .065, maxY: .935 } as const;
 type RawSceneScore = Omit<SceneScore, "encounter" | "interactionPolicy">;
+type SceneBehavior = SceneScore["behaviors"][number];
 const authoredSceneScores: Readonly<Record<SceneId, RawSceneScore>> = {
   "balcony-birds": { id: "balcony-birds", durationMs: 105_000, actorCount: [1, 2], baseSpeed: .078, maxSpeed: .31, maxAcceleration: .76, displayWidth: .2, containment: frame, subjectHitRadius: .14, authoredStates: ["perching", "hopping", "flying", "reappearing"], touchPolicy: { refractoryMs: 5_000, allowedResponses: ["reroute", "pause"] }, audioEventKinds: ["ordinary-call", "wing"], behaviors: [{ state: "perching", durationMs: [5_000, 9_500], poseFrames: [0, 1, 0, 2], trajectory: "perch" }, { state: "hopping", durationMs: [700, 1_100], poseFrames: [3], trajectory: "perch" }, { state: "flying", durationMs: [1_500, 2_800], poseFrames: [4, 5, 6, 5], trajectory: "spline" }, { state: "reappearing", durationMs: [700, 1_200], poseFrames: [4, 5, 6, 5], trajectory: "spline" }], trajectoryRule: "Rail-aligned perch points joined by short eased arcs; flight exits re-enter behind the nearest rail or planter.", occlusionZones: [{ id: "rail", minX: 0, maxX: 1, minY: .68, maxY: 1 }, { id: "planter", minX: .04, maxX: .31, minY: .62, maxY: .9 }], audioEventMappings: { "ordinary-call": "perching", wing: "flying" }, lowMotionOverride: { actorCount: 1, travelScale: .28, deformationScale: 0, maxSimultaneousEvents: 1 } },
   "koi-pool": { id: "koi-pool", durationMs: 120_000, actorCount: [1, 3], baseSpeed: .032, maxSpeed: .1, maxAcceleration: .2, displayWidth: .18, containment: frame, subjectHitRadius: .13, authoredStates: ["swimming", "gliding", "reappearing"], touchPolicy: { refractoryMs: 4_500, allowedResponses: ["redirect"] }, audioEventKinds: ["quiet-water"], behaviors: [{ state: "gliding", durationMs: [4_200, 7_500], poseFrames: [5], trajectory: "spline" }, { state: "swimming", durationMs: [5_500, 9_500], poseFrames: [5, 1, 5, 7], trajectory: "spline" }, { state: "reappearing", durationMs: [900, 1_600], poseFrames: [5, 1, 5, 7], trajectory: "spline" }], trajectoryRule: "Independent broad arcs with gradual tangent changes; short propulsive bouts alternate with straight-body coasts.", occlusionZones: [{ id: "plant-shadow", minX: .55, maxX: .96, minY: .68, maxY: .94 }], audioEventMappings: { "quiet-water": "swimming" }, lowMotionOverride: { actorCount: 1, travelScale: .32, deformationScale: .18, maxSimultaneousEvents: 1 } },
@@ -94,52 +95,8 @@ export function createSceneSimulation(sceneId: SceneId, variants: VariantSelecti
   let pendingEvents: SceneEvent[] = [];
   let accumulatorMs = 0;
   let lastSoundBucket = -1;
-  let actors: MutableActor[] = makeActors();
+  let actors: MutableActor[] = createActors(sceneId, actorCount, random);
   let soundEvents: SoundEvent[] = [];
-
-  function makeActors(): MutableActor[] {
-    return Array.from({ length: actorCount }, (_, index) => {
-      const direction = normalize(random.signed(), random.signed());
-      const placement = initialPlacement(sceneId, random.next(), random.next());
-      const baseScale = 0.92 + random.next() * 0.16;
-      return {
-        id: `${sceneId}-${index + 1}`,
-        ...placement,
-        vx: direction.x || 1,
-        vy: direction.y,
-        angle: 0,
-        state: "moving",
-        visible: true,
-        scale: baseScale,
-        opacity: 1,
-        stretchX: 1,
-        stretchY: 1,
-        facing: direction.x < 0 ? -1 : 1,
-        motionEnergy: 0,
-        animationState: "resting",
-        poseFrame: 0,
-        stateProgress: 0,
-        depth: 2 + placement.y,
-        alpha: 1,
-        scaleX: 1,
-        scaleY: 1,
-        pauseUntilMs: 0,
-        hiddenUntilMs: 0,
-        responseUntilMs: 0,
-        baseScale,
-        // Open every scene in its primary readable state; the small seeded offset
-        // staggers multiple actors without dropping the viewer into mid-transition.
-        phase: random.next() * 1_200 + index * 650,
-        anchorY: placement.y,
-        turnBias: random.signed(),
-        currentSpeed: 0,
-        propulsion: 0,
-        posePhase: random.next(),
-        surfaceVx: 0,
-        surfaceVy: 0,
-      };
-    });
-  }
   function advance(deltaMs: number): SceneSnapshot {
     const boundedDelta = clamp(Number.isFinite(deltaMs) ? deltaMs : 0, 0, 10_000);
     accumulatorMs += boundedDelta;
@@ -194,31 +151,52 @@ export function createSceneSimulation(sceneId: SceneId, variants: VariantSelecti
     if (elapsedMs >= definition.durationMs && !completionEventSent) { frameEvents.push({ type: "complete", atMs: elapsedMs }); completionEventSent = true; }
   }
   function touch(point: Point, timestampMs = elapsedMs): TouchResponse {
-    if (preferences.playbackMode === "tv-passive" || elapsedMs >= definition.durationMs || timestampMs < refractoryUntilMs || timestampMs < forcedRestUntilMs || definition.touchPolicy.allowedResponses.length === 0) return { accepted: false, refractoryUntilMs };
-    const visibleActors = actors.filter((actor) => actor.visible);
-    if (visibleActors.length === 0) return { accepted: false, refractoryUntilMs };
-    const actor = visibleActors.reduce((closest, candidate) => Math.hypot(candidate.x - point.x, candidate.y - point.y) < Math.hypot(closest.x - point.x, closest.y - point.y) ? candidate : closest);
-    if (Math.hypot(actor.x - point.x, actor.y - point.y) > touchRadius(sceneId)) return { accepted: false, refractoryUntilMs };
+    if (touchDisabled(timestampMs)) return { accepted: false, refractoryUntilMs };
+    const actor = closestVisibleActor(point);
+    if (!actor || isOutsideTouchRadius(actor, point)) return { accepted: false, refractoryUntilMs };
     const response = contactResponseFor(sceneId, actor.animationState, phaseAt(elapsedMs).phase, definition.touchPolicy.allowedResponses);
     refractoryUntilMs = timestampMs + definition.touchPolicy.refractoryMs;
     actor.responseUntilMs = timestampMs + 650;
-    if (response === "reroute" || response === "redirect") { const vector = normalize(actor.x - point.x, actor.y - point.y); actor.vx = vector.x; actor.vy = vector.y; }
-    if (response === "head-turn") { actor.facing = actor.facing === 1 ? -1 : 1; actor.pauseUntilMs = timestampMs + 650; }
-    if (response === "hop") actor.pauseUntilMs = timestampMs + 420;
-    if (response === "reverse") { actor.vx *= -1; actor.vy *= -1; }
-    if (response === "pause" || response === "land") actor.pauseUntilMs = timestampMs + 1_050;
-    if (response === "hide") actor.hiddenUntilMs = timestampMs + 1_250;
-    acceptedContactTimes = [...acceptedContactTimes, timestampMs].filter((contactTime) => timestampMs - contactTime <= 20_000);
+    applyTouchResponse(actor, response, point, timestampMs);
+    recordAcceptedTouch(timestampMs);
     pendingEvents.push({ type: "contact-accepted", actorId: actor.id, atMs: timestampMs }, { type: "contact-response", actorId: actor.id, response, atMs: timestampMs });
-    if (acceptedContactTimes.length >= 3 && !reminder) {
-      const restDuration = 10_000 + Math.floor(random.next() * 2_001);
-      forcedRestUntilMs = timestampMs + restDuration;
-      for (const target of actors) target.pauseUntilMs = Math.max(target.pauseUntilMs, forcedRestUntilMs);
-      reminder = { type: "contact-reminder", id: "three-contacts", acceptedContacts: 3, windowMs: 20_000, dismissible: true, editorialSafetyCap: true, atMs: timestampMs };
-      pendingEvents.push({ type: "rest-window", reason: "editorial-contact-cap", durationMs: restDuration, atMs: timestampMs }, reminder);
-    }
+    startContactRestIfNeeded(timestampMs);
     // Responses never modify base speed, audio, duration, or later touch intensity.
     return { accepted: true, response, refractoryUntilMs };
+  }
+  function touchDisabled(timestampMs: number): boolean {
+    return preferences.playbackMode === "tv-passive" || elapsedMs >= definition.durationMs || timestampMs < refractoryUntilMs || timestampMs < forcedRestUntilMs || definition.touchPolicy.allowedResponses.length === 0;
+  }
+  function closestVisibleActor(point: Point): MutableActor | undefined {
+    return actors.filter((actor) => actor.visible).reduce<MutableActor | undefined>((closest, candidate) => !closest || distanceTo(candidate, point) < distanceTo(closest, point) ? candidate : closest, undefined);
+  }
+  function distanceTo(actor: MutableActor, point: Point): number { return Math.hypot(actor.x - point.x, actor.y - point.y); }
+  function isOutsideTouchRadius(actor: MutableActor, point: Point): boolean { return distanceTo(actor, point) > touchRadius(sceneId); }
+  function applyTouchResponse(actor: MutableActor, response: TouchResponse["response"], point: Point, timestampMs: number): void {
+    if (response === "reroute" || response === "redirect") { rerouteActor(actor, point); return; }
+    applyStationaryTouchResponse(actor, response, timestampMs);
+  }
+  function applyStationaryTouchResponse(actor: MutableActor, response: TouchResponse["response"], timestampMs: number): void {
+    switch (response) {
+      case "head-turn": reverseFacingAndPause(actor, timestampMs); break;
+      case "hop": actor.pauseUntilMs = timestampMs + 420; break;
+      case "reverse": reverseActor(actor); break;
+      case "pause": case "land": actor.pauseUntilMs = timestampMs + 1_050; break;
+      case "hide": actor.hiddenUntilMs = timestampMs + 1_250; break;
+      default: break;
+    }
+  }
+  function rerouteActor(actor: MutableActor, point: Point): void { const vector = normalize(actor.x - point.x, actor.y - point.y); actor.vx = vector.x; actor.vy = vector.y; }
+  function reverseFacingAndPause(actor: MutableActor, timestampMs: number): void { actor.facing = actor.facing === 1 ? -1 : 1; actor.pauseUntilMs = timestampMs + 650; }
+  function reverseActor(actor: MutableActor): void { actor.vx *= -1; actor.vy *= -1; }
+  function recordAcceptedTouch(timestampMs: number): void { acceptedContactTimes = [...acceptedContactTimes, timestampMs].filter((contactTime) => timestampMs - contactTime <= 20_000); }
+  function startContactRestIfNeeded(timestampMs: number): void {
+    if (acceptedContactTimes.length < 3 || reminder) return;
+    const restDuration = 10_000 + Math.floor(random.next() * 2_001);
+    forcedRestUntilMs = timestampMs + restDuration;
+    for (const actor of actors) actor.pauseUntilMs = Math.max(actor.pauseUntilMs, forcedRestUntilMs);
+    reminder = { type: "contact-reminder", id: "three-contacts", acceptedContacts: 3, windowMs: 20_000, dismissible: true, editorialSafetyCap: true, atMs: timestampMs };
+    pendingEvents.push({ type: "rest-window", reason: "editorial-contact-cap", durationMs: restDuration, atMs: timestampMs }, reminder);
   }
   function snapshot(): SceneSnapshot {
     const encounter = elapsedMs < forcedRestUntilMs ? { ...phaseAt(elapsedMs), phase: "rest" as const, id: `${sceneId}:contact-rest` } : phaseAt(elapsedMs);
@@ -237,7 +215,7 @@ export function createSceneSimulation(sceneId: SceneId, variants: VariantSelecti
       reminder,
     };
   }
-  function reset(): SceneSnapshot { elapsedMs = 0; accumulatorMs = 0; refractoryUntilMs = 0; forcedRestUntilMs = 0; acceptedContactTimes = []; reminder = undefined; frameEvents = []; pendingEvents = []; lastSoundBucket = -1; lastPhase = phaseAt(0).phase; completionEventSent = false; random = new SeededRandom(seed); random.next(); actors = makeActors(); soundEvents = []; return snapshot(); }
+  function reset(): SceneSnapshot { elapsedMs = 0; accumulatorMs = 0; refractoryUntilMs = 0; forcedRestUntilMs = 0; acceptedContactTimes = []; reminder = undefined; frameEvents = []; pendingEvents = []; lastSoundBucket = -1; lastPhase = phaseAt(0).phase; completionEventSent = false; random = new SeededRandom(seed); random.next(); actors = createActors(sceneId, actorCount, random); soundEvents = []; return snapshot(); }
   function dismissReminder(): SceneSnapshot { reminder = undefined; return snapshot(); }
   return { definition, variants, advance, touch, snapshot, reset, dismissReminder };
 
@@ -267,29 +245,43 @@ export function createSceneSimulation(sceneId: SceneId, variants: VariantSelecti
     actor.y = clamp(actor.y, definition.containment.minY, definition.containment.maxY);
   }
 
-  function advanceBird(actor: MutableActor, time: number, deltaSeconds: number, reducedScale: number, behavior: SceneScore["behaviors"][number], progress: number): void {
+  function advanceBird(actor: MutableActor, time: number, deltaSeconds: number, reducedScale: number, behavior: SceneBehavior, progress: number): void {
     const perching = behavior.state === "perching";
     const hopping = behavior.state === "hopping";
     const flight = behavior.state === "flying" || behavior.state === "reappearing";
-    const hopArc = hopping && !isLowMotion(preferences) ? 4 * progress * (1 - progress) : 0;
-    const direction = actor.x < .18 ? 1 : actor.x > .82 ? -1 : actor.vx < 0 ? -1 : 1;
-    const flightLift = flight ? Math.sin(progress * Math.PI) * (0.14 + Math.abs(actor.turnBias) * 0.05) : 0;
+    const hopArc = birdHopArc(hopping, progress);
+    const direction = birdDirection(actor);
+    const flightLift = birdFlightLift(flight, progress, actor.turnBias);
     const desiredY = actor.anchorY - hopArc * 0.055 - flightLift;
-    const settledOnPerch = perching ? approachSurface(actor, actor.x, actor.anchorY, deltaSeconds, definition.baseSpeed * .82, reducedScale) : false;
+    const settledOnPerch = settleBirdOnPerch(actor, perching, deltaSeconds, reducedScale);
     const settlingToPerch = perching && (!settledOnPerch || actor.currentSpeed > .01);
-    if (!perching) steer(actor, direction, (desiredY - actor.y) * (flight ? 5 : 9), deltaSeconds, flight ? 2.6 : 6);
-    const targetSpeed = perching ? 0 : definition.baseSpeed * (hopping ? 0.95 : 2.35) * reducedScale;
+    steerBirdWhenMoving(actor, perching, direction, desiredY, deltaSeconds, flight);
+    const targetSpeed = birdTargetSpeed(perching, hopping, reducedScale);
     const speed = accelerateAndMove(actor, targetSpeed, deltaSeconds);
-    actor.angle = isLowMotion(preferences) ? 0 : clamp(actor.vy * 0.22, -0.13, 0.13);
+    actor.angle = birdAngle(actor);
     const wing = Math.sin(time * 0.019) * (flight ? 1 : 0);
-    actor.stretchX = 1 + wing * 0.035;
-    actor.stretchY = 1 - wing * 0.055;
-    actor.scale = actor.baseScale * (1 + hopArc * 0.035 + (flight ? 0.045 : 0));
-    actor.motionEnergy = clamp(speed / definition.maxSpeed + Math.abs(wing) * 0.35, 0, 1);
-    actor.propulsion = flight ? Math.abs(wing) : hopping ? hopArc : 0;
-    if (flight) actor.posePhase = (actor.posePhase + deltaSeconds * (isLowMotion(preferences) ? .45 : 1.35)) % 1;
+    applyBirdVisuals(actor, wing, hopArc, flight, speed);
+    advanceBirdPose(actor, flight, deltaSeconds);
     actor.state = perching && !settlingToPerch ? "paused" : "moving";
   }
+  function birdHopArc(hopping: boolean, progress: number): number { return hopping && !isLowMotion(preferences) ? 4 * progress * (1 - progress) : 0; }
+  function birdDirection(actor: MutableActor): number {
+    if (actor.x < .18) return 1;
+    if (actor.x > .82) return -1;
+    return actor.vx < 0 ? -1 : 1;
+  }
+  function birdFlightLift(flight: boolean, progress: number, turnBias: number): number { return flight ? Math.sin(progress * Math.PI) * (0.14 + Math.abs(turnBias) * 0.05) : 0; }
+  function settleBirdOnPerch(actor: MutableActor, perching: boolean, deltaSeconds: number, reducedScale: number): boolean { return perching ? approachSurface(actor, actor.x, actor.anchorY, deltaSeconds, definition.baseSpeed * .82, reducedScale) : false; }
+  function steerBirdWhenMoving(actor: MutableActor, perching: boolean, direction: number, desiredY: number, deltaSeconds: number, flight: boolean): void { if (!perching) steer(actor, direction, (desiredY - actor.y) * (flight ? 5 : 9), deltaSeconds, flight ? 2.6 : 6); }
+  function birdTargetSpeed(perching: boolean, hopping: boolean, reducedScale: number): number { return perching ? 0 : definition.baseSpeed * (hopping ? 0.95 : 2.35) * reducedScale; }
+  function birdAngle(actor: MutableActor): number { return isLowMotion(preferences) ? 0 : clamp(actor.vy * 0.22, -0.13, 0.13); }
+  function applyBirdVisuals(actor: MutableActor, wing: number, hopArc: number, flight: boolean, speed: number): void {
+    actor.stretchX = 1 + wing * 0.035; actor.stretchY = 1 - wing * 0.055;
+    actor.scale = actor.baseScale * (1 + hopArc * 0.035 + (flight ? 0.045 : 0));
+    actor.motionEnergy = clamp(speed / definition.maxSpeed + Math.abs(wing) * 0.35, 0, 1);
+    actor.propulsion = flight ? Math.abs(wing) : hopArc;
+  }
+  function advanceBirdPose(actor: MutableActor, flight: boolean, deltaSeconds: number): void { if (flight) actor.posePhase = (actor.posePhase + deltaSeconds * (isLowMotion(preferences) ? .45 : 1.35)) % 1; }
 
   function advanceKoi(actor: MutableActor, time: number, deltaSeconds: number, reducedScale: number, behavior: SceneScore["behaviors"][number]): void {
     const seconds = time / 1000;
@@ -318,7 +310,7 @@ export function createSceneSimulation(sceneId: SceneId, variants: VariantSelecti
     actor.state = "moving";
   }
 
-  function advanceMoth(actor: MutableActor, time: number, deltaSeconds: number, reducedScale: number, behavior: SceneScore["behaviors"][number], progress: number): void {
+  function advanceMoth(actor: MutableActor, time: number, deltaSeconds: number, reducedScale: number, behavior: SceneBehavior, progress: number): void {
     const landed = behavior.state === "landed";
     const reappearing = behavior.state === "reappearing";
     const seconds = time / 1000;
@@ -326,54 +318,57 @@ export function createSceneSimulation(sceneId: SceneId, variants: VariantSelecti
     const stroke = landed ? 0 : .42 + Math.abs(wingPhase) * .58;
     const flutterTurn = Math.sin(seconds * 1.7) * .72 + Math.sin(seconds * .47 + actor.turnBias) * .44;
     rotateVelocity(actor, flutterTurn * deltaSeconds * stroke * reducedScale);
-    const landingApproach = behavior.state === "fluttering" ? smoothstep(.72, 1, progress) : 0;
-    const landingX = actor.turnBias < 0 ? .075 : .925;
-    const landingY = .34 + Math.abs(actor.turnBias) * .22;
-    if (landingApproach > 0) {
-      steer(actor, landingX - actor.x, landingY - actor.y, deltaSeconds, landingApproach * 2.8);
-    }
-    const settledOnLanding = landed ? approachSurface(actor, landingX, landingY, deltaSeconds, definition.baseSpeed * .82, reducedScale) : false;
-    if (reappearing) steer(actor, actor.x < .5 ? 1 : -1, (.5 - actor.y) * 2, deltaSeconds, 2.8);
-    const targetSpeed = landed ? 0 : definition.baseSpeed * (reappearing ? .58 : .5 + stroke * .45) * reducedScale;
+    const landing = mothLanding(actor);
+    approachMothLanding(actor, behavior, progress, landing, deltaSeconds);
+    const settledOnLanding = settleMoth(actor, landed, landing, deltaSeconds, reducedScale);
+    steerReappearingMoth(actor, reappearing, deltaSeconds);
+    const targetSpeed = mothTargetSpeed(landed, reappearing, stroke, reducedScale);
     const speed = accelerateAndMove(actor, targetSpeed, deltaSeconds);
-    const wing = isLowMotion(preferences) ? 0 : wingPhase;
-    actor.angle = isLowMotion(preferences) ? 0 : Math.atan2(actor.vy, actor.vx) + Math.PI / 2 + wing * 0.018;
-    actor.stretchX = 1 + Math.abs(wing) * 0.12 * (landed ? 0 : 1);
-    actor.stretchY = 1 - Math.abs(wing) * 0.075 * (landed ? 0 : 1);
-    actor.scale = actor.baseScale;
-    actor.motionEnergy = landed ? 0 : clamp(speed / definition.maxSpeed + Math.abs(wing) * .35, 0, 1);
-    actor.propulsion = stroke;
-    if (!landed) actor.posePhase = (actor.posePhase + deltaSeconds * (isLowMotion(preferences) ? .35 : .9 + stroke * .35)) % 1;
+    applyMothVisuals(actor, wingPhase, landed, stroke, speed);
+    advanceMothPose(actor, landed, stroke, deltaSeconds);
     actor.state = landed && settledOnLanding ? "paused" : "moving";
   }
+  function mothLanding(actor: MutableActor): Point { return { x: actor.turnBias < 0 ? .075 : .925, y: .34 + Math.abs(actor.turnBias) * .22 }; }
+  function approachMothLanding(actor: MutableActor, behavior: SceneBehavior, progress: number, landing: Point, deltaSeconds: number): void { const approach = behavior.state === "fluttering" ? smoothstep(.72, 1, progress) : 0; if (approach > 0) steer(actor, landing.x - actor.x, landing.y - actor.y, deltaSeconds, approach * 2.8); }
+  function settleMoth(actor: MutableActor, landed: boolean, landing: Point, deltaSeconds: number, reducedScale: number): boolean { return landed ? approachSurface(actor, landing.x, landing.y, deltaSeconds, definition.baseSpeed * .82, reducedScale) : false; }
+  function steerReappearingMoth(actor: MutableActor, reappearing: boolean, deltaSeconds: number): void { if (reappearing) steer(actor, actor.x < .5 ? 1 : -1, (.5 - actor.y) * 2, deltaSeconds, 2.8); }
+  function mothTargetSpeed(landed: boolean, reappearing: boolean, stroke: number, reducedScale: number): number { return landed ? 0 : definition.baseSpeed * (reappearing ? .58 : .5 + stroke * .45) * reducedScale; }
+  function applyMothVisuals(actor: MutableActor, wingPhase: number, landed: boolean, stroke: number, speed: number): void {
+    const wing = isLowMotion(preferences) ? 0 : wingPhase;
+    actor.angle = isLowMotion(preferences) ? 0 : Math.atan2(actor.vy, actor.vx) + Math.PI / 2 + wing * 0.018;
+    actor.stretchX = 1 + Math.abs(wing) * 0.12 * (landed ? 0 : 1); actor.stretchY = 1 - Math.abs(wing) * 0.075 * (landed ? 0 : 1);
+    actor.scale = actor.baseScale; actor.motionEnergy = landed ? 0 : clamp(speed / definition.maxSpeed + Math.abs(wing) * .35, 0, 1); actor.propulsion = stroke;
+  }
+  function advanceMothPose(actor: MutableActor, landed: boolean, stroke: number, deltaSeconds: number): void { if (!landed) actor.posePhase = (actor.posePhase + deltaSeconds * (isLowMotion(preferences) ? .35 : .9 + stroke * .35)) % 1; }
 
-  function advanceBeetle(actor: MutableActor, time: number, deltaSeconds: number, reducedScale: number, behavior: SceneScore["behaviors"][number], progress: number): void {
+  function advanceBeetle(actor: MutableActor, time: number, deltaSeconds: number, reducedScale: number, behavior: SceneBehavior, progress: number): void {
     const sheltering = behavior.state === "sheltering";
     const reappearing = behavior.state === "reappearing";
     const seconds = time / 1000;
     const stride = .5 + .5 * Math.sin(seconds * 8.8);
-    const stopAndProbe = variants.motion === "intermittent" ? 1 - pulse(time % 3_900, 2_950, 3_650, 150) : 1;
-    const activity = sheltering ? 0 : stopAndProbe;
-    const desiredY = actor.anchorY + Math.sin(seconds * 0.31 + actor.turnBias) * 0.045 + (reappearing ? -.05 : 0);
+    const activity = beetleActivity(sheltering, time);
+    const desiredY = beetleDesiredY(actor, seconds, reappearing);
     steer(actor, actor.vx < 0 ? -1 : 1, (desiredY - actor.y) * 3.5, deltaSeconds, 2.3);
-    const shelterApproach = behavior.state === "crawling" ? smoothstep(.68, 1, progress) : 0;
-    if (shelterApproach > 0) {
-      const shelterX = actor.turnBias < 0 ? .25 : .75;
-      const shelterY = actor.turnBias < 0 ? .44 : .6;
-      steer(actor, shelterX - actor.x, shelterY - actor.y, deltaSeconds, 2.2 * shelterApproach);
-    }
+    approachBeetleShelter(actor, behavior, progress, deltaSeconds);
     rotateVelocity(actor, Math.sin(seconds * 1.1) * deltaSeconds * .12 * activity);
     const speed = accelerateAndMove(actor, definition.baseSpeed * (.48 + stride * .38) * activity * reducedScale, deltaSeconds);
-    const gait = isLowMotion(preferences) ? 0 : Math.sin(seconds * 8.8) * activity;
-    actor.angle = Math.atan2(actor.vy, actor.vx) + Math.PI / 2 + gait * .01;
-    actor.stretchX = 1 + gait * 0.018;
-    actor.stretchY = 1 - gait * 0.012;
-    actor.scale = actor.baseScale;
-    actor.motionEnergy = clamp(speed / definition.maxSpeed + Math.abs(gait) * .18, 0, 1);
-    actor.propulsion = stride * activity;
-    if (activity > .08) actor.posePhase = (actor.posePhase + deltaSeconds * (isLowMotion(preferences) ? .35 : .85 + stride * .25)) % 1;
+    applyBeetleVisuals(actor, seconds, activity, stride, speed);
+    advanceBeetlePose(actor, activity, stride, deltaSeconds);
     actor.state = sheltering || activity < .08 ? "paused" : "moving";
   }
+  function beetleActivity(sheltering: boolean, time: number): number { return sheltering ? 0 : variants.motion === "intermittent" ? 1 - pulse(time % 3_900, 2_950, 3_650, 150) : 1; }
+  function beetleDesiredY(actor: MutableActor, seconds: number, reappearing: boolean): number { return actor.anchorY + Math.sin(seconds * 0.31 + actor.turnBias) * 0.045 + (reappearing ? -.05 : 0); }
+  function approachBeetleShelter(actor: MutableActor, behavior: SceneBehavior, progress: number, deltaSeconds: number): void {
+    const approach = behavior.state === "crawling" ? smoothstep(.68, 1, progress) : 0;
+    if (approach > 0) { const shelter = beetleShelter(actor); steer(actor, shelter.x - actor.x, shelter.y - actor.y, deltaSeconds, 2.2 * approach); }
+  }
+  function beetleShelter(actor: MutableActor): Point { return actor.turnBias < 0 ? { x: .25, y: .44 } : { x: .75, y: .6 }; }
+  function applyBeetleVisuals(actor: MutableActor, seconds: number, activity: number, stride: number, speed: number): void {
+    const gait = isLowMotion(preferences) ? 0 : Math.sin(seconds * 8.8) * activity;
+    actor.angle = Math.atan2(actor.vy, actor.vx) + Math.PI / 2 + gait * .01; actor.stretchX = 1 + gait * .018; actor.stretchY = 1 - gait * .012;
+    actor.scale = actor.baseScale; actor.motionEnergy = clamp(speed / definition.maxSpeed + Math.abs(gait) * .18, 0, 1); actor.propulsion = stride * activity;
+  }
+  function advanceBeetlePose(actor: MutableActor, activity: number, stride: number, deltaSeconds: number): void { if (activity > .08) actor.posePhase = (actor.posePhase + deltaSeconds * (isLowMotion(preferences) ? .35 : .85 + stride * .25)) % 1; }
 
   function advanceString(actor: MutableActor, time: number, deltaSeconds: number, reducedScale: number, behavior: SceneScore["behaviors"][number], progress: number): void {
     const seconds = time / 1000;
@@ -410,19 +405,13 @@ export function createSceneSimulation(sceneId: SceneId, variants: VariantSelecti
 }
 
 function resetVisualState(actor: MutableActor): void {
-  actor.opacity = 1;
-  actor.stretchX = 1;
-  actor.stretchY = 1;
-  actor.scale = actor.baseScale;
-  actor.motionEnergy = 0;
-  actor.state = "moving";
+  actor.opacity = 1; actor.stretchX = 1; actor.stretchY = 1;
+  actor.scale = actor.baseScale; actor.motionEnergy = 0; actor.state = "moving";
 }
 
 function syncRendererFields(actor: MutableActor, elapsedMs: number, variants: VariantSelection): void {
-  actor.alpha = actor.opacity;
-  actor.scaleX = actor.stretchX;
-  actor.scaleY = actor.stretchY;
-  actor.depth = 2 + actor.y;
+  actor.alpha = actor.opacity; actor.scaleX = actor.stretchX;
+  actor.scaleY = actor.stretchY; actor.depth = 2 + actor.y;
   const poseTime = elapsedMs + actor.phase;
   const score = sceneScores[sceneIdForActor(actor)];
   const authored = behaviorAt(score, poseTime, variants.motion === "continuous", actor.phase);
@@ -522,3 +511,19 @@ function approachSurface(actor: MutableActor, targetX: number, targetY: number, 
 function touchRadius(sceneId: SceneId): number { return sceneDefinitions[sceneId].subjectHitRadius; }
 
 export function getSceneDefinition(id: SceneId): SceneDefinition { return sceneDefinitions[id]; }
+
+function createActors(sceneId: SceneId, actorCount: number, random: SeededRandom): MutableActor[] {
+  const actors: MutableActor[] = []; for (let index = 0; index < actorCount; index += 1) actors.push(createActor(sceneId, index, random));
+  return actors;
+}
+
+function createActor(sceneId: SceneId, index: number, random: SeededRandom): MutableActor {
+  const direction = normalize(random.signed(), random.signed()); const placement = initialPlacement(sceneId, random.next(), random.next());
+  const baseScale = 0.92 + random.next() * 0.16;
+  return {
+    id: `${sceneId}-${index + 1}`, x: placement.x, y: placement.y, vx: direction.x || 1, vy: direction.y, angle: 0, state: "moving", visible: true, scale: baseScale, opacity: 1,
+    stretchX: 1, stretchY: 1, facing: direction.x < 0 ? -1 : 1, motionEnergy: 0, animationState: "resting", poseFrame: 0, stateProgress: 0,
+    depth: 2 + placement.y, alpha: 1, scaleX: 1, scaleY: 1, pauseUntilMs: 0, hiddenUntilMs: 0, responseUntilMs: 0, baseScale,
+    phase: random.next() * 1_200 + index * 650, anchorY: placement.y, turnBias: random.signed(), currentSpeed: 0, propulsion: 0, posePhase: random.next(), surfaceVx: 0, surfaceVy: 0,
+  };
+}
