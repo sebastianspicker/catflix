@@ -30,14 +30,21 @@ const scenePhaseAt = (score: SceneScore, timeMs: number): EncounterBeat => {
 
 const advanceActorForFixedStep = (actor: MutableActor, encounter: EncounterBeat, deltaMs: number, context: ActorMotionContext): void => {
   resetVisualState(actor);
-  if (context.elapsedMs < context.forcedRestUntilMs || encounter.phase === "finale") return pauseActor(actor, encounter.behaviorState, false, context);
+  if (context.elapsedMs < context.forcedRestUntilMs || encounter.phase === "finale") {
+    pauseActor(actor, encounter.behaviorState, false, context);
+    return;
+  }
   if (actor.hiddenUntilMs > context.elapsedMs) {
     actor.visible = false;
     actor.state = "hidden";
-    return syncRendererFields(actor, context);
+    syncRendererFields(actor, context);
+    return;
   }
   actor.visible = true;
-  if (actor.pauseUntilMs > context.elapsedMs) return pauseActor(actor, actor.animationState, true, context);
+  if (actor.pauseUntilMs > context.elapsedMs) {
+    pauseActor(actor, actor.animationState, true, context);
+    return;
+  }
   advanceAuthoredActor(actor, deltaMs, context);
   applyOcclusion(actor, context);
   syncRendererFields(actor, context);
@@ -74,22 +81,42 @@ const advanceAuthoredActor = (actor: MutableActor, deltaMs: number, context: Act
 };
 
 const advanceBird = (actor: MutableActor, time: number, deltaSeconds: number, reducedScale: number, behavior: SceneBehavior, progress: number, context: ActorMotionContext): void => {
-  const perching = behavior.state === "perching", hopping = behavior.state === "hopping", flight = behavior.state === "flying" || behavior.state === "reappearing";
-  const hopArc = hopping && !isLowMotion(context.preferences) ? 4 * progress * (1 - progress) : 0;
-  const direction = actor.x < .18 ? 1 : actor.x > .82 ? -1 : actor.vx < 0 ? -1 : 1;
-  const desiredY = actor.anchorY - hopArc * .055 - (flight ? Math.sin(progress * Math.PI) * (.14 + Math.abs(actor.turnBias) * .05) : 0);
-  const settled = perching ? approachSurface(actor, actor.x, actor.anchorY, deltaSeconds, context.score.baseSpeed * .82, reducedScale, context.score) : false;
-  const settling = perching && (!settled || actor.currentSpeed > .01);
-  if (!perching) steer(actor, direction, (desiredY - actor.y) * (flight ? 5 : 9), deltaSeconds, flight ? 2.6 : 6, context.score);
-  const speed = accelerateAndMove(actor, perching ? 0 : context.score.baseSpeed * (hopping ? .95 : 2.35) * reducedScale, deltaSeconds, context.score);
+  const perching = behavior.state === "perching";
+  const hopping = behavior.state === "hopping";
+  const flight = behavior.state === "flying" || behavior.state === "reappearing";
+  const hopArc = birdHopArc(hopping, progress, context.preferences);
+  const desiredY = birdDesiredY(actor, hopArc, flight, progress);
+  const settled = settleBird(actor, perching, deltaSeconds, reducedScale, context.score);
+  steerBird(actor, perching, flight, desiredY, deltaSeconds, context.score);
+  const speed = accelerateAndMove(actor, birdTargetSpeed(perching, hopping, reducedScale, context.score), deltaSeconds, context.score);
   actor.angle = isLowMotion(context.preferences) ? 0 : clamp(actor.vy * .22, -.13, .13);
   const wing = Math.sin(time * .019) * (flight ? 1 : 0);
+  applyBirdVisuals(actor, wing, hopArc, flight, speed, context.score);
+  advanceBirdPose(actor, flight, deltaSeconds, context.preferences);
+  actor.state = birdActorState(perching, settled, actor.currentSpeed);
+};
+
+const birdHopArc = (hopping: boolean, progress: number, preferences: SimulationPreferences): number => hopping && !isLowMotion(preferences) ? 4 * progress * (1 - progress) : 0;
+const birdDesiredY = (actor: MutableActor, hopArc: number, flight: boolean, progress: number): number => actor.anchorY - hopArc * .055 - (flight ? Math.sin(progress * Math.PI) * (.14 + Math.abs(actor.turnBias) * .05) : 0);
+const birdDirection = (actor: MutableActor): number => {
+  if (actor.x < .18) return 1;
+  if (actor.x > .82) return -1;
+  return actor.vx < 0 ? -1 : 1;
+};
+const settleBird = (actor: MutableActor, perching: boolean, deltaSeconds: number, reducedScale: number, score: SceneScore): boolean => perching && approachSurface(actor, actor.x, actor.anchorY, deltaSeconds, score.baseSpeed * .82, reducedScale, score);
+const steerBird = (actor: MutableActor, perching: boolean, flight: boolean, desiredY: number, deltaSeconds: number, score: SceneScore): void => {
+  if (!perching) steer(actor, birdDirection(actor), (desiredY - actor.y) * (flight ? 5 : 9), deltaSeconds, flight ? 2.6 : 6, score);
+};
+const birdTargetSpeed = (perching: boolean, hopping: boolean, reducedScale: number, score: SceneScore): number => perching ? 0 : score.baseSpeed * (hopping ? .95 : 2.35) * reducedScale;
+const applyBirdVisuals = (actor: MutableActor, wing: number, hopArc: number, flight: boolean, speed: number, score: SceneScore): void => {
   actor.stretchX = 1 + wing * .035; actor.stretchY = 1 - wing * .055;
   actor.scale = actor.baseScale * (1 + hopArc * .035 + (flight ? .045 : 0));
-  actor.motionEnergy = clamp(speed / context.score.maxSpeed + Math.abs(wing) * .35, 0, 1); actor.propulsion = flight ? Math.abs(wing) : hopArc;
-  if (flight) actor.posePhase = (actor.posePhase + deltaSeconds * (isLowMotion(context.preferences) ? .45 : 1.35)) % 1;
-  actor.state = perching && !settling ? "paused" : "moving";
+  actor.motionEnergy = clamp(speed / score.maxSpeed + Math.abs(wing) * .35, 0, 1); actor.propulsion = flight ? Math.abs(wing) : hopArc;
 };
+const advanceBirdPose = (actor: MutableActor, flight: boolean, deltaSeconds: number, preferences: SimulationPreferences): void => {
+  if (flight) actor.posePhase = (actor.posePhase + deltaSeconds * (isLowMotion(preferences) ? .45 : 1.35)) % 1;
+};
+const birdActorState = (perching: boolean, settled: boolean, currentSpeed: number): MutableActor["state"] => perching && settled && currentSpeed <= .01 ? "paused" : "moving";
 
 const advanceKoi = (actor: MutableActor, time: number, deltaSeconds: number, reducedScale: number, behavior: SceneBehavior, context: ActorMotionContext): void => {
   const seconds = time / 1000, pattern = Math.abs(Math.floor(time / 8_500)) % 3;
@@ -111,14 +138,13 @@ const advanceMoth = (actor: MutableActor, time: number, deltaSeconds: number, re
   const { landed, reappearing } = mothFlightState(behavior);
   const seconds = time / 1000, wingPhase = Math.sin(actor.posePhase * Math.PI * 2), stroke = mothStroke(landed, wingPhase);
   rotateVelocity(actor, (Math.sin(seconds * 1.7) * .72 + Math.sin(seconds * .47 + actor.turnBias) * .44) * deltaSeconds * stroke * reducedScale);
-  const landing: Point = { x: actor.turnBias < 0 ? .075 : .925, y: .34 + Math.abs(actor.turnBias) * .22 };
-  const approach = mothApproach(behavior, progress);
-  if (approach > 0) steer(actor, landing.x - actor.x, landing.y - actor.y, deltaSeconds, approach * 2.8, context.score);
-  const settled = landed ? approachSurface(actor, landing.x, landing.y, deltaSeconds, context.score.baseSpeed * .82, reducedScale, context.score) : false;
-  if (reappearing) steer(actor, actor.x < .5 ? 1 : -1, (.5 - actor.y) * 2, deltaSeconds, 2.8, context.score);
+  const landing = mothLanding(actor);
+  approachMothLanding(actor, behavior, progress, landing, deltaSeconds, context.score);
+  const settled = settleMoth(actor, landed, landing, deltaSeconds, reducedScale, context.score);
+  steerReappearingMoth(actor, reappearing, deltaSeconds, context.score);
   const speed = accelerateAndMove(actor, mothTargetSpeed(landed, reappearing, stroke, reducedScale, context.score), deltaSeconds, context.score);
   applyMothVisuals(actor, landed, wingPhase, stroke, speed, context);
-  if (!landed) actor.posePhase = (actor.posePhase + deltaSeconds * (isLowMotion(context.preferences) ? .35 : .9 + stroke * .35)) % 1;
+  advanceMothPose(actor, landed, stroke, deltaSeconds, context.preferences);
   actor.state = landed && settled ? "paused" : "moving";
 };
 
@@ -127,25 +153,51 @@ const mothFlightState = (behavior: SceneBehavior): MothFlightState => {
 };
 const mothStroke = (landed: boolean, wingPhase: number): number => { return landed ? 0 : .42 + Math.abs(wingPhase) * .58; };
 const mothApproach = (behavior: SceneBehavior, progress: number): number => { return behavior.state === "fluttering" ? smoothstep(.72, 1, progress) : 0; };
+const mothLanding = (actor: MutableActor): Point => {
+  return { x: actor.turnBias < 0 ? .075 : .925, y: .34 + Math.abs(actor.turnBias) * .22 };
+};
+const approachMothLanding = (actor: MutableActor, behavior: SceneBehavior, progress: number, landing: Point, deltaSeconds: number, score: SceneScore): void => {
+  const approach = mothApproach(behavior, progress);
+  if (approach > 0) steer(actor, landing.x - actor.x, landing.y - actor.y, deltaSeconds, approach * 2.8, score);
+};
+const settleMoth = (actor: MutableActor, landed: boolean, landing: Point, deltaSeconds: number, reducedScale: number, score: SceneScore): boolean => landed && approachSurface(actor, landing.x, landing.y, deltaSeconds, score.baseSpeed * .82, reducedScale, score);
+const steerReappearingMoth = (actor: MutableActor, reappearing: boolean, deltaSeconds: number, score: SceneScore): void => {
+  if (reappearing) steer(actor, actor.x < .5 ? 1 : -1, (.5 - actor.y) * 2, deltaSeconds, 2.8, score);
+};
 const mothTargetSpeed = (landed: boolean, reappearing: boolean, stroke: number, reducedScale: number, score: SceneScore): number => { return landed ? 0 : score.baseSpeed * (reappearing ? .58 : .5 + stroke * .45) * reducedScale; };
 const applyMothVisuals = (actor: MutableActor, landed: boolean, wingPhase: number, stroke: number, speed: number, context: ActorMotionContext): void => {
   const wing = isLowMotion(context.preferences) ? 0 : wingPhase;
   actor.angle = isLowMotion(context.preferences) ? 0 : Math.atan2(actor.vy, actor.vx) + Math.PI / 2 + wing * .018; actor.stretchX = 1 + Math.abs(wing) * .12 * (landed ? 0 : 1); actor.stretchY = 1 - Math.abs(wing) * .075 * (landed ? 0 : 1);
   actor.scale = actor.baseScale; actor.motionEnergy = landed ? 0 : clamp(speed / context.score.maxSpeed + Math.abs(wing) * .35, 0, 1); actor.propulsion = stroke;
 };
+const advanceMothPose = (actor: MutableActor, landed: boolean, stroke: number, deltaSeconds: number, preferences: SimulationPreferences): void => {
+  if (!landed) actor.posePhase = (actor.posePhase + deltaSeconds * (isLowMotion(preferences) ? .35 : .9 + stroke * .35)) % 1;
+};
 
 const advanceBeetle = (actor: MutableActor, time: number, deltaSeconds: number, reducedScale: number, behavior: SceneBehavior, progress: number, context: ActorMotionContext): void => {
   const sheltering = behavior.state === "sheltering", reappearing = behavior.state === "reappearing", seconds = time / 1000, stride = .5 + .5 * Math.sin(seconds * 8.8);
-  const activity = sheltering ? 0 : context.variants.motion === "intermittent" ? 1 - pulse(time % 3_900, 2_950, 3_650, 150) : 1;
-  const desiredY = actor.anchorY + Math.sin(seconds * .31 + actor.turnBias) * .045 + (reappearing ? -.05 : 0);
+  const activity = beetleActivity(sheltering, time, context.variants);
+  const desiredY = beetleDesiredY(actor, seconds, reappearing);
   steer(actor, actor.vx < 0 ? -1 : 1, (desiredY - actor.y) * 3.5, deltaSeconds, 2.3, context.score);
-  const approach = behavior.state === "crawling" ? smoothstep(.68, 1, progress) : 0;
-  if (approach > 0) { const shelter = actor.turnBias < 0 ? { x: .25, y: .44 } : { x: .75, y: .6 }; steer(actor, shelter.x - actor.x, shelter.y - actor.y, deltaSeconds, 2.2 * approach, context.score); }
+  approachBeetleShelter(actor, behavior, progress, deltaSeconds, context.score);
   rotateVelocity(actor, Math.sin(seconds * 1.1) * deltaSeconds * .12 * activity);
-  const speed = accelerateAndMove(actor, context.score.baseSpeed * (.48 + stride * .38) * activity * reducedScale, deltaSeconds, context.score), gait = isLowMotion(context.preferences) ? 0 : Math.sin(seconds * 8.8) * activity;
+  const speed = accelerateAndMove(actor, context.score.baseSpeed * (.48 + stride * .38) * activity * reducedScale, deltaSeconds, context.score);
+  const gait = isLowMotion(context.preferences) ? 0 : Math.sin(seconds * 8.8) * activity;
   actor.angle = Math.atan2(actor.vy, actor.vx) + Math.PI / 2 + gait * .01; actor.stretchX = 1 + gait * .018; actor.stretchY = 1 - gait * .012; actor.scale = actor.baseScale; actor.motionEnergy = clamp(speed / context.score.maxSpeed + Math.abs(gait) * .18, 0, 1); actor.propulsion = stride * activity;
-  if (activity > .08) actor.posePhase = (actor.posePhase + deltaSeconds * (isLowMotion(context.preferences) ? .35 : .85 + stride * .25)) % 1;
+  advanceBeetlePose(actor, activity, stride, deltaSeconds, context.preferences);
   actor.state = sheltering || activity < .08 ? "paused" : "moving";
+};
+
+const beetleActivity = (sheltering: boolean, time: number, variants: VariantSelection): number => sheltering ? 0 : variants.motion === "intermittent" ? 1 - pulse(time % 3_900, 2_950, 3_650, 150) : 1;
+const beetleDesiredY = (actor: MutableActor, seconds: number, reappearing: boolean): number => actor.anchorY + Math.sin(seconds * .31 + actor.turnBias) * .045 + (reappearing ? -.05 : 0);
+const approachBeetleShelter = (actor: MutableActor, behavior: SceneBehavior, progress: number, deltaSeconds: number, score: SceneScore): void => {
+  const approach = behavior.state === "crawling" ? smoothstep(.68, 1, progress) : 0;
+  if (approach <= 0) return;
+  const shelter = actor.turnBias < 0 ? { x: .25, y: .44 } : { x: .75, y: .6 };
+  steer(actor, shelter.x - actor.x, shelter.y - actor.y, deltaSeconds, 2.2 * approach, score);
+};
+const advanceBeetlePose = (actor: MutableActor, activity: number, stride: number, deltaSeconds: number, preferences: SimulationPreferences): void => {
+  if (activity > .08) actor.posePhase = (actor.posePhase + deltaSeconds * (isLowMotion(preferences) ? .35 : .85 + stride * .25)) % 1;
 };
 
 const advanceString = (actor: MutableActor, time: number, deltaSeconds: number, reducedScale: number, behavior: SceneBehavior, progress: number, context: ActorMotionContext): void => {

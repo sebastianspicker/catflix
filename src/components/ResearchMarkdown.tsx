@@ -102,8 +102,7 @@ function parseBlocks(source: string): Block[] {
   const lines = new LineReader(source);
   const blocks: Block[] = [];
 
-  while (lines.current() !== undefined) {
-    const line = lines.current()!;
+  for (let line = lines.current(); line !== undefined; line = lines.current()) {
     if (line.trim() === "") { lines.advance(); continue; }
 
     const heading = line.match(headingPattern);
@@ -115,21 +114,24 @@ function parseBlocks(source: string): Block[] {
     if (line.startsWith("```")) {
       const code: string[] = [];
       lines.advance();
-      while (lines.current() !== undefined && !lines.current()!.startsWith("```")) {
-        code.push(lines.current()!);
+      for (let codeLine = lines.current(); codeLine !== undefined && !codeLine.startsWith("```"); codeLine = lines.current()) {
+        code.push(codeLine);
         lines.advance();
       }
       if (lines.current() !== undefined) lines.advance();
       blocks.push({ type: "code", text: code.join("\n") });
       continue;
     }
-    if (line.startsWith("|") && lines.peek() !== undefined && isTableSeparator(lines.peek()!)) {
+    const nextLine = lines.peek();
+    if (line.startsWith("|") && nextLine !== undefined && isTableSeparator(nextLine)) {
       const header = tableCells(line);
       const rows: string[][] = [];
       lines.advance();
       lines.advance();
-      while (lines.current() !== undefined && lines.current()!.startsWith("|")) {
-        rows.push(tableCells(lines.current()!));
+      while (lines.current()?.startsWith("|")) {
+        const row = lines.current();
+        if (row === undefined) break;
+        rows.push(tableCells(row));
         lines.advance();
       }
       blocks.push({ type: "table", header, rows });
@@ -140,8 +142,8 @@ function parseBlocks(source: string): Block[] {
     if (unordered ?? ordered) {
       const isOrdered = Boolean(ordered);
       const items: string[] = [];
-      while (lines.current() !== undefined) {
-        const item = lines.current()!.match(isOrdered ? orderedPattern : unorderedPattern);
+      for (let itemLine = lines.current(); itemLine !== undefined; itemLine = lines.current()) {
+        const item = itemLine.match(isOrdered ? orderedPattern : unorderedPattern);
         if (!item) break;
         items.push(item[1]);
         lines.advance();
@@ -151,8 +153,8 @@ function parseBlocks(source: string): Block[] {
     }
     const paragraph = [line];
     lines.advance();
-    while (lines.current() !== undefined && isParagraphContinuation(lines.current()!)) {
-      paragraph.push(lines.current()!);
+    for (let paragraphLine = lines.current(); paragraphLine !== undefined && isParagraphContinuation(paragraphLine); paragraphLine = lines.current()) {
+      paragraph.push(paragraphLine);
       lines.advance();
     }
     const paragraphText = paragraph.map((paragraphLine) => paragraphLine.endsWith("  ") ? `${paragraphLine.trimEnd()}\n` : paragraphLine).join(" ").replace(/\n /g, "\n");

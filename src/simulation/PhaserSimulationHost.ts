@@ -102,12 +102,12 @@ export function createPhaserSimulationHost(options: PhaserSimulationHostOptions)
       options.container.appendChild(canvas);
     }
   };
-  const preload = function (this: Phaser.Scene): void {
+  const preload: Phaser.Types.Scenes.ScenePreloadCallback = function (): void {
     this.load.image("catflix-background", publicUrl(manifest.visuals.backgroundPlateUrl));
     this.load.image("catflix-poses", publicUrl(sheet.path));
     if (options.sceneId === "red-string") this.load.image("catflix-rope", publicUrl("/assets/scenes/v2/red-string-tile.png"));
   };
-  const create = function (this: Phaser.Scene): void {
+  const create: Phaser.Types.Scenes.SceneCreateCallback = function (): void {
     setupScene(this);
   };
   const setupScene = (scene: Phaser.Scene): void => {

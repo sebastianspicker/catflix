@@ -61,7 +61,7 @@ const usePauseWhenHidden = (hostRef: RefObject<ReturnType<typeof createPhaserSim
 };
 
 export function Player({ plan, onSceneMotionModeChange, onExit }: PlayerProps) {
-  const { manifest, variants, seed, playbackMode, setup } = plan;
+  const { manifest, variants, seed, playbackMode } = plan;
   const stageRef = useRef<HTMLDivElement>(null); const hostRef = useRef<ReturnType<typeof createPhaserSimulationHost> | null>(null); const elapsedRef = useRef(0); const touchesRef = useRef<number[]>([]); const soundRef = useRef(false);
   const [elapsed, setElapsed] = useState(0); const [playing, setPlaying] = useState(true); const [sound, setSound] = useState(false); const [sceneMotionMode, setSceneMotionMode] = useState(plan.sceneMotionMode); const [showContactReminder, setShowContactReminder] = useState(false); const [phase, setPhase] = useState('invitation');
   useEffect(() => { soundRef.current = sound; }, [sound]);
