@@ -16,10 +16,9 @@ Repository: https://github.com/sebastianspicker/catflix
 
 ## Publication blockers
 
-1. No project license has been selected.
-2. `src/content/registry.ts` records several existing poster assets with an unknown original creator and clearance still to be confirmed.
-3. No clean dependency lockfile exists. The current local `node_modules` contains workspace-linked packages, so it cannot be used to derive a trustworthy lockfile.
-4. The GitHub Actions workflow must pass for the exact commit selected for a tagged release. Local evidence does not substitute for that remote run.
+1. `src/content/registry.ts` records several existing poster assets with an unknown original creator and clearance still to be confirmed.
+2. No clean dependency lockfile exists. The current local `node_modules` contains workspace-linked packages, so it cannot be used to derive a trustworthy lockfile.
+3. The GitHub Actions workflow must pass for the exact commit selected for a tagged release. Local evidence does not substitute for that remote run.
 
 ## Known build notes
 
@@ -29,7 +28,6 @@ Repository: https://github.com/sebastianspicker/catflix
 
 ## Before public alpha
 
-- Choose and add the intended code, research-content, and artwork licenses.
 - Resolve or replace every asset whose provenance says clearance must be confirmed.
 - Create a lockfile from a clean install, then change CI from `npm install` to `npm ci` with dependency caching.
 - Run the local verification commands from a clean checkout.

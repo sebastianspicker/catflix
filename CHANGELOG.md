@@ -9,6 +9,7 @@ All notable changes to public Catflix releases will be documented here.
 - Public alpha documentation and deterministic screenshot workflow
 - GitHub Actions verification for unit tests, build, and cross-browser Playwright tests
 - Contributor and private vulnerability reporting guidance
+- MIT licensing for the software and original project documentation
 
 ### Current product surface
 

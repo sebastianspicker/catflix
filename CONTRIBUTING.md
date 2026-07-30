@@ -22,4 +22,4 @@ Catflix is preparing for its first public alpha. Keep changes narrow, evidence-b
 
 Describe the user-visible change, tests run, screenshot impact, storage or privacy impact, and any research claim added or changed. New scientific claims must update both `docs/research/feline-perception.md` and `docs/research/evidence-ledger.csv` with a stable source record.
 
-No contribution license has been selected yet. Contributions should not be accepted until the project owner chooses and documents the intended licensing terms.
+By submitting a contribution, you agree that it may be distributed under the repository's MIT License. Do not submit third-party assets or research content unless their provenance and redistribution terms are documented and compatible with the repository.
