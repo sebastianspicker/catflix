@@ -1,0 +1,9 @@
+---
+engines:
+  eslint-8:
+    exclude_paths:
+      - "src/components/ResearchMarkdown.test.tsx"
+  lizard:
+    exclude_paths:
+      - "**/*.test.ts"
+      - "**/*.test.tsx"

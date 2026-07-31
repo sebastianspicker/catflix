@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import process from 'node:process';
 
 const port = Number(process.env.CATFLIX_PAGES_PORT ?? 4186);
 const liveOrigin = process.env.CATFLIX_PAGES_LIVE_ORIGIN;
