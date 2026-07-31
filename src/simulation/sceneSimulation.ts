@@ -1,6 +1,6 @@
 import { getContentManifest } from "../content/registry";
 import type { SceneId, VariantSelection } from "../content/types";
-import { createActors, type MutableActor } from "./actorFactory";
+import { createActors } from "./actorFactory";
 import { advanceActorForFixedStep, scenePhaseAt } from "./actorMotion";
 import { ContactController } from "./contactController";
 import { updateSceneAudio } from "./sceneAudio";
@@ -32,7 +32,9 @@ export const createSceneSimulationEngine = (sceneId: SceneId, definition: SceneD
     if (elapsedMs >= score.durationMs && !completionSent) { frameEvents.push({ type: "complete", atMs: elapsedMs }); completionSent = true; }
   }
   function touch(point: { x: number; y: number }, timestampMs = elapsedMs) { const contact = contacts.touch(sceneId, score, preferences, actors, elapsedMs, point, timestampMs, () => random.next()); pendingEvents.push(...contact.events); return contact.result; }
-  function snapshot(): SceneSnapshot { return sceneSnapshot(sceneId, score, elapsedMs, contacts.state.forcedRestUntilMs, actors, soundEvents, frameEvents, pendingEvents, contacts.state.reminder); }
+  function snapshot(): SceneSnapshot {
+    return sceneSnapshot({ sceneId, score, elapsedMs, forcedRestUntilMs: contacts.state.forcedRestUntilMs, actors, soundEvents, frameEvents, pendingEvents, reminder: contacts.state.reminder });
+  }
   function reset(): SceneSnapshot { elapsedMs = 0; clock.reset(); lastSoundBucket = -1; completionSent = false; frameEvents = []; pendingEvents = []; soundEvents = []; contacts.reset(); lastPhase = scenePhaseAt(score, 0).phase; random = new SeededRandom(seed); random.next(); actors = createActors(sceneId, actorCount, random); return snapshot(); }
   function dismissReminder(): SceneSnapshot { contacts.dismissReminder(); return snapshot(); }
   return { definition, variants, advance, touch, snapshot, reset, dismissReminder };

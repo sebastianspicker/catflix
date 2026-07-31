@@ -11,7 +11,7 @@ const audioCapabilityFor = (manifest: ContentManifest, soundVariant: 'off' | 'on
 };
 
 export const usePlayerRuntime = ({ plan, stageRef, onSceneMotionModeChange, onExit }: PlayerRuntimeOptions): PlayerRuntime => {
-  const { manifest, variants, seed, playbackMode } = plan;
+  const { manifest, variants } = plan;
   const hostRef = useRef<PlayerHost | null>(null);
   const elapsedRef = useRef(0);
   const touchesRef = useRef<number[]>([]);

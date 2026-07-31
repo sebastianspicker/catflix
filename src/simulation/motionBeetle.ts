@@ -1,4 +1,3 @@
-import type { MutableActor } from "./actorFactory";
 import type { MotionStrategy } from "./motionTypes";
 import { accelerateAndMove, rotateVelocity, steer } from "./motionMath";
 import { clamp, isLowMotion, pulse, smoothstep } from "./simulationPrimitives";

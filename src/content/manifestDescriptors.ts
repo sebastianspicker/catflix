@@ -1,4 +1,4 @@
-import { anything, arrayOf, fields, number, oneOf, optional, string, text } from "../validation/descriptors";
+import { anything, arrayOf, fields, number, oneOf, optional, text } from "../validation/descriptors";
 
 export const assetDescriptor = fields({ assetId: text(), creator: text(), source: text("/assets/"), license: text(), derivativeHistory: arrayOf(text(), 1), checksum: text(), masteringFormat: oneOf("webp", "avif", "png", "opus", "mp3", "wav"), contentRevision: text() });
 export const motionDescriptor = fields({ apparentSpeed: oneOf("still", "slow", "measured", "variable"), trajectory: arrayOf(oneOf("curved", "direct", "fluttering", "grounded", "authored"), 1), intermittency: oneOf("continuous", "continuous-with-pauses", "intermittent"), directionChanges: oneOf("none", "gentle", "frequent", "authored"), entranceEdges: arrayOf(oneOf("top", "right", "bottom", "left"), 1), exitEdges: arrayOf(oneOf("top", "right", "bottom", "left"), 1), acceleration: oneOf("none", "gentle", "brief", "variable"), occlusion: fields({ frequency: oneOf("none", "occasional", "recurring"), duration: oneOf("brief", "variable", "sustained") }) });

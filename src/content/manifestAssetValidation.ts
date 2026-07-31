@@ -8,7 +8,7 @@ const validateManifestAssets = (manifest: Record<string, unknown>, errors: strin
   if (!Array.isArray(assets) || assets.length === 0) { errors.push("At least one provenance record is required."); return; }
   const assetIds = new Set<string>();
   const checksums = new Set<string>();
-  assets.forEach((asset, index) => validateAsset(asset, index, manifest.revision, assetIds, checksums, errors));
+  assets.forEach((asset, index) => { validateAsset(asset, index, manifest.revision, assetIds, checksums, errors); });
   validateAssetCoverage(assets, manifest, errors);
 };
 

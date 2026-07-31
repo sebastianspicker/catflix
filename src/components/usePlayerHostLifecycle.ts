@@ -20,7 +20,8 @@ interface PlayerHostLifecycleOptions extends Pick<PlayerProps, 'onExit'> {
   setShowContactReminder: Dispatch<SetStateAction<boolean>>;
 }
 
-export const usePlayerHostLifecycle = ({ plan, stageRef, hostRef, elapsedRef, touchesRef, soundRef, sceneMotionMode, sound, setElapsed, setPhase, setPlaying, setShowContactReminder, onExit }: PlayerHostLifecycleOptions): void => {
+export const usePlayerHostLifecycle = (options: PlayerHostLifecycleOptions): void => {
+  const { plan, stageRef, hostRef, elapsedRef, touchesRef, soundRef, sceneMotionMode, sound, setElapsed, setPhase, setPlaying, setShowContactReminder, onExit } = options;
   const { manifest, variants, seed, playbackMode } = plan;
   useEffect(() => { soundRef.current = sound; }, [sound, soundRef]);
   useEffect(() => {

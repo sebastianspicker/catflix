@@ -32,10 +32,10 @@ export const scenePhaseAt = (score: SceneScore, timeMs: number): EncounterBeat =
 
 export const advanceActorForFixedStep = (actor: MutableActor, encounter: EncounterBeat, deltaMs: number, context: ActorMotionContext): void => {
   resetVisualState(actor);
-  if (context.elapsedMs < context.forcedRestUntilMs || encounter.phase === "finale") return pauseActor(actor, encounter.behaviorState, false, context);
-  if (actor.hiddenUntilMs > context.elapsedMs) { actor.visible = false; actor.state = "hidden"; return syncRendererFields(actor, context); }
+  if (context.elapsedMs < context.forcedRestUntilMs || encounter.phase === "finale") { pauseActor(actor, encounter.behaviorState, false, context); return; }
+  if (actor.hiddenUntilMs > context.elapsedMs) { actor.visible = false; actor.state = "hidden"; syncRendererFields(actor, context); return; }
   actor.visible = true;
-  if (actor.pauseUntilMs > context.elapsedMs) return pauseActor(actor, actor.animationState, true, context);
+  if (actor.pauseUntilMs > context.elapsedMs) { pauseActor(actor, actor.animationState, true, context); return; }
   advanceAuthoredActor(sceneStrategies, actor, deltaMs, context); applyOcclusion(actor, context); syncRendererFields(actor, context);
 };
 
