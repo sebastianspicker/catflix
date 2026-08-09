@@ -23,6 +23,7 @@ test-results/
 .DS_Store
 
 # Local design and analysis tools
+/docs/agent/
 .codacy/
 .codegraph/
 .impeccable/
