@@ -3,13 +3,13 @@ import type { StoreName } from "./IndexedDbBackend";
 export async function getValue<T>(open: () => Promise<IDBDatabase | undefined>, memory: Map<StoreName, Map<string, unknown>>, store: StoreName, key: string): Promise<T | undefined> {
   const database = await open();
   if (!database) return clone(memory.get(store)?.get(key) as T | undefined);
-  try { return await requestValue<T | undefined>(database.transaction(store, "readonly").objectStore(store).get(key)); } catch { return undefined; }
+  return requestValue<T | undefined>(database.transaction(store, "readonly").objectStore(store).get(key));
 }
 
 export async function listValues<T>(open: () => Promise<IDBDatabase | undefined>, memory: Map<StoreName, Map<string, unknown>>, store: StoreName): Promise<T[]> {
   const database = await open();
   if (!database) return [...(memory.get(store)?.values() ?? [])].map((item) => clone(item as T));
-  try { return await requestValue<T[]>(database.transaction(store, "readonly").objectStore(store).getAll()); } catch { return []; }
+  return requestValue<T[]>(database.transaction(store, "readonly").objectStore(store).getAll());
 }
 
 export function clone<T>(value: T): T { return typeof structuredClone === "function" ? structuredClone(value) : JSON.parse(JSON.stringify(value)) as T; }

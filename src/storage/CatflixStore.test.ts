@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { defaultVariantSelection } from '../simulation/definitions';
 import { createCatflixStore, createMatchedComparison } from './CatflixStore';
+import { createStoreBackend, storeNames } from './IndexedDbBackend';
 
 describe('local Catflix store', () => {
   it('round-trips queue, progress, raw notes, comparisons, and export data', async () => {
@@ -59,5 +60,26 @@ describe('local Catflix store', () => {
     await expect(store.importData({ schemaVersion: 99 })).rejects.toThrow('Unsupported or corrupt');
     expect(() => createMatchedComparison({ id: 'bad', createdAt: '', first: { sceneId: 'red-string', variant: defaultVariantSelection }, second: { sceneId: 'red-string', variant: { ...defaultVariantSelection, sound: 'on', novelty: 'alternate' } }, changedDimension: 'sound' })).toThrow('exactly one');
     expect(await store.getQueue()).toEqual([]);
+  });
+
+  it('atomically replaces every memory store during import restoration', async () => {
+    const backend = createStoreBackend((store, value) => {
+      const record = value as { id?: string; fail?: boolean };
+      if (store === 'notes' && record.fail) throw new Error('injected write failure');
+      return record.id ?? store;
+    });
+    const original = storeNames.map((store) => ({ store, values: [{ id: `before-${store}` }] }));
+    await backend.replaceAll(original);
+
+    await expect(backend.replaceAll(storeNames.map((store) => ({ store, values: [{ id: `after-${store}`, fail: store === 'notes' }] })))).rejects.toThrow('injected write failure');
+
+    await Promise.all(storeNames.map(async (store) => {
+      expect(await backend.values(store)).toEqual([{ id: `before-${store}` }]);
+    }));
+
+    await backend.replaceAll(storeNames.map((store) => ({ store, values: [{ id: `after-${store}` }] })));
+    await Promise.all(storeNames.map(async (store) => {
+      expect(await backend.values(store)).toEqual([{ id: `after-${store}` }]);
+    }));
   });
 });

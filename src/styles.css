@@ -322,3 +322,4 @@ svg { display: block; height: 1.15em; width: 1.15em; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
 }
+.storage-warning { margin: 0 0 1.5rem; padding: .8rem 1rem; border: 1px solid #9c3125; background: #fff4e8; color: #702117; font: 700 .9rem/1.4 var(--font-sans, sans-serif); }

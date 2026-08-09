@@ -19,6 +19,8 @@ test('catalogue, safety, player, stop, and notes work without a network', async 
   await confirmSetup(page);
 
   await expect(page.getByRole('heading', { name: 'Balcony Birds at Dusk' })).toBeVisible();
+  await expect(page.getByRole('main', { name: 'Balcony Birds at Dusk' })).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Sound awaiting provenance' })).toBeDisabled();
   await page.getByRole('button', { name: 'Pause' }).click();
   await expect(page.getByRole('button', { name: 'Resume' })).toBeVisible();
@@ -75,6 +77,104 @@ test('modal surfaces close with Escape and return focus', async ({ page }) => {
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog', { name: /One change/i })).toHaveCount(0);
   await expect(curatorButton).toBeFocused();
+});
+
+test('the first storage fallback blocks incomplete local-data transfers', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'indexedDB', {
+      configurable: true,
+      value: {
+        open: () => {
+          const request = {} as IDBOpenDBRequest;
+          window.setTimeout(() => { request.onerror?.(new Event('error')); }, 2_000);
+          return request;
+        },
+      },
+    });
+  });
+  let downloadCount = 0;
+  page.on('download', () => { downloadCount += 1; });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Settings' }).click();
+  const dataDialog = page.getByRole('dialog', { name: 'Your local record' });
+  const exportButton = dataDialog.getByRole('button', { name: /Export JSON/ });
+  await expect(exportButton).toBeEnabled();
+  await exportButton.click();
+
+  await expect(dataDialog.getByRole('status')).toContainText('Export failed');
+  expect(downloadCount).toBe(0);
+  await expect(page.getByRole('alert')).toContainText('Local storage warning');
+  await expect(page.getByRole('alert')).toContainText('Changes may not persist');
+  await expect(dataDialog.getByRole('button', { name: /Export JSON/ })).toBeDisabled();
+  await expect(dataDialog.getByRole('button', { name: /Import JSON/ })).toBeDisabled();
+});
+
+test('persistent import replacement aborts atomically across every store', async ({ page }) => {
+  await page.goto('/');
+  const expected = await page.evaluate(async () => {
+    const storeNames = ['settings', 'queue', 'progress', 'notes', 'observations', 'comparisons', 'provenance'] as const;
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('catflix-local', 2);
+      request.onsuccess = () => { resolve(request.result); };
+      request.onerror = () => { reject(request.error ?? new Error('Test database could not open.')); };
+    });
+    const transaction = database.transaction(storeNames, 'readwrite');
+    const original = storeNames.map((store) => ({ store, values: [{ marker: `before-${store}` }] }));
+    original.forEach(({ store, values }) => {
+      const objectStore = transaction.objectStore(store);
+      objectStore.clear();
+      objectStore.put(values[0], `before-${store}`);
+    });
+    await new Promise<void>((resolve, reject) => {
+      transaction.oncomplete = () => { resolve(); };
+      transaction.onerror = () => { reject(transaction.error ?? new Error('Test seed transaction failed.')); };
+      transaction.onabort = () => { reject(transaction.error ?? new Error('Test seed transaction aborted.')); };
+    });
+    database.close();
+
+    const nativePut = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function injectedPut(value: unknown, key?: IDBValidKey) {
+      if (this.name === 'notes' && (value as { rawNote?: string }).rawNote === 'injected persistent write failure') throw new Error('injected persistent write failure');
+      return Reflect.apply(nativePut, this, key === undefined ? [value] : [value, key]) as IDBRequest<IDBValidKey>;
+    };
+    return original;
+  });
+
+  await page.getByRole('button', { name: 'Settings' }).click();
+  const dataDialog = page.getByRole('dialog', { name: 'Your local record' });
+  await dataDialog.locator('input[type="file"]').setInputFiles({
+    name: 'atomic-import.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify({
+      schemaVersion: 1,
+      exportedAt: '2026-08-09T12:00:00Z',
+      settings: { soundEnabled: false, reducedMotion: false, sceneMotionMode: 'standard' },
+      queue: [],
+      progress: [],
+      notes: [{ id: 'after-notes', cat: 'Arri', sceneId: 'paper-moth', contentRevision: '2026.08.09', createdAt: '2026-08-09T12:00:00Z', rawNote: 'injected persistent write failure', vocabulary: ['tracking'] }],
+      comparisons: [],
+      provenance: [],
+    })),
+  });
+  await expect(dataDialog.getByRole('status')).toContainText('Import failed');
+
+  const afterFailure = await page.evaluate(async () => {
+    const storeNames = ['settings', 'queue', 'progress', 'notes', 'observations', 'comparisons', 'provenance'] as const;
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('catflix-local', 2);
+      request.onsuccess = () => { resolve(request.result); };
+      request.onerror = () => { reject(request.error ?? new Error('Test database could not reopen.')); };
+    });
+    const transaction = database.transaction(storeNames, 'readonly');
+    const values = await Promise.all(storeNames.map((store) => new Promise<{ store: typeof store; values: unknown[] }>((resolve, reject) => {
+      const request = transaction.objectStore(store).getAll();
+      request.onsuccess = () => { resolve({ store, values: request.result }); };
+      request.onerror = () => { reject(request.error ?? new Error(`Could not read ${store}.`)); };
+    })));
+    database.close();
+    return values;
+  });
+  expect(afterFailure).toEqual(expected);
 });
 
 test('scientific evidence opens at a concise theme and preserves reading context', async ({ page }) => {

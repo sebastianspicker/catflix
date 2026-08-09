@@ -1,53 +1,10 @@
-import { useRef, type RefObject } from 'react';
-import type { SceneId } from '../content/types';
-import type { SessionPlan } from '../simulation/types';
-import { PlayerControls } from './PlayerControls';
-import type { PlayerProps } from './Player.types';
-import { usePlayerRuntime } from './usePlayerRuntime';
-
-const displayTitle: Record<SceneId, string> = {
-  'balcony-birds': 'Balcony Birds at Dusk',
-  'koi-pool': 'Koi in Slow Motion',
-  'paper-moth': 'Paper Moth at Midnight',
-  'beetle-under-the-fern': 'Beetle Beneath the Fern',
-  'red-string': 'The Red String Incident',
-};
-
-const timecode = (milliseconds: number) => {
-  const seconds = Math.max(0, Math.floor(milliseconds / 1000));
-  return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
-};
+import { useRef } from "react";
+import type { PlayerProps } from "./Player.types";
+import { PlayerShell } from "./PlayerShell";
+import { usePlayerRuntime } from "./usePlayerRuntime";
 
 export function Player({ plan, onSceneMotionModeChange, onExit }: PlayerProps) {
   const stageRef = useRef<HTMLDivElement>(null);
   const runtime = usePlayerRuntime({ plan, stageRef, onSceneMotionModeChange, onExit });
   return <PlayerShell plan={plan} stageRef={stageRef} {...runtime} />;
 }
-
-interface PlayerShellProps {
-  plan: SessionPlan;
-  stageRef: RefObject<HTMLDivElement | null>;
-  elapsed: number;
-  phase: string;
-  playing: boolean;
-  sound: boolean;
-  audioCapability: 'available' | 'awaiting-provenance' | 'unavailable';
-  sceneMotionMode: 'standard' | 'low';
-  showContactReminder: boolean;
-  onTogglePlay: () => void;
-  onToggleSound: () => void;
-  onChangeMotion: () => void;
-  onFinish: (physicalPlaySuggested: boolean) => void;
-  onPauseAndObserve: () => void;
-  onDismissReminder: () => void;
-}
-
-const PlayerShell = ({ plan, stageRef, elapsed, phase, playing, sound, audioCapability, sceneMotionMode, showContactReminder, onTogglePlay, onToggleSound, onChangeMotion, onFinish, onPauseAndObserve, onDismissReminder }: PlayerShellProps) => {
-  const { manifest, variants, playbackMode, setup } = plan;
-  return <section className="player-shell encounter-player" role="dialog" aria-modal="true" aria-labelledby="player-title" data-playback-mode={playbackMode}>
-    <header className="player-topbar"><span>CATFLIX / FINITE ENCOUNTER</span><h1 id="player-title">{displayTitle[manifest.id]}</h1><span>{timecode(elapsed)} / {timecode(manifest.finiteDurationMs)}</span></header>
-    <div className="session-context" aria-label="Owner session context"><span>{playbackMode === 'tablet-touch' ? 'Tablet / touch-reactive' : 'Television / passive'}</span><span>{setup.observedCat ? `Observation: ${setup.observedCat}` : 'Not recording a cat'}</span><span>{setup.roomLightBand} light · {setup.viewingDistanceBand.replace('-', ' ')}</span><span>Phase: {phase}</span></div>
-    <div className="stage-wrap" data-scene={manifest.id}><div className="simulation-stage" data-scene-motion={sceneMotionMode} data-playback-mode={playbackMode} data-figure-ground={variants.figureGround} ref={stageRef} aria-label={`${displayTitle[manifest.id]} ${playbackMode === 'tablet-touch' ? 'target-touch encounter' : 'passive encounter'}`} /></div>
-    <PlayerControls playing={playing} sound={sound} audioCapability={audioCapability} sceneMotionMode={sceneMotionMode} showContactReminder={showContactReminder} onTogglePlay={onTogglePlay} onToggleSound={onToggleSound} onChangeMotion={onChangeMotion} onFinish={onFinish} onPauseAndObserve={onPauseAndObserve} onDismissReminder={onDismissReminder} />
-  </section>;
-};

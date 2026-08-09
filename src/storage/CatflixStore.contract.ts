@@ -1,5 +1,5 @@
 import type { AssetProvenance, SceneId } from "../content/types";
-import type { CatflixDataExport, ComparisonRecord, DeviceSettings, ProgressRecord, QueueItem, RefereeNote, SessionObservation, StoredProvenance } from "./types";
+import type { CatflixDataExport, ComparisonRecord, DeviceSettings, ProgressRecord, QueueItem, RefereeNote, SessionObservation, StorageStatus, StoredProvenance } from "./types";
 
 export interface CatflixStore {
   getSettings(): Promise<DeviceSettings>;
@@ -18,4 +18,6 @@ export interface CatflixStore {
   saveProvenance(asset: AssetProvenance): Promise<void>;
   exportData(): Promise<CatflixDataExport>;
   importData(data: unknown): Promise<void>;
+  getStorageStatus(): StorageStatus;
+  subscribeStorageStatus(listener: (status: StorageStatus) => void): () => void;
 }
