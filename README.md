@@ -6,7 +6,7 @@ Catflix is a local-first catalogue of five finite, supervised visual encounters 
 
 ## Alpha status
 
-This public repository is a source alpha, not a tagged release. The application and its automated checks run locally, but a versioned alpha release remains blocked until artwork clearance is confirmed. See [RELEASE_STATUS.md](RELEASE_STATUS.md) for the current evidence and remaining release work.
+This public repository is a source alpha, not a tagged release. The application and its automated checks run locally, its dependency graph is locked, and its runtime artwork has independent project-generation provenance. A versioned alpha release still requires a green workflow for the exact release commit. See [RELEASE_STATUS.md](RELEASE_STATUS.md) for the current evidence and remaining release work.
 
 ## What works
 
@@ -26,7 +26,7 @@ Catflix does not rank cats, infer preferences automatically, diagnose health, cl
 Requirements: Node.js `^20.19.0` or `>=22.12.0` and npm.
 
 ```bash
-npm install
+npm ci --ignore-scripts
 npm run dev
 ```
 
@@ -39,7 +39,7 @@ npm run check
 npm run test:e2e
 ```
 
-`npm run check` runs 40 unit tests, TypeScript compilation, and the production build. The Playwright suite covers Chromium, Firefox, iPad WebKit, and mobile Chromium. Browser binaries must be installed before the first end-to-end run:
+`npm run check` runs 51 unit tests, TypeScript compilation, and the production build. The Playwright suite covers Chromium, Firefox, iPad WebKit, and mobile Chromium. Browser binaries must be installed before the first end-to-end run:
 
 ```bash
 npx playwright install
@@ -71,7 +71,7 @@ See [docs/SCREENSHOTS.md](docs/SCREENSHOTS.md) for the gallery and capture contr
 - `src/storage/`: IndexedDB-backed local records with an in-memory fallback
 - `docs/research/`: maintained scientific baseline and source ledger
 - `e2e/`: cross-browser workflow, performance, visual checkpoint, and screenshot tests
-- `assets/masters/`: source artwork retained for provenance and future mastering
+- `assets/masters/`: source artwork and its generation record retained for provenance and future mastering
 - `public/assets/`: browser-delivery artwork
 
 ## Research and safety
@@ -86,4 +86,4 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) before proposing changes. Report securit
 
 ## License
 
-Catflix software and original project documentation are available under the [MIT License](LICENSE). Bundled assets retain the source and license status recorded in the content registry; see [NOTICE.md](NOTICE.md). Assets whose provenance says clearance must be confirmed are not granted for reuse by the software license.
+Catflix software and original project documentation are available under the [MIT License](LICENSE). Bundled project-generated assets retain the terms and provenance recorded in the content registry; see [NOTICE.md](NOTICE.md).

@@ -7,7 +7,11 @@ const baseURL = `http://127.0.0.1:${port}`;
 export default defineConfig({
   testDir: './e2e',
   testIgnore: ['**/docs-screenshots.spec.ts', '**/pages.spec.ts'],
-  fullyParallel: true,
+  // Browser startup and first navigation can consume most of a minute on a
+  // cold Firefox worker. Keep assertions strict while giving complete flows
+  // enough time to run after their fixtures are ready.
+  timeout: 120_000,
+  fullyParallel: false,
   use: { baseURL, trace: 'retain-on-failure' },
   webServer: { command: `vite build && vite preview --strictPort --port ${port}`, url: baseURL, reuseExistingServer: false },
   projects: [

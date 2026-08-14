@@ -4,6 +4,10 @@ import process from 'node:process';
 const port = Number(process.env.CATFLIX_PAGES_PORT ?? 4186);
 const liveOrigin = process.env.CATFLIX_PAGES_LIVE_ORIGIN;
 const origin = liveOrigin ?? `http://127.0.0.1:${port}`;
+const previewCommand = `vite preview --base=/catflix/ --strictPort --port ${port}`;
+const serverCommand = process.env.CATFLIX_PAGES_PREBUILT === '1'
+  ? previewCommand
+  : `npm run build:pages && ${previewCommand}`;
 
 export default defineConfig({
   testDir: './e2e',
@@ -18,7 +22,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: liveOrigin ? undefined : {
-    command: `npm run build:pages && vite preview --base=/catflix/ --strictPort --port ${port}`,
+    command: serverCommand,
     url: `${origin}/catflix/`,
     reuseExistingServer: false,
   },

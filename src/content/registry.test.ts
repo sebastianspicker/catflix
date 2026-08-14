@@ -1,3 +1,7 @@
+/// <reference types="node" />
+
+import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import { listContentManifests } from './registry';
 import { validateContentManifest } from './types';
@@ -32,6 +36,21 @@ describe('content registry', () => {
       expect(manifest.apparentSize.basis).toBe('editorial-legibility');
       expect(manifest.evidenceEndpoint).toContain('docs/research/');
       expect(manifest.supervision).toContain('Supervised');
+    }
+  });
+
+  it('matches every provenance checksum to the bundled browser asset', async () => {
+    const ownerBySource = new Map<string, string>();
+    for (const manifest of listContentManifests()) {
+      for (const asset of manifest.assets) {
+        expect(ownerBySource.get(asset.source), asset.source).toBeUndefined();
+        ownerBySource.set(asset.source, manifest.id);
+        const file = await readFile(new URL(`../../public${asset.source}`, import.meta.url));
+        expect(createHash('sha256').update(file).digest('hex'), asset.source).toBe(asset.checksum);
+        expect(asset.creator).not.toMatch(/unknown|not recorded/i);
+        expect(asset.license).not.toMatch(/clearance|must be confirmed/i);
+        expect(asset.derivativeHistory.join(' ')).not.toMatch(/existing Catflix poster|existing poster/i);
+      }
     }
   });
 

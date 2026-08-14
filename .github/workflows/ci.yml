@@ -25,7 +25,7 @@ jobs:
           package-manager-cache: false
 
       - name: Install dependencies
-        run: npm install --ignore-scripts
+        run: npm ci --ignore-scripts
 
       - name: Run unit tests and production build
         run: npm run check

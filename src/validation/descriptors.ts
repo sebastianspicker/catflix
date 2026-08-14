@@ -17,5 +17,5 @@ export const oneOf = (...values: readonly unknown[]): Descriptor => ({ kind: "li
 export const arrayOf = (item: Descriptor, minimum?: number, length?: number): Descriptor => ({ kind: "array", item, minimum, length });
 export const fields = (fieldMap: Readonly<Record<string, Descriptor>>): Descriptor => ({ kind: "object", fields: fieldMap });
 export const optional = (item: Descriptor): Descriptor => ({ kind: "optional", item });
-export const allOf = (...items: readonly Descriptor[]): Descriptor => ({ kind: "all", items });
+const allOf = (...items: readonly Descriptor[]): Descriptor => ({ kind: "all", items });
 export { matches } from "./descriptorEvaluator";
