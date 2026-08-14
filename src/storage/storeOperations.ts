@@ -20,5 +20,13 @@ export async function exportData(store: CatflixStore, backend: Backend): Promise
 }
 export async function importData(backend: Backend, data: unknown): Promise<void> {
   const parsed = validateExport(data);
-  await Promise.all([backend.put("settings", parsed.settings), backend.replace("queue", parsed.queue), backend.replace("progress", parsed.progress), backend.replace("notes", parsed.notes), backend.replace("observations", parsed.observations), backend.replace("comparisons", parsed.comparisons), backend.replace("provenance", parsed.provenance)]);
+  await backend.replaceAll([
+    { store: "settings", values: [parsed.settings] },
+    { store: "queue", values: parsed.queue },
+    { store: "progress", values: parsed.progress },
+    { store: "notes", values: parsed.notes },
+    { store: "observations", values: parsed.observations },
+    { store: "comparisons", values: parsed.comparisons },
+    { store: "provenance", values: parsed.provenance },
+  ]);
 }

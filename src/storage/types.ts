@@ -2,6 +2,7 @@ import { AssetProvenance, SceneId, VariantSelection } from "../content/types";
 import type { PlaybackMode } from "../simulation/types";
 
 export type SceneMotionMode = "standard" | "low";
+export interface StorageStatus { mode: "persistent" | "degraded"; message?: string; }
 export interface DeviceSettings { soundEnabled: boolean; reducedMotion: boolean; sceneMotionMode: SceneMotionMode; safetyAcknowledgedAt?: string; }
 export interface QueueItem { id: string; sceneId: SceneId; variant: VariantSelection; addedAt: string; }
 export interface ProgressRecord { sceneId: SceneId; revision: string; elapsedMs: number; durationMs: number; updatedAt: string; }
