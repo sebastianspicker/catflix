@@ -62,7 +62,7 @@ export function createSimulationHostRuntime(options: PhaserSimulationHostOptions
     if (!running || !fallbackActive || generation !== fallbackGeneration) return;
     if (!paused) tick(lastTime === 0 ? 0 : clampSimulationDelta(now - lastTime));
     lastTime = now;
-    frameId = scheduleFrame((nextNow) => fallbackFrame(nextNow, generation));
+    frameId = scheduleFrame((nextNow) => { fallbackFrame(nextNow, generation); });
   };
   const startFallback = (): void => {
     if (!canvas.isConnected) options.container.appendChild(canvas);
@@ -70,7 +70,7 @@ export function createSimulationHostRuntime(options: PhaserSimulationHostOptions
     fallbackActive = true;
     const generation = ++fallbackGeneration;
     lastTime = performance.now();
-    frameId = scheduleFrame((now) => fallbackFrame(now, generation));
+    frameId = scheduleFrame((now) => { fallbackFrame(now, generation); });
   };
   const stopFallback = (): void => {
     fallbackActive = false;
@@ -115,7 +115,7 @@ export function createSimulationHostRuntime(options: PhaserSimulationHostOptions
       startPhaserUpgrade();
     }
   };
-  const silence = (): void => audioPlayer.silence();
+  const silence = (): void => { audioPlayer.silence(); };
   const pause = (): void => { paused = true; silence(); phaser?.pause(); };
   const resume = (): void => { if (!running || simulation.snapshot().complete) return; paused = false; lastTime = performance.now(); phaser?.resume(); };
   const stop = (): void => { paused = true; running = false; stopFallback(); phaserAbort?.abort(); phaserAbort = undefined; silence(); phaser?.pause(); };
