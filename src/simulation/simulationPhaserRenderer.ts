@@ -45,7 +45,7 @@ export function createPhaserSimulationRenderer(options: PhaserSimulationRenderer
       if (!poseTexture.has(frameName)) poseTexture.add(frameName, 0, crop.x, crop.y, crop.width, crop.height);
     }
     foreground = this.add.graphics().setDepth(10);
-    if (options.acceptsTouch) this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => options.onTouch(pointer.x / Math.max(this.scale.width, 1), pointer.y / Math.max(this.scale.height, 1)));
+    if (options.acceptsTouch) this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => { options.onTouch(pointer.x / Math.max(this.scale.width, 1), pointer.y / Math.max(this.scale.height, 1)); });
     render(options.initialState());
     options.onReady();
   };

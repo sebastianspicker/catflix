@@ -1,6 +1,11 @@
 import type { StoreName, StoreReplacement } from "./IndexedDbBackend";
 import { clone } from "./indexedDbReads";
 
+const writeCallbackError = (reason: unknown): Error =>
+  reason instanceof Error
+    ? reason
+    : new Error("IndexedDB write callback failed.", { cause: reason });
+
 export async function putValue(open: () => Promise<IDBDatabase | undefined>, memory: Map<StoreName, Map<string, unknown>>, keyFor: (store: StoreName, value: unknown) => string, store: StoreName, value: unknown): Promise<void> {
   const key = keyFor(store, value); const database = await open();
   if (!database) { memory.get(store)?.set(key, clone(value)); return; }
@@ -24,7 +29,7 @@ export async function replaceAllValues(open: () => Promise<IDBDatabase | undefin
   }
   const transaction = database.transaction(replacements.map(({ store }) => store), "readwrite");
   await transactionDone(transaction, () => {
-    replacements.forEach(({ store, values }) => replaceObjectStore(transaction.objectStore(store), values, keyFor, store));
+    replacements.forEach(({ store, values }) => { replaceObjectStore(transaction.objectStore(store), values, keyFor, store); });
   });
 }
 
@@ -40,6 +45,6 @@ function transactionDone(transaction: IDBTransaction, write: () => void): Promis
     transaction.oncomplete = () => { resolve(); };
     transaction.onerror = () => { reject(transaction.error ?? new Error("IndexedDB transaction failed.")); };
     transaction.onabort = () => { reject(transaction.error ?? new Error("IndexedDB transaction aborted.")); };
-    try { write(); } catch (error) { transaction.abort(); reject(error); }
+    try { write(); } catch (reason) { const error = writeCallbackError(reason); transaction.abort(); reject(error); }
   });
 }

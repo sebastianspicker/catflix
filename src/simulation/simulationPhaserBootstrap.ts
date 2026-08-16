@@ -16,6 +16,10 @@ type PhaserBootstrapOptions = Omit<PhaserSimulationRendererOptions, "onReady"> &
 };
 
 const abortedError = (): DOMException => new DOMException("Phaser startup was cancelled.", "AbortError");
+const startupError = (reason: unknown): Error =>
+  reason instanceof Error
+    ? reason
+    : new Error("Phaser simulation failed to start.", { cause: reason });
 
 /** Loads the Phaser implementation only after the Canvas host has already started. */
 export async function createPhaserSimulationBootstrap(options: PhaserBootstrapOptions): Promise<PhaserSimulationBootstrap> {
@@ -48,7 +52,7 @@ export async function createPhaserSimulationBootstrap(options: PhaserBootstrapOp
       if (!settled) reject(abortedError());
     };
     const host: PhaserSimulationBootstrap = {
-      render: (state) => renderer.render(state),
+      render: (state) => { renderer.render(state); },
       pause: () => game?.loop.pause(),
       resume: () => game?.loop.resume(),
       destroy,
@@ -61,11 +65,11 @@ export async function createPhaserSimulationBootstrap(options: PhaserBootstrapOp
         parent: options.container,
         transparent: true,
         scale: { mode: PhaserRuntime.Scale.RESIZE, width: "100%", height: "100%" },
-        scene: { preload: renderer.preload, create: renderer.create, update: (_time: number, delta: number) => options.onFrame(delta) },
+        scene: { preload: renderer.preload, create: renderer.create, update: (_time: number, delta: number) => { options.onFrame(delta); } },
       });
-    } catch (error) {
+    } catch (reason) {
       destroy();
-      reject(error);
+      reject(startupError(reason));
     }
   });
 }

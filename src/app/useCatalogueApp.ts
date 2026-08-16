@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { ComparisonDimension } from '../components/CuratorPanel';
 import type { ObservationDraft } from '../components/RefereeNotes';
 import { useModalDialog } from '../components/useModalDialog';
 import { listContentManifests } from '../content/registry';
-import type { ContentManifest, SceneId, VariantSelection } from '../content/types';
+import type { ContentManifest, SceneId } from '../content/types';
 import type { SessionPlan } from '../simulation/types';
 import { createCatflixStore } from '../storage/CatflixStore';
 import type { SceneMotionMode, StorageStatus } from '../storage/types';

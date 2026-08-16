@@ -38,7 +38,7 @@ export function createCanvasSimulationRenderer(options: CanvasSimulationRenderer
     drawSignature(context, state, width, height);
     drawOccluder(options.sceneId, {
       fillStyle: (color, alpha) => { context.fillStyle = `#${color.toString(16).padStart(6, "0")}`; context.globalAlpha = alpha; },
-      rect: (x, y, w, h) => context.fillRect(x, y, w, h),
+      rect: (x, y, w, h) => { context.fillRect(x, y, w, h); },
       ellipse: (x, y, rx, ry) => { context.beginPath(); context.ellipse(x, y, rx / 2, ry / 2, 0, 0, Math.PI * 2); context.fill(); },
     }, width, height);
     context.globalAlpha = 1;

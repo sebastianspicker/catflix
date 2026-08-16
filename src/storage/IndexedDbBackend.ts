@@ -21,7 +21,7 @@ export function createStoreBackend(keyFor: (store: StoreName, value: unknown) =>
   let databasePromise: Promise<IDBDatabase | undefined> | undefined;
   let status: StorageStatus = { mode: "persistent" };
   const listeners = new Set<(next: StorageStatus) => void>();
-  const report = (next: StorageStatus) => { status = next; listeners.forEach((listener) => listener(status)); };
+  const report = (next: StorageStatus) => { status = next; listeners.forEach((listener) => { listener(status); }); };
   const open = () => databasePromise ??= openConnection().then(({ database, fallbackMessage }) => {
     if (!database) report({ mode: "degraded", message: fallbackMessage ?? "IndexedDB is unavailable; Catflix is using temporary memory only." });
     return database;
