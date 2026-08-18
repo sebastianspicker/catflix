@@ -1,7 +1,7 @@
 # Asset notice
 
-The MIT License applies to the Catflix software and original project documentation unless a file states otherwise.
+The [MIT License](LICENSE) applies to Catflix software and original project documentation unless a file states otherwise. It does not grant rights in the bundled visual assets.
 
-Bundled runtime visual assets are project-generated originals or local geometric derivatives. Their creator, source path, transformation history, and checksum are recorded in `src/content/registry.ts`; the source-generation contract and prompts are retained in [`assets/masters/PROVENANCE.md`](assets/masters/PROVENANCE.md).
+The bundled visual assets are synthetic project-generated images and locally made derivatives. Their identities, SHA-256 checksums, creators, transformation history, and terms designation are recorded in [`src/content/registry.ts`](src/content/registry.ts) and summarized in [`assets/masters/PROVENANCE.md`](assets/masters/PROVENANCE.md). The registry designates these assets as subject to [OpenAI's Terms of Use](https://openai.com/policies/terms-of-use/), rather than the repository's MIT license.
 
-Project-generated assets remain subject to the terms identified in their provenance records. No cleared audio recording is bundled in the current revision.
+This record does not establish that redistribution, licensing, or any particular use has been cleared. The owner or legal reviewer must confirm the applicable account, service, jurisdiction, and intended-use terms before release or redistribution. No cleared audio recording is bundled in this revision.
