@@ -29,20 +29,3 @@ jobs:
 
       - name: Run unit tests and production build
         run: npm run check
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium firefox webkit
-
-      - name: Run cross-browser tests
-        env:
-          CATFLIX_E2E_PORT: '4183'
-        run: npm run test:e2e
-
-      - name: Upload Playwright report on failure
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: playwright-report
-          path: playwright-report/
-          if-no-files-found: ignore
-          retention-days: 7

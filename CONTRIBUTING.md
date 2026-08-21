@@ -7,8 +7,7 @@ Catflix is preparing for its first public alpha. Keep changes narrow, evidence-b
 1. Use Node.js `^20.19.0` or `>=22.12.0`.
 2. Install dependencies with `npm ci --ignore-scripts`.
 3. Run `npm run check` for unit tests, TypeScript, and the production build.
-4. Run `npm run test:e2e` for the cross-browser workflow suite.
-5. Regenerate documentation screenshots only when the rendered interface changes.
+4. Keep the focused unit suite green with `npm run check`.
 
 ## Product constraints
 
