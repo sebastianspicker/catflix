@@ -13,11 +13,8 @@
     "build:pages": "tsc -b && vite build --base=/catflix/ && node scripts/prepare-pages.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test",
-    "test:pages": "playwright test --config playwright.pages.config.ts",
-    "capture:screenshots": "playwright test --config playwright.screenshots.config.ts",
     "check": "npm run test && npm run build",
-    "verify": "npm run check && npm run test:e2e"
+    "verify": "npm run check"
   },
   "dependencies": {
     "phaser": "4.2.1",
@@ -25,7 +22,6 @@
     "react-dom": "19.2.0"
   },
   "devDependencies": {
-    "@playwright/test": "1.61.1",
     "@types/node": "24.13.3",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",

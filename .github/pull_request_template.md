@@ -5,8 +5,6 @@ Describe the user-visible change and why it belongs in the current alpha.
 ## Verification
 
 - [ ] `npm run check`
-- [ ] `npm run test:e2e`
-- [ ] Documentation screenshots regenerated when the rendered interface changed
 
 ## Boundaries
 

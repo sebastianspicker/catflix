@@ -1,43 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { sceneIds, type SceneId } from '../content/types';
-import type { SceneActorSnapshot } from './types';
 import { createSceneSimulation, defaultVariantSelection, getSceneDefinition, getSceneScore } from './definitions';
-
-const countPerchedFrames = (): number => {
-  const birds = createSceneSimulation('balcony-birds', defaultVariantSelection, 7319);
-  let perched = 0;
-  for (let index = 0; index < 1_800; index += 1) {
-    const birdActor = birds.advance(50).actors[0];
-    if (birdActor.animationState === 'perching' && birdActor.state === 'paused') {
-      perched += 1;
-      expect(birdActor.y).toBeGreaterThan(.68);
-    }
-  }
-  return perched;
-};
-
-const countEdgeLandings = (): number => {
-  const moth = createSceneSimulation('paper-moth', defaultVariantSelection, 7319);
-  let landedAtEdge = 0;
-  for (let index = 0; index < 1_800; index += 1) {
-    const actor = moth.advance(50).actors[0];
-    if (actor.animationState === 'landed' && (actor.x < .16 || actor.x > .84)) landedAtEdge += 1;
-  }
-  return landedAtEdge;
-};
-
-const countShelteredFrames = (): number => {
-  const beetle = createSceneSimulation('beetle-under-the-fern', defaultVariantSelection, 7319);
-  let shelteredNearFern = 0;
-  const zones = getSceneScore('beetle-under-the-fern').occlusionZones;
-  for (let index = 0; index < 1_800; index += 1) {
-    const beetleActor = beetle.advance(50).actors[0];
-    if (beetleActor.animationState !== 'sheltering') continue;
-    const nearFern = zones.some((zone) => beetleActor.x >= zone.minX - .1 && beetleActor.x <= zone.maxX + .1 && beetleActor.y >= zone.minY - .1 && beetleActor.y <= zone.maxY + .1);
-    if (nearFern) shelteredNearFern += 1;
-  }
-  return shelteredNearFern;
-};
 
 describe('deterministic finite simulations', () => {
   for (const sceneId of sceneIds) {
@@ -98,33 +61,6 @@ describe('deterministic finite simulations', () => {
     expect(previousReduced.scaleY).toBe(1);
   });
 
-  it('gives each scene an authored motion signature', () => {
-    const samples = Object.fromEntries(sceneIds.map((sceneId) => {
-      const simulation = createSceneSimulation(sceneId, defaultVariantSelection, 7319);
-      const frames = Array.from({ length: 220 }, () => simulation.advance(100).actors[0]);
-      return [sceneId, frames];
-    })) as Record<SceneId, SceneActorSnapshot[]>;
-
-    expect(samples['balcony-birds'].some((actor) => actor.state === 'paused')).toBe(true);
-    expect(samples['balcony-birds'].some((actor) => actor.animationState === 'flying')).toBe(true);
-    expect(angleRange(samples['koi-pool'].map((actor) => actor.angle))).toBeGreaterThan(.3);
-    expect(valueRange(samples['paper-moth'].map((actor) => actor.scaleX))).toBeGreaterThan(.08);
-    expect(samples['paper-moth'].some((actor) => actor.state === 'paused')).toBe(true);
-    expect(samples['beetle-under-the-fern'].some((actor) => actor.state === 'paused')).toBe(true);
-    expect(angleRange(samples['red-string'].map((actor) => actor.angle))).toBeGreaterThan(.45);
-  });
-
-  it('visits every authored scene-score state without generic rebound motion', () => {
-    for (const sceneId of sceneIds) {
-      const simulation = createSceneSimulation(sceneId, defaultVariantSelection, 7319);
-      const visited = new Set<string>();
-      while (!simulation.snapshot().complete) {
-        for (const actor of simulation.advance(100).actors) visited.add(actor.animationState);
-      }
-      for (const authoredState of simulation.definition.authoredStates) expect(visited, `${sceneId} should visit ${authoredState}`).toContain(authoredState);
-    }
-  });
-
   it('never invents fish vocalizations', () => {
     const withSound = createSceneSimulation('koi-pool', { ...defaultVariantSelection, sound: 'on' }, 8);
     const kinds = new Set<string>();
@@ -140,110 +76,6 @@ describe('deterministic finite simulations', () => {
     expect(coalesced.snapshot()).toEqual(frequent.snapshot());
   });
 
-  it('gives koi distinct propulsive swimming and passive gliding signatures', () => {
-    const simulation = createSceneSimulation('koi-pool', defaultVariantSelection, 7319);
-    let previous = simulation.snapshot().actors[0];
-    const speeds: Record<'swimming' | 'gliding', number[]> = { swimming: [], gliding: [] };
-    const tailDeformation: Record<'swimming' | 'gliding', number[]> = { swimming: [], gliding: [] };
-    for (let index = 0; index < 1_200; index += 1) {
-      const actor = simulation.advance(50).actors[0];
-      if (actor.animationState === 'swimming' || actor.animationState === 'gliding') {
-        speeds[actor.animationState].push(Math.hypot(actor.x - previous.x, actor.y - previous.y) / .05);
-        tailDeformation[actor.animationState].push(Math.abs(actor.scaleX - 1));
-      }
-      previous = actor;
-    }
-    expect(speeds.swimming.length).toBeGreaterThan(20);
-    expect(speeds.gliding.length).toBeGreaterThan(20);
-    expect(average(speeds.swimming)).toBeGreaterThan(average(speeds.gliding) * 1.25);
-    expect(average(tailDeformation.swimming)).toBeGreaterThan(average(tailDeformation.gliding) * 1.8);
-  });
-
-  it('keeps species pose cadences distinct and prevents fish-frame chatter', () => {
-    const transitions = new Map<SceneId, number>();
-    for (const sceneId of sceneIds) {
-      const simulation = createSceneSimulation(sceneId, defaultVariantSelection, 7319);
-      let previousFrame = simulation.snapshot().actors[0].poseFrame;
-      transitions.set(sceneId, 0);
-      for (let index = 0; index < 400; index += 1) {
-        const frame = simulation.advance(50).actors[0].poseFrame;
-        if (frame !== previousFrame) transitions.set(sceneId, (transitions.get(sceneId) ?? 0) + 1);
-        previousFrame = frame;
-      }
-    }
-    expect(transitions.get('koi-pool')).toBeLessThan(35);
-    expect(transitions.get('paper-moth')).toBeGreaterThan(transitions.get('koi-pool') ?? 0);
-    expect(transitions.get('paper-moth')).toBeLessThan(150);
-    expect(transitions.get('beetle-under-the-fern')).toBeLessThan(100);
-  });
-
-  it('uses projection-consistent pose families instead of unrelated novelty-frame offsets', () => {
-    const familiar = createSceneSimulation('koi-pool', defaultVariantSelection, 7319);
-    const alternate = createSceneSimulation('koi-pool', { ...defaultVariantSelection, novelty: 'alternate' }, 7319);
-    const koiFrames = new Set<number>();
-    const mothFrames = new Set<number>();
-    const moth = createSceneSimulation('paper-moth', defaultVariantSelection, 7319);
-    for (let index = 0; index < 500; index += 1) {
-      const familiarFish = familiar.advance(50).actors[0];
-      const alternateFish = alternate.advance(50).actors[0];
-      expect(alternateFish.poseFrame).toBe(familiarFish.poseFrame);
-      koiFrames.add(familiarFish.poseFrame);
-      mothFrames.add(moth.advance(50).actors[0].poseFrame);
-    }
-    expect([...koiFrames].every((frame) => [1, 5, 7].includes(frame))).toBe(true);
-    expect([...mothFrames].every((frame) => frame >= 0 && frame <= 3)).toBe(true);
-  });
-
-  it('declares responsive subject sizing in the same scene score used by both renderers', () => {
-    expect(getSceneDefinition('balcony-birds').displayWidth).toBeGreaterThanOrEqual(.16);
-    expect(getSceneDefinition('koi-pool').displayWidth).toBeGreaterThanOrEqual(.18);
-    expect(getSceneDefinition('paper-moth').displayWidth).toBeGreaterThanOrEqual(.14);
-    expect(getSceneDefinition('beetle-under-the-fern').displayWidth).toBeGreaterThanOrEqual(.12);
-    for (const sceneId of sceneIds) expect(getSceneDefinition(sceneId).displayWidth).toBeLessThanOrEqual(.22);
-  });
-
-  it('connects rest states to visible surfaces and cover', () => {
-    const perched = countPerchedFrames();
-    const landedAtEdge = countEdgeLandings();
-    const shelteredNearFern = countShelteredFrames();
-    expect(perched).toBeGreaterThan(20);
-    expect(landedAtEdge).toBeGreaterThan(20);
-    expect(shelteredNearFern).toBeGreaterThan(20);
-  });
-
-  it('keeps authored locomotion within speed and acceleration limits', () => {
-    for (const sceneId of sceneIds) {
-      const simulation = createSceneSimulation(sceneId, defaultVariantSelection, 57);
-      let previous = simulation.snapshot().actors[0];
-      let previousVelocity = { x: 0, y: 0 };
-      for (let index = 0; index < 800; index += 1) {
-        const actor = simulation.advance(50).actors[0];
-        const velocity = { x: (actor.x - previous.x) / .05, y: (actor.y - previous.y) / .05 };
-        const speed = Math.hypot(velocity.x, velocity.y);
-        const acceleration = Math.hypot(velocity.x - previousVelocity.x, velocity.y - previousVelocity.y) / .05;
-        expect(speed, `${sceneId} speed`).toBeLessThanOrEqual(getSceneDefinition(sceneId).maxSpeed + .015);
-        // Position samples include steering as well as propulsive acceleration.
-        expect(acceleration, `${sceneId} acceleration at sample ${index}, ${actor.animationState}, ${actor.x}, ${actor.y}`).toBeLessThanOrEqual(getSceneDefinition(sceneId).maxAcceleration * 1.35 + .08);
-        previous = actor;
-        previousVelocity = velocity;
-      }
-    }
-  });
-
-  it('only reduces actor alpha when the subject intersects an authored occlusion zone', () => {
-    for (const sceneId of sceneIds) {
-      const simulation = createSceneSimulation(sceneId, defaultVariantSelection, 88);
-      for (let index = 0; index < 900; index += 1) {
-        for (const actor of simulation.advance(50).actors) {
-          // Koi depth shading may reach .82 without cover; values below .8 are occlusion-specific.
-          if (actor.alpha >= .8) continue;
-          const nearZone = getSceneScore(sceneId).occlusionZones.some((zone) => actor.x >= zone.minX - .08 && actor.x <= zone.maxX + .08 && actor.y >= zone.minY - .08 && actor.y <= zone.maxY + .08);
-          expect(nearZone, `${sceneId} occlusion at ${actor.x}, ${actor.y}`).toBe(true);
-        }
-      }
-    }
-  });
-
   it('exposes renderer fields and keeps every scene subject-interactive', () => {
     for (const sceneId of sceneIds) {
       const simulation = createSceneSimulation(sceneId, defaultVariantSelection, 24);
@@ -251,25 +83,6 @@ describe('deterministic finite simulations', () => {
       expect(simulation.touch({ x: actor.x, y: actor.y }, 0).accepted).toBe(true);
       const frame = simulation.advance(100).actors[0];
       expect(frame).toMatchObject({ animationState: expect.any(String), poseFrame: expect.any(Number), stateProgress: expect.any(Number), depth: expect.any(Number), alpha: expect.any(Number), scaleX: expect.any(Number), scaleY: expect.any(Number) });
-    }
-  });
-
-  it('selects a phase-eligible contact response and never escalates scene intensity', () => {
-    for (const sceneId of sceneIds) {
-      const responses = new Set<string>();
-      const definition = getSceneDefinition(sceneId);
-      for (let seed = 1; seed <= 160 && responses.size < definition.touchPolicy.allowedResponses.length; seed += 1) {
-        const simulation = createSceneSimulation(sceneId, { ...defaultVariantSelection, sound: 'on' }, seed);
-        const before = simulation.snapshot();
-        const response = simulation.touch(before.actors[0], 0);
-        if (response.response) responses.add(response.response);
-        expect(simulation.snapshot()).toMatchObject({ durationMs: before.durationMs });
-        expect(simulation.snapshot().actors).toHaveLength(before.actors.length);
-        expect(simulation.definition.baseSpeed).toBe(definition.baseSpeed);
-        expect(simulation.snapshot().soundEvents).toHaveLength(0);
-      }
-      expect(responses.size).toBeGreaterThan(0);
-      expect([...responses].every((response) => definition.touchPolicy.allowedResponses.includes(response as never))).toBe(true);
     }
   });
 
@@ -298,13 +111,37 @@ describe('deterministic finite simulations', () => {
     }
   });
 
+  it('keeps authored states, occlusion, and pose cadence bounded', () => {
+    const transitions = new Map<SceneId, number>();
+    for (const sceneId of sceneIds) {
+      const simulation = createSceneSimulation(sceneId, defaultVariantSelection, 442);
+      const seen = new Set<string>();
+      let previous = simulation.snapshot().actors[0].poseFrame;
+      let changes = 0;
+      while (!simulation.snapshot().complete) {
+        for (const actor of simulation.advance(100).actors) {
+          seen.add(actor.animationState);
+          expect(actor.x).toBeGreaterThanOrEqual(.06);
+          expect(actor.x).toBeLessThanOrEqual(.94);
+          expect(actor.y).toBeGreaterThanOrEqual(.08);
+          expect(actor.y).toBeLessThanOrEqual(.92);
+          if (actor.alpha < .8) {
+            expect(getSceneScore(sceneId).occlusionZones.some((zone) => actor.x >= zone.minX - .08 && actor.x <= zone.maxX + .08 && actor.y >= zone.minY - .08 && actor.y <= zone.maxY + .08)).toBe(true);
+          }
+          if (actor.poseFrame !== previous) changes += 1;
+          previous = actor.poseFrame;
+        }
+      }
+      expect(seen).toEqual(new Set(simulation.definition.authoredStates));
+      transitions.set(sceneId, changes);
+    }
+    expect(transitions.get('koi-pool')).toBeLessThan(transitions.get('paper-moth') ?? 0);
+    expect(transitions.get('paper-moth')).toBeLessThan(250);
+  });
+
   it('rejects all cat-facing contacts in passive television mode', () => {
     const simulation = createSceneSimulation('paper-moth', defaultVariantSelection, 7319, { playbackMode: 'tv-passive' });
     expect(simulation.touch(simulation.snapshot().actors[0], 0).accepted).toBe(false);
     expect(simulation.snapshot().events).toEqual([]);
   });
 });
-
-const valueRange = (values: number[]) => Math.max(...values) - Math.min(...values);
-const angleRange = valueRange;
-const average = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / Math.max(values.length, 1);

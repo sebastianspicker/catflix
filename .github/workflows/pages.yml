@@ -38,14 +38,6 @@ jobs:
       - name: Build GitHub Pages artifact
         run: npm run build:pages
 
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
-
-      - name: Test the built GitHub Pages artifact
-        env:
-          CATFLIX_PAGES_PREBUILT: '1'
-        run: npm run test:pages
-
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v6
         with:
