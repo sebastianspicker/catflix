@@ -17,7 +17,7 @@ This public repository is a source alpha, not a tagged release. The application 
 - Theme, subject, and motion filters with recoverable empty states
 - Standard and low scene-motion settings independent of operating-system reduced motion
 - A 60-source research baseline with a source-level evidence ledger
-- Keyboard-operable dialogs, focus restoration, responsive layouts, and cross-browser tests
+- Keyboard-operable dialogs, focus restoration, and responsive layouts
 
 Catflix does not rank cats, infer preferences automatically, diagnose health, claim therapeutic benefit, or treat attention as enjoyment. Playback starts muted, never auto-replays, and never starts from the queue without an owner action.
 
@@ -36,32 +36,13 @@ Open the URL printed by Vite. All application records remain in the browser's lo
 
 ```bash
 npm run check
-npm run test:e2e
 ```
 
-`npm run check` runs 51 unit tests, TypeScript compilation, and the production build. The Playwright suite covers Chromium, Firefox, iPad WebKit, and mobile Chromium. Browser binaries must be installed before the first end-to-end run:
-
-```bash
-npx playwright install
-```
-
-Use an unused port if 4173 is occupied:
-
-```bash
-CATFLIX_E2E_PORT=4183 npm run test:e2e
-```
-
-The GitHub Pages deployment is built from the same application with a `/catflix/` base path. Validate that artifact locally with `npm run test:pages`.
+`npm run check` runs the focused unit suite, TypeScript compilation, and the production build. The GitHub Pages deployment is built from the same application with a `/catflix/` base path.
 
 ## Screenshots
 
-The repository generates canonical screenshots from the running application with a fixed seed and reduced-motion rendering:
-
-```bash
-npm run capture:screenshots
-```
-
-See [docs/SCREENSHOTS.md](docs/SCREENSHOTS.md) for the gallery and capture contract.
+The checked-in images are static documentation assets. See [docs/SCREENSHOTS.md](docs/SCREENSHOTS.md) for the gallery.
 
 ## Project map
 
@@ -70,7 +51,6 @@ See [docs/SCREENSHOTS.md](docs/SCREENSHOTS.md) for the gallery and capture contr
 - `src/simulation/`: deterministic encounter definitions and Phaser host
 - `src/storage/`: IndexedDB-backed local records with an in-memory fallback
 - `docs/research/`: maintained scientific baseline and source ledger
-- `e2e/`: cross-browser workflow, performance, visual checkpoint, and screenshot tests
 - `assets/masters/`: source artwork and its generation record retained for provenance and future mastering
 - `public/assets/`: browser-delivery artwork
 

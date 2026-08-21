@@ -28,8 +28,4 @@ The primary catalogue remains available at a 412 by 915 pixel viewport without s
 
 ## Regenerate
 
-```bash
-npm run capture:screenshots
-```
-
-The command builds the application, starts a strict local preview on port 4185, exercises the documented states through Playwright, and replaces the four files in `docs/screenshots/`. Set `CATFLIX_SCREENSHOT_PORT` when that port is occupied.
+The checked-in images are documentation assets. They are not produced or verified by browser automation.
