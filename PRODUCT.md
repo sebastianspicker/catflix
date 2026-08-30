@@ -10,7 +10,7 @@ The primary human user maintains a small household watchlist for Arri, Ozzy, and
 
 ## Product Purpose
 
-Catflix frames a personally curated list of cat-directed videos as a considered streaming destination rather than a novelty pet product. Success means quickly filtering by theme, animal or subject, and motion; choosing a programme; continuing an earlier session; and controlling playback comfortably from a website or tablet.
+Catflix frames a personally curated list of cat-directed videos as a considered streaming destination rather than a novelty pet product. Success means quickly filtering by theme, animal or subject, and motion; choosing a programme; deliberately restarting an earlier encounter; and controlling playback comfortably from a website or tablet.
 
 ## Brand Personality
 
