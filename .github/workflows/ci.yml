@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  core:
+  verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -35,7 +35,7 @@ jobs:
         run: npm run verify
 
   pages:
-    needs: core
+    needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
