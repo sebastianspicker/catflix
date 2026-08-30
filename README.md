@@ -4,16 +4,14 @@ Catflix is a local-first catalogue of five finite, supervised visual encounters 
 
 ![Catflix catalogue](docs/screenshots/catalogue-desktop.png)
 
-## Alpha status
-
-This public repository is a source alpha, not a tagged release. The application and its automated checks run locally, its dependency graph is locked, and its runtime artwork has independent project-generation provenance. A versioned alpha release still requires a green workflow for the exact release commit. See [RELEASE_STATUS.md](RELEASE_STATUS.md) for the current evidence and remaining release work.
+Catflix is under active development; no public release has been tagged.
 
 ## What works
 
 - Five authored scenes with finite durations and visible endings
 - Tablet-touch and passive television playback modes
 - Mandatory device, cable, exit, and supervision checks before playback
-- Local queue, progress, settings, observations, matched comparisons, import, and export
+- Local queue, progress reminders, settings, observations, one-at-a-time comparison runs, import, and export
 - Theme, subject, and motion filters with recoverable empty states
 - Standard and low scene-motion settings independent of operating-system reduced motion
 - A 60-source research baseline with a source-level evidence ledger
@@ -23,22 +21,25 @@ Catflix does not rank cats, infer preferences automatically, diagnose health, cl
 
 ## Run locally
 
-Requirements: Node.js `^20.19.0` or `>=22.12.0` and npm.
+Requirements: the Node.js version in [`.nvmrc`](.nvmrc) and npm.
 
 ```bash
 npm ci --ignore-scripts
 npm run dev
 ```
 
-Open the URL printed by Vite. All application records remain in the browser's local storage layer. No runtime network request is required for the catalogue, playback, or local record workflow. External DOI links in the research view require network access when opened.
+Open the URL printed by Vite. All application records remain in the browser's local storage layer. No runtime network request is required for the catalogue, playback, or local record workflow. External cited-source links in the research view require network access when opened.
 
 ## Verify
 
 ```bash
-npm run check
+npm run verify
+npm run build:pages
 ```
 
-`npm run check` runs the focused unit suite, TypeScript compilation, and the production build. The GitHub Pages deployment is built from the same application with a `/catflix/` base path.
+`npm run verify` runs unit tests, TypeScript, the production build, and the
+bundle budget. `npm run build:pages` additionally validates the GitHub Pages
+artifact built with the `/catflix/` base path.
 
 ## Screenshots
 
@@ -46,13 +47,18 @@ The checked-in images are static documentation assets. See [docs/SCREENSHOTS.md]
 
 ## Project map
 
-- `src/App.tsx`: catalogue and local workflow orchestration
-- `src/content/registry.ts`: five-scene content, provenance, and safety metadata
-- `src/simulation/`: deterministic encounter definitions and Phaser host
-- `src/storage/`: IndexedDB-backed local records with an in-memory fallback
+- `src/domain/`: stable scene, playback, and variant vocabulary
+- `src/catalogue/model/`: five authored scene aggregates, provenance, validation, and compiled manifest/runtime projections
+- `src/encounter/engine/`: deterministic encounter rules; `runtime/` adapts them to Canvas and lazy Phaser; `ui/` owns the interaction surfaces
+- `src/local-data/`: versioned JSON, IndexedDB v2, and the explicit temporary-memory fallback
+- `src/app/` and `src/App.tsx`: workflow and application composition
+- `src/research/`, `src/ui/`, and `src/styles/`: research route, shared presentation primitives, and CSS
 - `docs/research/`: maintained scientific baseline and source ledger
 - `assets/masters/`: source artwork and its generation record retained for provenance and future mastering
 - `public/assets/`: browser-delivery artwork
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the dependency direction,
+data flow, placement rules, and stable application contracts.
 
 ## Research and safety
 
@@ -66,4 +72,4 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) before proposing changes. Report securit
 
 ## License
 
-Catflix software and original project documentation are available under the [MIT License](LICENSE). Bundled project-generated assets retain the terms and provenance recorded in the content registry; see [NOTICE.md](NOTICE.md).
+Catflix software and original project documentation are available under the [MIT License](LICENSE). Bundled project-generated assets retain the terms and provenance recorded in the authored catalogue; see [NOTICE.md](NOTICE.md).

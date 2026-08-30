@@ -4,7 +4,8 @@ Describe the user-visible change and why it belongs in the current alpha.
 
 ## Verification
 
-- [ ] `npm run check`
+- [ ] `npm run verify`
+- [ ] `npm run build:pages` (when routes, assets, or deployment change)
 
 ## Boundaries
 
