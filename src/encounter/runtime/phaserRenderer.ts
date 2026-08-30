@@ -42,7 +42,7 @@ export function createPhaserSimulationRenderer(options: PhaserSimulationRenderer
     background = scene.add.image(0, 0, "catflix-background").setOrigin(0.5);
     const poseTexture = scene.textures.get("catflix-poses");
     for (let poseFrame = 0; poseFrame < 8; poseFrame += 1) {
-      const poseSheet = poseTexture.getSourceImage() as HTMLImageElement;
+      const poseSheet = poseTexture.getSourceImage() as { width: number; height: number };
       const crop = poseCrop(poseSheet.width, poseSheet.height, poseFrame);
       const frameName = poseTextureFrame(poseFrame);
       if (!poseTexture.has(frameName)) poseTexture.add(frameName, 0, crop.x, crop.y, crop.width, crop.height);
@@ -65,7 +65,7 @@ export function createPhaserSimulationRenderer(options: PhaserSimulationRenderer
     if (options.score.id === "red-string") { renderRope(actor, width, height); return; }
     let image = actorImages.get(actor.id);
     if (!image) { image = scene.add.image(0, 0, "catflix-poses", poseTextureFrame(actor.poseFrame)); actorImages.set(actor.id, image); }
-    const poseSheet = scene.textures.get("catflix-poses").getSourceImage() as HTMLImageElement;
+    const poseSheet = scene.textures.get("catflix-poses").getSourceImage() as { width: number; height: number };
     const crop = poseCrop(poseSheet.width, poseSheet.height, actor.poseFrame);
     const anchor = poseAnchor(options.score.id, actor.poseFrame);
     const displayWidth = options.score.displayWidth * width * actor.scale;

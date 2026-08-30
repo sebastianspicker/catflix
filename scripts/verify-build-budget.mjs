@@ -1,6 +1,6 @@
-import { readdir as readDirectory, readFile as readTextFile, stat as getFileStatus } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
+const { readdir: readDirectory, readFile: readTextFile, stat: getFileStatus } = await import('node:fs/promises');
 const assetsDirectory = resolve('dist/assets');
 // Leave enough headroom for deterministic minifier/hash drift while still
 // rejecting an accidental eager feature or Phaser import.

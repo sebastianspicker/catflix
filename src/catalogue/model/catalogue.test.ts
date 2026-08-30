@@ -2,7 +2,7 @@
 // @ts-expect-error Node built-ins are intentionally outside the browser application tsconfig.
 import { createHash } from "node:crypto";
 // @ts-expect-error Node built-ins are intentionally outside the browser application tsconfig.
-import { readFileSync as readAssetBytes } from "node:fs";
+const { readFileSync: readAssetBytes } = await import("node:fs");
 // @ts-expect-error Node built-ins are intentionally outside the browser application tsconfig.
 import { dirname, resolve } from "node:path";
 // @ts-expect-error Node built-ins are intentionally outside the browser application tsconfig.

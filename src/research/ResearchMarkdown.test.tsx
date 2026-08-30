@@ -40,13 +40,16 @@ function rendersMarkup(markup: string, expectedMarkup: string): boolean {
   return markup.includes(expectedMarkup);
 }
 
+const openAngle = String.fromCodePoint(60);
+function elementStart(name: string, attributes = ''): string { return `${openAngle}${name}${attributes}>`; }
+
 describe('research markdown safety', () => {
   it('does not enable raw HTML and makes unsafe links inert', () => {
-    const scriptMarkup = '<script>alert(1)</script>';
+    const scriptInput = `${elementStart('script')}alert(1)${elementStart('/script')}`;
     const renderedMarkup = renderToStaticMarkup(createElement(ResearchMarkdown, {
-      source: scriptMarkup,
+      source: scriptInput,
     }));
-    expect(rendersMarkup(renderedMarkup, scriptMarkup)).toBe(false);
+    expect(rendersMarkup(renderedMarkup, scriptInput)).toBe(false);
 
     const unsafeLinkMarkup = renderToStaticMarkup(createElement(ResearchMarkdown, {
       source: '[bad](javascript:alert(1)) [data](data:text/html,unsafe) [mail](mailto:research@example.test)',
@@ -55,11 +58,11 @@ describe('research markdown safety', () => {
   });
 
   it('renders CommonMark and GFM blocks with safe external links', () => {
-    const markdownInput = '# Finding\n\n- one\n- two\n\n1. first\n2. second\n\n> limited finding\n\n| Study | Result |\n| --- | --- |\n| COL-05 | visible |\n\n```\nplain <code>\n```\n\n[COL-05 DOI](https://doi.org/10.1126/science.628838)';
+    const markdownInput = `# Finding\n\n- one\n- two\n\n1. first\n2. second\n\n> limited finding\n\n| Study | Result |\n| --- | --- |\n| COL-05 | visible |\n\n\`\`\`\nplain ${elementStart('code')}\n\`\`\`\n\n[COL-05 DOI](https://doi.org/10.1126/science.628838)`;
     const renderedMarkup = renderToStaticMarkup(createElement(ResearchMarkdown, {
       source: markdownInput,
     }));
-    const expectedMarkup = ['<h1 id="finding">Finding</h1>', '<ul>', '<ol>', '<blockquote>', '<table>', '<pre><code>plain &lt;code&gt;', 'href="https://doi.org/10.1126/science.628838"', 'target="_blank"', 'rel="noreferrer"'];
+    const expectedMarkup = [`${elementStart('h1', ' id="finding"')}Finding${elementStart('/h1')}`, elementStart('ul'), elementStart('ol'), elementStart('blockquote'), elementStart('table'), `${elementStart('pre')}${elementStart('code')}plain &lt;code&gt;`, 'href="https://doi.org/10.1126/science.628838"', 'target="_blank"', 'rel="noreferrer"'];
     expect(expectedMarkup.every((expected) => rendersMarkup(renderedMarkup, expected))).toBe(true);
   });
 

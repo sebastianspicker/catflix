@@ -45,16 +45,35 @@ export const initialCatalogueWorkflowState = (storageStatus: StorageStatus): Cat
   progressChangedDuringHydration: false, recordCountsChangedDuringHydration: false,
 });
 
+type SessionWorkflowAction = Extract<CatalogueWorkflowAction, { type: 'hydrate' | 'set-queue' | 'prepare' | 'cancel-preparing' | 'start' | 'finish' | 'clear-completed' }>;
+type PresentationWorkflowAction = Exclude<CatalogueWorkflowAction, SessionWorkflowAction>;
+
 export function catalogueWorkflowReducer(state: CatalogueWorkflowState, action: CatalogueWorkflowAction): CatalogueWorkflowState {
+  return isSessionWorkflowAction(action) ? reduceSessionWorkflow(state, action) : reducePresentationWorkflow(state, action);
+}
+
+function isSessionWorkflowAction(action: CatalogueWorkflowAction): action is SessionWorkflowAction {
+  switch (action.type) {
+    case 'hydrate': case 'set-queue': case 'prepare': case 'cancel-preparing': case 'start': case 'finish': case 'clear-completed': return true;
+    default: return false;
+  }
+}
+
+function reduceSessionWorkflow(state: CatalogueWorkflowState, action: SessionWorkflowAction): CatalogueWorkflowState {
   switch (action.type) {
     case 'hydrate': return hydrateWorkflow(state, action);
-    case 'set-filter': return setFilter(state, action);
     case 'set-queue': return { ...state, queue: action.queue, queueChangedDuringHydration: state.hydration === 'pending' || state.queueChangedDuringHydration };
     case 'prepare': return { ...state, pending: action.pending };
     case 'cancel-preparing': return { ...state, pending: null };
     case 'start': return startPendingSession(state, action);
     case 'finish': return finishActiveSession(state, action);
     case 'clear-completed': return { ...state, completed: null };
+  }
+}
+
+function reducePresentationWorkflow(state: CatalogueWorkflowState, action: PresentationWorkflowAction): CatalogueWorkflowState {
+  switch (action.type) {
+    case 'set-filter': return setFilter(state, action);
     case 'set-panel': return { ...state, [action.panel]: action.open };
     case 'set-evidence': return { ...state, evidenceOpen: action.evidenceOpen };
     case 'set-motion-mode': return { ...state, sceneMotionMode: action.sceneMotionMode, sceneMotionChangedDuringHydration: state.hydration === 'pending' || state.sceneMotionChangedDuringHydration };

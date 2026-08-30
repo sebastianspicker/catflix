@@ -195,16 +195,29 @@ export function isTimestamp(value: unknown): value is string {
     && timestamp.getUTCSeconds() === parts[5];
 }
 function timestampParts(value: string): readonly [number, number, number, number, number, number] | undefined {
-  const [date, time, ...extra] = value.split("T");
-  if (extra.length !== 0 || !date || !time || !time.endsWith("Z")) return undefined;
+  const dateTime = timestampDateTime(value);
+  if (!dateTime) return undefined;
+  const [date, time] = dateTime;
   const dateParts = date.split("-");
   const timeParts = time.slice(0, -1).split(":");
   if (dateParts.length !== 3 || timeParts.length !== 3) return undefined;
   const [year, month, day] = dateParts;
   const [hour, minute, secondFraction] = timeParts;
-  const [second, fraction, ...fractionExtra] = secondFraction?.split(".") ?? [];
-  if (fractionExtra.length !== 0 || !hasDigits(year, 4, 4) || !hasDigits(month, 2, 2) || !hasDigits(day, 2, 2) || !hasDigits(hour, 2, 2) || !hasDigits(minute, 2, 2) || !hasDigits(second, 2, 2) || (fraction !== undefined && !hasDigits(fraction, 1, 3))) return undefined;
+  const secondParts = secondFraction.split(".");
+  if (secondParts.length > 2) return undefined;
+  const [second] = secondParts;
+  const fraction: string | undefined = secondParts.length === 2 ? secondParts[1] : undefined;
+  if (!hasValidTimestampComponents(year, month, day, hour, minute, second, fraction)) return undefined;
   return [Number(year), Number(month), Number(day), Number(hour), Number(minute), Number(second)];
+}
+function timestampDateTime(value: string): readonly [string, string] | undefined {
+  const sections = value.split("T");
+  if (sections.length !== 2 || !sections[0] || !sections[1]?.endsWith("Z")) return undefined;
+  return [sections[0], sections[1]];
+}
+function hasValidTimestampComponents(year: string, month: string, day: string, hour: string, minute: string, second: string, fraction: string | undefined): boolean {
+  return [hasDigits(year, 4, 4), hasDigits(month, 2, 2), hasDigits(day, 2, 2), hasDigits(hour, 2, 2), hasDigits(minute, 2, 2), hasDigits(second, 2, 2)].every(Boolean)
+    && (fraction === undefined || hasDigits(fraction, 1, 3));
 }
 function hasDigits(value: string | undefined, minimum: number, maximum: number): value is string {
   return value !== undefined
