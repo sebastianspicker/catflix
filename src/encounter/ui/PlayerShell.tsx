@@ -25,7 +25,8 @@ interface PlayerShellProps {
   onDismissReminder: () => void;
 }
 
-export function PlayerShell({ plan, stageRef, elapsed, phase, playing, sound, audioCapability, sceneMotionMode, showContactReminder, onTogglePlay, onToggleSound, onChangeMotion, onFinish, onPauseAndObserve, onDismissReminder }: PlayerShellProps) {
+export function PlayerShell(props: PlayerShellProps) {
+  const { plan, stageRef, elapsed, phase, playing, sound, audioCapability, sceneMotionMode, showContactReminder, onTogglePlay, onToggleSound, onChangeMotion, onFinish, onPauseAndObserve, onDismissReminder } = props;
   const { manifest, variants, playbackMode, setup } = plan;
   return <main className="player-shell encounter-player" aria-labelledby="player-title" data-playback-mode={playbackMode}>
     <header className="player-topbar"><span>CATFLIX / FINITE ENCOUNTER</span><h1 id="player-title">{manifest.catalogue.displayTitle}</h1><span>{timecode(elapsed)} / {timecode(manifest.finiteDurationMs)}</span></header>

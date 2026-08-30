@@ -36,7 +36,7 @@ export class ContactController {
   private applyResponse(actor: MutableActor, response: TouchResponse["response"], point: Point, timestampMs: number, score: SceneScore): void {
     if (response === "reroute" || response === "redirect") {
       const direction = normalize(actor.x - point.x, actor.y - point.y);
-      const speed = score.interactionPolicy.neverEscalate ? Math.min(Math.hypot(actor.vx, actor.vy), score.maxSpeed) : score.maxSpeed;
+      const speed = Math.min(Math.hypot(actor.vx, actor.vy), score.maxSpeed);
       actor.vx = direction.x * speed;
       actor.vy = direction.y * speed;
       return;

@@ -6,7 +6,7 @@ const failedDatabase = (message: string) => ({ transaction: () => { throw new Er
 
 describe("local-data IndexedDB adapter", () => {
   it("surfaces a temporary-memory fallback through status subscribers", async () => {
-    const backend = createLocalDataBackend(keyForTest, async () => ({ fallbackMessage: "simulated open failure" }));
+    const backend = createLocalDataBackend(keyForTest, () => Promise.resolve({ fallbackMessage: "simulated open failure" }));
     const updates: string[] = [];
     const unsubscribe = backend.subscribeStatus((status) => { updates.push(`${status.mode}:${status.message}`); });
 
@@ -19,11 +19,11 @@ describe("local-data IndexedDB adapter", () => {
   });
 
   it("preserves read and write failure semantics", async () => {
-    const readBackend = createLocalDataBackend(keyForTest, async () => ({ database: failedDatabase("simulated read failure") }));
+    const readBackend = createLocalDataBackend(keyForTest, () => Promise.resolve({ database: failedDatabase("simulated read failure") }));
     await expect(readBackend.values("queue")).rejects.toThrow("simulated read failure");
     expect(readBackend.getStatus()).toEqual({ mode: "degraded", message: "Local data could not be read. simulated read failure" });
 
-    const writeBackend = createLocalDataBackend(keyForTest, async () => ({ database: failedDatabase("simulated write failure") }));
+    const writeBackend = createLocalDataBackend(keyForTest, () => Promise.resolve({ database: failedDatabase("simulated write failure") }));
     await expect(writeBackend.replace("queue", [{ id: "replacement" }])).rejects.toThrow("simulated write failure");
     expect(writeBackend.getStatus()).toEqual({ mode: "degraded", message: "Local data could not be saved. simulated write failure" });
   });
@@ -33,7 +33,7 @@ describe("local-data IndexedDB adapter", () => {
       const record = value as { id: string; fail?: boolean };
       if (store === "notes" && record.fail) throw new Error("injected write failure");
       return record.id;
-    }, async () => ({ fallbackMessage: "memory" }));
+    }, () => Promise.resolve({ fallbackMessage: "memory" }));
     const original = storeNames.map((store) => ({ store, values: [{ id: `before-${store}` }] }));
     await backend.replaceAll(original);
 

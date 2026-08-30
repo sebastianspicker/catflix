@@ -17,7 +17,8 @@ const validV2 = () => ({
 });
 
 function storedFields(data: Awaited<ReturnType<ReturnType<typeof createLocalRepository>["exportData"]>>) {
-  const { exportedAt: _exportedAt, ...stores } = data;
+  const { exportedAt, ...stores } = data;
+  if (!isTimestamp(exportedAt)) throw new Error("Expected export timestamp.");
   return stores;
 }
 

@@ -90,26 +90,10 @@ export function isRefereeNote(value: unknown): value is RefereeNote {
 export function isSessionObservation(value: unknown): value is SessionObservation {
   const record = asRecord(value);
   return record !== undefined
-    && hasOnlyKeys(record, ["schemaVersion", "id", "sceneId", "contentRevision", "variant", "playbackMode", "viewingDistanceBand", "roomLightBand", "soundEnabled", "observedCat", "elapsedMs", "endReason", "acceptedContactTimestamps", "vocabulary", "safetyEvent", "physicalPlayHandoff", "rawNote", "confirmedAt"])
-    && record.schemaVersion === 2
-    && isIdentifier(record.id)
-    && isSceneId(record.sceneId)
-    && isText(record.contentRevision)
-    && isVariant(record.variant)
-    && isOneOf(record.playbackMode, ["tablet-touch", "tv-passive"])
-    && isOneOf(record.viewingDistanceBand, ["near-screen", "room-display"])
-    && isOneOf(record.roomLightBand, ["dim", "moderate", "bright"])
-    && typeof record.soundEnabled === "boolean"
-    && optional(record, "observedCat", (cat) => isOneOf(cat, cats))
-    && isNumberAtLeast(record.elapsedMs, 0)
-    && isOneOf(record.endReason, ["completed", "owner-ended", "cat-left", "safety-stop"])
-    && isTimestampList(record.acceptedContactTimestamps)
-    && (record.acceptedContactTimestamps as readonly number[]).every((timestamp) => timestamp <= (record.elapsedMs as number))
-    && isVocabulary(record.vocabulary)
-    && optional(record, "safetyEvent", isText)
-    && isOneOf(record.physicalPlayHandoff, ["not-recorded", "offered", "ignored", "voluntarily-joined"])
-    && typeof record.rawNote === "string"
-    && isTimestamp(record.confirmedAt);
+    && hasOnlyKeys(record, sessionObservationKeys)
+    && hasValidObservationIdentity(record)
+    && hasValidObservationSession(record)
+    && hasValidObservationNotes(record);
 }
 
 export function isComparisonRecord(value: unknown): value is ComparisonRecord {
@@ -157,6 +141,35 @@ function isComparisonRun(value: unknown): boolean {
     && optional(run, "encounterScore", isText)
     && optional(run, "observationId", isIdentifier);
 }
+const sessionObservationKeys = ["schemaVersion", "id", "sceneId", "contentRevision", "variant", "playbackMode", "viewingDistanceBand", "roomLightBand", "soundEnabled", "observedCat", "elapsedMs", "endReason", "acceptedContactTimestamps", "vocabulary", "safetyEvent", "physicalPlayHandoff", "rawNote", "confirmedAt"] as const;
+function hasValidObservationIdentity(record: Record<string, unknown>): boolean {
+  return record.schemaVersion === 2
+    && isIdentifier(record.id)
+    && isSceneId(record.sceneId)
+    && isText(record.contentRevision)
+    && isVariant(record.variant);
+}
+function hasValidObservationSession(record: Record<string, unknown>): boolean {
+  return isOneOf(record.playbackMode, ["tablet-touch", "tv-passive"])
+    && isOneOf(record.viewingDistanceBand, ["near-screen", "room-display"])
+    && isOneOf(record.roomLightBand, ["dim", "moderate", "bright"])
+    && typeof record.soundEnabled === "boolean"
+    && optional(record, "observedCat", (cat) => isOneOf(cat, cats))
+    && isNumberAtLeast(record.elapsedMs, 0)
+    && isOneOf(record.endReason, ["completed", "owner-ended", "cat-left", "safety-stop"])
+    && hasValidContactTimestamps(record);
+}
+function hasValidContactTimestamps(record: Record<string, unknown>): boolean {
+  return isTimestampList(record.acceptedContactTimestamps)
+    && (record.acceptedContactTimestamps as readonly number[]).every((timestamp) => timestamp <= (record.elapsedMs as number));
+}
+function hasValidObservationNotes(record: Record<string, unknown>): boolean {
+  return isVocabulary(record.vocabulary)
+    && optional(record, "safetyEvent", isText)
+    && isOneOf(record.physicalPlayHandoff, ["not-recorded", "offered", "ignored", "voluntarily-joined"])
+    && typeof record.rawNote === "string"
+    && isTimestamp(record.confirmedAt);
+}
 function hasValidComparisonFields(record: Record<string, unknown>): boolean {
   return hasOnlyKeys(record, ["id", "createdAt", "first", "second", "changedDimension", "observation"])
     && isIdentifier(record.id)
@@ -170,22 +183,43 @@ function isVocabulary(value: unknown): boolean { return Array.isArray(value) && 
 function isTimestampList(value: unknown): value is readonly number[] { return Array.isArray(value) && value.every((timestamp) => isNumberAtLeast(timestamp, 0)) && value.every((timestamp, index, values) => index === 0 || values[index - 1] <= timestamp); }
 export function isTimestamp(value: unknown): value is string {
   if (typeof value !== "string") return false;
-  const parts = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,3})?Z$/.exec(value);
+  const parts = timestampParts(value);
   if (!parts) return false;
   const timestamp = new Date(value);
   return Number.isFinite(timestamp.getTime())
-    && timestamp.getUTCFullYear() === Number(parts[1])
-    && timestamp.getUTCMonth() + 1 === Number(parts[2])
-    && timestamp.getUTCDate() === Number(parts[3])
-    && timestamp.getUTCHours() === Number(parts[4])
-    && timestamp.getUTCMinutes() === Number(parts[5])
-    && timestamp.getUTCSeconds() === Number(parts[6]);
+    && timestamp.getUTCFullYear() === parts[0]
+    && timestamp.getUTCMonth() + 1 === parts[1]
+    && timestamp.getUTCDate() === parts[2]
+    && timestamp.getUTCHours() === parts[3]
+    && timestamp.getUTCMinutes() === parts[4]
+    && timestamp.getUTCSeconds() === parts[5];
+}
+function timestampParts(value: string): readonly [number, number, number, number, number, number] | undefined {
+  const [date, time, ...extra] = value.split("T");
+  if (extra.length !== 0 || !date || !time || !time.endsWith("Z")) return undefined;
+  const dateParts = date.split("-");
+  const timeParts = time.slice(0, -1).split(":");
+  if (dateParts.length !== 3 || timeParts.length !== 3) return undefined;
+  const [year, month, day] = dateParts;
+  const [hour, minute, secondFraction] = timeParts;
+  const [second, fraction, ...fractionExtra] = secondFraction?.split(".") ?? [];
+  if (fractionExtra.length !== 0 || !hasDigits(year, 4, 4) || !hasDigits(month, 2, 2) || !hasDigits(day, 2, 2) || !hasDigits(hour, 2, 2) || !hasDigits(minute, 2, 2) || !hasDigits(second, 2, 2) || (fraction !== undefined && !hasDigits(fraction, 1, 3))) return undefined;
+  return [Number(year), Number(month), Number(day), Number(hour), Number(minute), Number(second)];
+}
+function hasDigits(value: string | undefined, minimum: number, maximum: number): value is string {
+  return value !== undefined
+    && value.length >= minimum
+    && value.length <= maximum
+    && [...value].every((character) => character >= "0" && character <= "9");
 }
 function isIdentifier(value: unknown): value is string { return typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(value); }
 function isText(value: unknown): value is string { return typeof value === "string" && value.trim() !== ""; }
 function isNumberAtLeast(value: unknown, minimum: number): value is number { return typeof value === "number" && Number.isFinite(value) && value >= minimum; }
 function isNonNegativeSafeInteger(value: unknown): value is number { return typeof value === "number" && Number.isSafeInteger(value) && value >= 0; }
 function isOneOf(value: unknown, options: readonly unknown[]): boolean { return typeof value === "string" && options.includes(value); }
-function optional(record: Record<string, unknown>, key: string, validator: (value: unknown) => boolean): boolean { return !Object.hasOwn(record, key) || validator(record[key]); }
+function optional(record: Record<string, unknown>, key: string, validator: (value: unknown) => boolean): boolean {
+  const property = Object.getOwnPropertyDescriptor(record, key);
+  return property === undefined || validator(property.value);
+}
 function hasOnlyKeys(record: Record<string, unknown>, keys: readonly string[]): boolean { return Object.keys(record).every((key) => keys.includes(key)); }
 function asRecord(value: unknown): Record<string, unknown> | undefined { return typeof value === "object" && value !== null ? value as Record<string, unknown> : undefined; }

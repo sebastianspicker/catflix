@@ -32,16 +32,22 @@ function markdownNodeText(node: unknown): string {
 }
 
 const components: Components = {
-  a: ({ children, href, node: _node, ...props }) => {
+  a: ({ children, href, ...props }) => {
+    const anchorProps = { ...props };
+    delete anchorProps.node;
     const safeHref = safeMarkdownHref(href ?? '');
     const isExternal = /^https?:\/\//i.test(safeHref);
 
-    return <a {...props} href={safeHref} {...(isExternal ? { rel: 'noreferrer', target: '_blank' } : {})}>{children}</a>;
+    return <a {...anchorProps} href={safeHref} {...(isExternal ? { rel: 'noreferrer', target: '_blank' } : {})}>{children}</a>;
   },
   h1: ({ children, node, ...props }) => <h1 {...props} id={headingSlug(markdownNodeText(node))}>{children}</h1>,
   h2: ({ children, node, ...props }) => <h2 {...props} id={headingSlug(markdownNodeText(node))}>{children}</h2>,
   h3: ({ children, node, ...props }) => <h3 {...props} id={headingSlug(markdownNodeText(node))}>{children}</h3>,
-  table: ({ children, node: _node, ...props }) => <div className="research-table-wrap"><table {...props}>{children}</table></div>,
+  table: ({ children, ...props }) => {
+    const tableProps = { ...props };
+    delete tableProps.node;
+    return <div className="research-table-wrap"><table {...tableProps}>{children}</table></div>;
+  },
 };
 
 export function ResearchMarkdown({ source }: { source: string }) {

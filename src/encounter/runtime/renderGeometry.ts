@@ -13,14 +13,15 @@ export function poseCrop(sheetWidth: number, sheetHeight: number, poseFrame: num
 
 export function poseAnchor(sceneId: SceneId, poseFrame: number): Point {
   const frame = ((Math.floor(poseFrame) % 8) + 8) % 8;
-  const anchors: Record<Exclude<SceneId, "red-string">, readonly Point[]> = {
-    "balcony-birds": [{ x: .5, y: .58 }, { x: .51, y: .58 }, { x: .49, y: .58 }, { x: .5, y: .61 }, { x: .48, y: .53 }, { x: .47, y: .52 }, { x: .48, y: .53 }, { x: .5, y: .82 }],
-    "koi-pool": [{ x: .55, y: .72 }, { x: .34, y: .68 }, { x: .43, y: .66 }, { x: .44, y: .68 }, { x: .25, y: .69 }, { x: .41, y: .72 }, { x: .5, y: .72 }, { x: .42, y: .73 }],
-    "paper-moth": [{ x: .48, y: .49 }, { x: .49, y: .5 }, { x: .5, y: .51 }, { x: .5, y: .52 }, { x: .6, y: .51 }, { x: .59, y: .51 }, { x: .58, y: .51 }, { x: .48, y: .52 }],
-    "beetle-under-the-fern": [{ x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }],
-  };
+  const anchors = new Map<Exclude<SceneId, "red-string">, readonly Point[]>([
+    ["balcony-birds", [{ x: .5, y: .58 }, { x: .51, y: .58 }, { x: .49, y: .58 }, { x: .5, y: .61 }, { x: .48, y: .53 }, { x: .47, y: .52 }, { x: .48, y: .53 }, { x: .5, y: .82 }]],
+    ["koi-pool", [{ x: .55, y: .72 }, { x: .34, y: .68 }, { x: .43, y: .66 }, { x: .44, y: .68 }, { x: .25, y: .69 }, { x: .41, y: .72 }, { x: .5, y: .72 }, { x: .42, y: .73 }]],
+    ["paper-moth", [{ x: .48, y: .49 }, { x: .49, y: .5 }, { x: .5, y: .51 }, { x: .5, y: .52 }, { x: .6, y: .51 }, { x: .59, y: .51 }, { x: .58, y: .51 }, { x: .48, y: .52 }]],
+    ["beetle-under-the-fern", [{ x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }]],
+  ]);
   if (sceneId === "red-string") return { x: .5, y: .5 };
-  return anchors[sceneId].at(frame) ?? anchors[sceneId][0];
+  const sceneAnchors = anchors.get(sceneId);
+  return sceneAnchors?.at(frame) ?? sceneAnchors?.[0] ?? { x: .5, y: .5 };
 }
 
 export function coverRect(sourceWidth: number, sourceHeight: number, targetWidth: number, targetHeight: number): { x: number; y: number; width: number; height: number } {

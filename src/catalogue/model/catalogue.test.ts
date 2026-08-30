@@ -1,11 +1,11 @@
 // Vitest executes this contract check in Node; production code remains browser-only.
-// @ts-ignore Node built-ins are intentionally outside the browser application tsconfig.
+// @ts-expect-error Node built-ins are intentionally outside the browser application tsconfig.
 import { createHash } from "node:crypto";
-// @ts-ignore Node built-ins are intentionally outside the browser application tsconfig.
-import { readFileSync } from "node:fs";
-// @ts-ignore Node built-ins are intentionally outside the browser application tsconfig.
+// @ts-expect-error Node built-ins are intentionally outside the browser application tsconfig.
+import { readFileSync as readAssetBytes } from "node:fs";
+// @ts-expect-error Node built-ins are intentionally outside the browser application tsconfig.
 import { dirname, resolve } from "node:path";
-// @ts-ignore Node built-ins are intentionally outside the browser application tsconfig.
+// @ts-expect-error Node built-ins are intentionally outside the browser application tsconfig.
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { sceneIds, type SceneId } from "../../domain";
@@ -13,6 +13,14 @@ import { getContentManifest, getSceneScore, listContentManifests } from "./catal
 import { validateContentManifest } from "./validation";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+const publicAssetsRoot = `${resolve(repositoryRoot, "public", "assets")}/`;
+
+function readAsset(source: string): Uint8Array {
+  if (!source.startsWith("/assets/")) throw new Error(`Unexpected public asset source ${source}.`);
+  const assetPath = resolve(repositoryRoot, "public", source.slice(1));
+  if (!assetPath.startsWith(publicAssetsRoot)) throw new Error(`Asset source escapes public assets ${source}.`);
+  return readAssetBytes(assetPath);
+}
 
 describe("authored catalogue contracts", () => {
   it("publishes the five deliberate scene identifiers in their curated order", () => {
@@ -47,7 +55,7 @@ describe("authored catalogue contracts", () => {
   it("matches every authored provenance checksum to its shipped public asset", () => {
     for (const manifest of listContentManifests()) {
       for (const asset of manifest.assets) {
-        const bytes = readFileSync(resolve(repositoryRoot, "public", asset.source.slice(1)));
+        const bytes = readAsset(asset.source);
         expect(createHash("sha256").update(bytes).digest("hex")).toBe(asset.checksum);
       }
     }

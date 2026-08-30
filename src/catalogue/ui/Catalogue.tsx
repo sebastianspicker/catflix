@@ -8,22 +8,22 @@ import { publicUrl } from '../../paths';
 
 /** State and commands the catalogue renders; application composition owns their implementation. */
 export interface CatalogueViewModel {
-  addToQueue(id: SceneId): void;
+  addToQueue: (id: SceneId) => void;
   filtered: readonly ContentManifest[];
   rhythm: CatalogueRhythmFilter;
-  prepare(manifest: ContentManifest): void;
+  prepare: (manifest: ContentManifest) => void;
   progress: Partial<Record<SceneId, number>>;
   queue: readonly SceneId[];
   queuedSeconds: number;
   resumable: readonly ContentManifest[];
-  setCuratorOpen(open: boolean): void;
-  setDataOpen(open: boolean): void;
-  setEvidenceOpen(theme: EvidenceThemeId): void;
-  setRhythm(value: CatalogueRhythmFilter): void;
-  setQueueOpen(open: boolean): void;
-  setRefereesOpen(open: boolean): void;
-  setSubject(value: CatalogueSubjectFilter): void;
-  setTheme(value: CatalogueThemeFilter): void;
+  setCuratorOpen: (open: boolean) => void;
+  setDataOpen: (open: boolean) => void;
+  setEvidenceOpen: (theme: EvidenceThemeId) => void;
+  setRhythm: (value: CatalogueRhythmFilter) => void;
+  setQueueOpen: (open: boolean) => void;
+  setRefereesOpen: (open: boolean) => void;
+  setSubject: (value: CatalogueSubjectFilter) => void;
+  setTheme: (value: CatalogueThemeFilter) => void;
   storageStatus: { mode: 'persistent' | 'degraded'; message?: string };
   subject: CatalogueSubjectFilter;
   theme: CatalogueThemeFilter;

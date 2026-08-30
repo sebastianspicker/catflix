@@ -1,5 +1,4 @@
 import type { SceneId, SceneScore } from "../../domain";
-import { sceneIds } from "../../domain";
 import { compileContentManifest, compileSceneScore } from "./authoredScene";
 import { authoredScenes } from "./authoredScenes";
 import type { ContentManifest } from "./contentManifest";
@@ -9,9 +8,13 @@ export type CatalogueThemeFilter = "all" | ContentManifest["catalogue"]["theme"]
 export type CatalogueSubjectFilter = "all" | ContentManifest["subjectClass"];
 export type CatalogueRhythmFilter = "all" | ContentManifest["catalogue"]["rhythm"];
 
-const manifests = sceneIds.map((id) => compileContentManifest(authoredScenes[id]));
+const authoredSceneList = [
+  authoredScenes["balcony-birds"], authoredScenes["koi-pool"], authoredScenes["paper-moth"],
+  authoredScenes["beetle-under-the-fern"], authoredScenes["red-string"],
+] as const;
+const manifests = authoredSceneList.map(compileContentManifest);
 const manifestById = new Map(manifests.map((manifest) => [manifest.id, manifest]));
-const scoreById = new Map(sceneIds.map((id) => [id, compileSceneScore(authoredScenes[id])] as const));
+const scoreById = new Map(authoredSceneList.map((scene) => [scene.id, compileSceneScore(scene)] as const));
 
 for (const manifest of manifests) {
   const result = validateContentManifest(manifest);
