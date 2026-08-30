@@ -1,6 +1,6 @@
-import { readdir as readDirectory, readFile as readTextFile } from "node:fs/promises";
 import { extname, relative, resolve } from "node:path";
 
+const { readdir: readDirectory, readFile: readTextFile } = await import("node:fs/promises");
 const sourceRoot = resolve("src");
 const sourceExtensions = new Set([".ts", ".tsx"]);
 const sourceFiles = await collectSourceFiles(sourceRoot);
@@ -69,8 +69,8 @@ function moduleFor(file) {
 }
 
 function importSpecifiers(source) {
-  return [...source.matchAll(/\b(?:from\s*|import\s*(?:\(\s*)?)["']([^"'\r\n]+)["']/g)]
-    .map((match) => match[1]);
+  const patterns = [/\bfrom\s*["']([^"'\r\n]+)["']/g, /\bimport\s*["']([^"'\r\n]+)["']/g, /\bimport\(\s*["']([^"'\r\n]+)["']\s*\)/g];
+  return patterns.flatMap((pattern) => [...source.matchAll(pattern)].map((match) => match[1]));
 }
 
 async function resolveSourceFile(from, specifier) {
