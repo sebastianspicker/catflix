@@ -5,21 +5,27 @@
   "license": "MIT",
   "type": "module",
   "engines": {
-    "node": "^20.19.0 || >=22.12.0"
+    "node": "24.x"
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "build:pages": "tsc -b && vite build --base=/catflix/ && node scripts/prepare-pages.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "npm run test && npm run build",
-    "verify": "npm run check"
+    "typecheck": "tsc -b",
+    "build": "npm run typecheck && vite build",
+    "build:pages": "npm run typecheck && vite build --base=/catflix/ && node scripts/prepare-pages.mjs && npm run verify:pages",
+    "preview:pages": "vite preview --base=/catflix/ --host 127.0.0.1 --port 4174 --strictPort",
+    "verify:build-budget": "node scripts/verify-build-budget.mjs",
+    "verify:architecture": "node scripts/check-architecture.mjs",
+    "verify:pages": "node scripts/verify-pages-artifact.mjs && npm run verify:build-budget",
+    "verify": "npm run test && npm run verify:architecture && npm run build && npm run verify:build-budget"
   },
   "dependencies": {
     "phaser": "4.2.1",
     "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "react-markdown": "10.1.0",
+    "remark-gfm": "4.0.1"
   },
   "devDependencies": {
     "@types/node": "24.13.3",

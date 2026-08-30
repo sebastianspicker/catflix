@@ -1,12 +1,12 @@
 import { lazy, StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
-import './styles.css';
-import './editorial.css';
-import './encounters.css';
+import './styles/base.css';
+import './styles/editorial.css';
+import './styles/encounters.css';
 import { routePathname } from './paths';
 
-const ResearchPage = lazy(() => import('./components/ResearchPage').then((module) => ({ default: module.ResearchPage })));
+const ResearchPage = lazy(() => import('./research/ResearchPage').then((module) => ({ default: module.ResearchPage })));
 const pathname = routePathname(window.location.pathname);
 const isResearchRoute = pathname === '/research';
 
