@@ -6,8 +6,9 @@ All notable changes to public Catflix releases will be documented here.
 
 ### Added
 
-- Public alpha documentation and deterministic screenshot workflow
-- GitHub Actions verification for unit tests, build, and cross-browser Playwright tests
+- Public alpha documentation and a maintained screenshot gallery
+- GitHub Actions verification for unit tests, type checking, architecture
+  boundaries, production builds, bundle budgets, and Pages artifacts
 - Contributor and private vulnerability reporting guidance
 - MIT licensing for the software and original project documentation
 
@@ -16,6 +17,6 @@ All notable changes to public Catflix releases will be documented here.
 - Five finite tablet-touch and passive television scenes
 - Local queue, settings, progress, observations, comparisons, import, and export
 - Research summaries and a complete 60-source research route
-- Desktop, tablet, and mobile interaction coverage
+- Responsive desktop, tablet, and mobile interaction support
 
 There is no published release yet.
