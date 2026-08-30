@@ -16,7 +16,7 @@ function markdownHrefs(source: string): string[] {
     let depth = 0;
     let destinationEnd = destinationStart;
     for (; destinationEnd < source.length; destinationEnd += 1) {
-      const character = source[destinationEnd];
+      const character = source.charAt(destinationEnd);
       if (character === '(') depth += 1;
       if (character === ')') {
         if (depth === 0) break;
@@ -36,40 +36,39 @@ function renderedHrefs(html: string): string[] {
   return [...html.matchAll(/<a href="([^"]*)"/g)].map((match) => match[1]);
 }
 
+function rendersMarkup(markup: string, expectedMarkup: string): boolean {
+  return markup.includes(expectedMarkup);
+}
+
 describe('research markdown safety', () => {
   it('does not enable raw HTML and makes unsafe links inert', () => {
-    const rawHtml = renderToStaticMarkup(createElement(ResearchMarkdown, {
-      source: '<script>alert(1)</script>',
+    const scriptMarkup = '<script>alert(1)</script>';
+    const renderedMarkup = renderToStaticMarkup(createElement(ResearchMarkdown, {
+      source: scriptMarkup,
     }));
-    expect(rawHtml).not.toContain('<script>');
+    expect(rendersMarkup(renderedMarkup, scriptMarkup)).toBe(false);
 
-    const unsafeLinks = renderToStaticMarkup(createElement(ResearchMarkdown, {
+    const unsafeLinkMarkup = renderToStaticMarkup(createElement(ResearchMarkdown, {
       source: '[bad](javascript:alert(1)) [data](data:text/html,unsafe) [mail](mailto:research@example.test)',
     }));
-    expect(renderedHrefs(unsafeLinks)).toEqual(['#', '#', '#']);
+    expect(renderedHrefs(unsafeLinkMarkup)).toEqual(['#', '#', '#']);
   });
 
   it('renders CommonMark and GFM blocks with safe external links', () => {
-    const html = renderToStaticMarkup(createElement(ResearchMarkdown, {
-      source: '# Finding\n\n- one\n- two\n\n1. first\n2. second\n\n> limited finding\n\n| Study | Result |\n| --- | --- |\n| COL-05 | visible |\n\n```\nplain <code>\n```\n\n[COL-05 DOI](https://doi.org/10.1126/science.628838)',
+    const markdownInput = '# Finding\n\n- one\n- two\n\n1. first\n2. second\n\n> limited finding\n\n| Study | Result |\n| --- | --- |\n| COL-05 | visible |\n\n```\nplain <code>\n```\n\n[COL-05 DOI](https://doi.org/10.1126/science.628838)';
+    const renderedMarkup = renderToStaticMarkup(createElement(ResearchMarkdown, {
+      source: markdownInput,
     }));
-    expect(html).toContain('<h1 id="finding">Finding</h1>');
-    expect(html).toContain('<ul>');
-    expect(html).toContain('<ol>');
-    expect(html).toContain('<blockquote>');
-    expect(html).toContain('<table>');
-    expect(html).toContain('<pre><code>plain &lt;code&gt;');
-    expect(html).toContain('href="https://doi.org/10.1126/science.628838"');
-    expect(html).toContain('target="_blank"');
-    expect(html).toContain('rel="noreferrer"');
+    const expectedMarkup = ['<h1 id="finding">Finding</h1>', '<ul>', '<ol>', '<blockquote>', '<table>', '<pre><code>plain &lt;code&gt;', 'href="https://doi.org/10.1126/science.628838"', 'target="_blank"', 'rel="noreferrer"'];
+    expect(expectedMarkup.every((expected) => rendersMarkup(renderedMarkup, expected))).toBe(true);
   });
 
   it('preserves every source href in the authored research corpus', () => {
     const sourceHrefs = markdownHrefs(researchMarkdown);
-    const html = renderToStaticMarkup(createElement(ResearchMarkdown, { source: researchMarkdown }));
+    const renderedMarkup = renderToStaticMarkup(createElement(ResearchMarkdown, { source: researchMarkdown }));
 
     expect(sourceHrefs).toHaveLength(60);
     expect(sourceHrefs).toContain('https://doi.org/10.1016/S0003-3472(85)80073-7');
-    expect(renderedHrefs(html)).toEqual(sourceHrefs);
+    expect(renderedHrefs(renderedMarkup)).toEqual(sourceHrefs);
   });
 });

@@ -35,17 +35,20 @@ export function createPhaserSimulationRenderer(options: PhaserSimulationRenderer
     if (options.score.id === "red-string" && options.visuals.ropeTextureUrl) this.load.image("catflix-rope", publicUrl(options.visuals.ropeTextureUrl));
   };
   const create: Phaser.Types.Scenes.SceneCreateCallback = function (): void {
-    activeScene = this;
-    background = this.add.image(0, 0, "catflix-background").setOrigin(0.5);
-    const poseTexture = this.textures.get("catflix-poses");
+    initializeScene(this);
+  };
+  const initializeScene = (scene: Phaser.Scene): void => {
+    activeScene = scene;
+    background = scene.add.image(0, 0, "catflix-background").setOrigin(0.5);
+    const poseTexture = scene.textures.get("catflix-poses");
     for (let poseFrame = 0; poseFrame < 8; poseFrame += 1) {
-      const source = poseTexture.getSourceImage() as HTMLImageElement;
-      const crop = poseCrop(source.width, source.height, poseFrame);
+      const poseSheet = poseTexture.getSourceImage() as HTMLImageElement;
+      const crop = poseCrop(poseSheet.width, poseSheet.height, poseFrame);
       const frameName = poseTextureFrame(poseFrame);
       if (!poseTexture.has(frameName)) poseTexture.add(frameName, 0, crop.x, crop.y, crop.width, crop.height);
     }
-    foreground = this.add.graphics().setDepth(10);
-    if (options.acceptsTouch) this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => { options.onTouch(pointer.x / Math.max(this.scale.width, 1), pointer.y / Math.max(this.scale.height, 1)); });
+    foreground = scene.add.graphics().setDepth(10);
+    if (options.acceptsTouch) scene.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => { options.onTouch(pointer.x / Math.max(scene.scale.width, 1), pointer.y / Math.max(scene.scale.height, 1)); });
     render(options.initialState());
     options.onReady();
   };
@@ -62,8 +65,8 @@ export function createPhaserSimulationRenderer(options: PhaserSimulationRenderer
     if (options.score.id === "red-string") { renderRope(actor, width, height); return; }
     let image = actorImages.get(actor.id);
     if (!image) { image = scene.add.image(0, 0, "catflix-poses", poseTextureFrame(actor.poseFrame)); actorImages.set(actor.id, image); }
-    const source = scene.textures.get("catflix-poses").getSourceImage() as HTMLImageElement;
-    const crop = poseCrop(source.width, source.height, actor.poseFrame);
+    const poseSheet = scene.textures.get("catflix-poses").getSourceImage() as HTMLImageElement;
+    const crop = poseCrop(poseSheet.width, poseSheet.height, actor.poseFrame);
     const anchor = poseAnchor(options.score.id, actor.poseFrame);
     const displayWidth = options.score.displayWidth * width * actor.scale;
     image.setFrame(poseTextureFrame(actor.poseFrame))

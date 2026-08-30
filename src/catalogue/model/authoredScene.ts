@@ -24,7 +24,9 @@ const withAudioProvenance = (audio: AuthoredScene["audio"]): AudioProfile | unde
 };
 
 export function compileContentManifest(scene: AuthoredScene): ContentManifest {
-  const { runtime: _runtime, audio, ...manifest } = scene;
+  const manifest = { ...scene };
+  Reflect.deleteProperty(manifest, "runtime");
+  const { audio } = manifest;
   return { ...manifest, ...(audio ? { audio: withAudioProvenance(audio) } : {}) };
 }
 

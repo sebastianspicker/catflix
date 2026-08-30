@@ -1,4 +1,4 @@
-import { readdir, readFile } from "node:fs/promises";
+import { readdir as readDirectory, readFile as readTextFile } from "node:fs/promises";
 import { extname, relative, resolve } from "node:path";
 
 const sourceRoot = resolve("src");
@@ -16,13 +16,15 @@ const knownModules = new Set([
 for (const file of sourceFiles) {
   const sourceModule = modules.get(file);
   if (!knownModules.has(sourceModule)) violations.push(`${display(file)} is outside the deliberate source modules`);
-  const imports = importSpecifiers(await readFile(file, "utf8"));
+  const imports = importSpecifiers(await readTextFile(file, "utf8"));
   for (const specifier of new Set(imports)) {
     if (specifier.includes("/content/") || specifier.includes("/components/") || specifier.includes("/simulation/") || specifier.includes("/storage/") || specifier.includes("/validation/")) {
       violations.push(`${display(file)} imports removed legacy path ${specifier}`);
       continue;
     }
     if (!specifier.startsWith(".") || specifier.includes("?")) continue;
+    const extension = extname(specifier);
+    if (extension && !sourceExtensions.has(extension)) continue;
     const target = await resolveSourceFile(file, specifier);
     if (!target) {
       violations.push(`${display(file)} has an unresolved relative import ${specifier}`);
@@ -46,7 +48,7 @@ if (violations.length > 0) {
 }
 
 async function collectSourceFiles(directory) {
-  const entries = await readdir(directory, { withFileTypes: true });
+  const entries = await readDirectory(directory, { withFileTypes: true });
   const nested = await Promise.all(entries.map(async (entry) => entry.isDirectory()
     ? collectSourceFiles(resolve(directory, entry.name))
     : sourceExtensions.has(extname(entry.name)) && !entry.name.endsWith(".test.ts") ? [resolve(directory, entry.name)] : []));
@@ -67,8 +69,8 @@ function moduleFor(file) {
 }
 
 function importSpecifiers(source) {
-  return [...source.matchAll(/(?:import|export)\s+(?:type\s+)?(?:[\s\S]*?\s+from\s+)?["']([^"']+)["']|import\(\s*["']([^"']+)["']\s*\)/g)]
-    .map((match) => match[1] ?? match[2]);
+  return [...source.matchAll(/\b(?:from\s*|import\s*(?:\(\s*)?)["']([^"'\r\n]+)["']/g)]
+    .map((match) => match[1]);
 }
 
 async function resolveSourceFile(from, specifier) {
@@ -82,25 +84,18 @@ async function resolveSourceFile(from, specifier) {
 
 function isAllowed(sourceModule, targetModule, sourceFile) {
   if (sourceModule === targetModule) return true;
-  const allowed = {
-    domain: new Set(),
-    "catalogue-model": new Set(["domain"]),
-    "catalogue-ui": new Set(["catalogue-model", "domain", "research", "ui", "platform"]),
-    "encounter-engine": new Set(["domain"]),
-    "encounter-runtime": new Set(["domain", "encounter-engine", "catalogue-model", "platform"]),
-    "encounter-ui": new Set(["domain", "catalogue-model", "encounter-engine", "encounter-runtime", "encounter-session", "local-data", "ui"]),
-    "encounter-session": new Set(["domain", "catalogue-model"]),
-    "local-data": new Set(["domain", "catalogue-model"]),
-    research: new Set(["ui", "platform"]),
-    ui: new Set(),
-    styles: new Set(),
-    platform: new Set(),
-    app: new Set(["domain", "catalogue-model", "catalogue-ui", "encounter-session", "encounter-ui", "local-data", "research", "ui"]),
-    root: new Set(["app", "catalogue-ui", "encounter-ui", "research", "platform"]),
-    ambient: new Set(),
-  };
+  const allowed = new Map([
+    ["domain", new Set()], ["catalogue-model", new Set(["domain"])],
+    ["catalogue-ui", new Set(["catalogue-model", "domain", "research", "ui", "platform"])],
+    ["encounter-engine", new Set(["domain"])], ["encounter-runtime", new Set(["domain", "encounter-engine", "catalogue-model", "platform"])],
+    ["encounter-ui", new Set(["domain", "catalogue-model", "encounter-engine", "encounter-runtime", "encounter-session", "local-data", "ui"])],
+    ["encounter-session", new Set(["domain", "catalogue-model"])], ["local-data", new Set(["domain", "catalogue-model"])],
+    ["research", new Set(["ui", "platform"])], ["ui", new Set()], ["styles", new Set()], ["platform", new Set()],
+    ["app", new Set(["domain", "catalogue-model", "catalogue-ui", "encounter-session", "encounter-ui", "local-data", "research", "ui"])],
+    ["root", new Set(["app", "catalogue-ui", "encounter-ui", "research", "platform"])], ["ambient", new Set()],
+  ]);
   if (sourceModule === "app" && targetModule === "encounter-ui") return display(sourceFile).endsWith("app/CatalogueOverlays.tsx");
-  return allowed[sourceModule]?.has(targetModule) ?? false;
+  return allowed.get(sourceModule)?.has(targetModule) ?? false;
 }
 
 function findCycles(graph) {

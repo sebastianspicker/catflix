@@ -1,4 +1,4 @@
-import { readdir, readFile, stat } from 'node:fs/promises';
+import { readdir as readDirectory, readFile as readTextFile, stat as getFileStatus } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 const assetsDirectory = resolve('dist/assets');
@@ -7,7 +7,7 @@ const assetsDirectory = resolve('dist/assets');
 const mainBundleLimit = 300 * 1024;
 const phaserBundleLimit = 1_500 * 1024;
 
-const assets = await readdir(assetsDirectory, { withFileTypes: true });
+const assets = await readDirectory(assetsDirectory, { withFileTypes: true });
 const javascriptAssets = assets.filter((asset) => asset.isFile() && asset.name.endsWith('.js'));
 
 function findSingleAsset(name, pattern) {
@@ -19,11 +19,16 @@ function findSingleAsset(name, pattern) {
 }
 
 async function assertBundleAtMost(name, asset, limit) {
-  const size = (await stat(resolve(assetsDirectory, asset.name))).size;
+  const size = (await getFileStatus(assetPath(asset.name))).size;
   if (size > limit) {
     throw new Error(`${name} bundle ${asset.name} is ${size} bytes; limit is ${limit} bytes`);
   }
   return size;
+}
+
+function assetPath(name) {
+  if (!/^[A-Za-z0-9_.-]+$/.test(name)) throw new Error(`Unexpected asset filename ${name}.`);
+  return resolve(assetsDirectory, name);
 }
 
 const mainBundle = findSingleAsset('main application', /^index-[A-Za-z0-9_-]+\.js$/);
@@ -39,7 +44,7 @@ const importerSources = await Promise.all(
     .filter((asset) => asset.name !== phaserBundle.name)
     .map(async (asset) => ({
       name: asset.name,
-      source: await readFile(resolve(assetsDirectory, asset.name), 'utf8'),
+      source: await readTextFile(assetPath(asset.name), 'utf8'),
     })),
 );
 const importer = importerSources.find(({ source }) => source.includes(`./${phaserBundle.name}`));

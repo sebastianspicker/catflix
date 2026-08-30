@@ -47,44 +47,13 @@ export const initialCatalogueWorkflowState = (storageStatus: StorageStatus): Cat
 
 export function catalogueWorkflowReducer(state: CatalogueWorkflowState, action: CatalogueWorkflowAction): CatalogueWorkflowState {
   switch (action.type) {
-    case 'hydrate': return {
-      ...state,
-      queue: state.queueChangedDuringHydration ? mergeQueueIds(action.queue, state.queue) : action.queue,
-      progress: state.progressChangedDuringHydration ? { ...action.progress, ...state.progress } : action.progress,
-      recordCounts: state.recordCountsChangedDuringHydration
-        ? { notes: action.recordCounts.notes + state.recordCounts.notes, comparisons: action.recordCounts.comparisons + state.recordCounts.comparisons }
-        : action.recordCounts,
-      sceneMotionMode: state.sceneMotionChangedDuringHydration ? state.sceneMotionMode : action.sceneMotionMode,
-      hydration: 'complete',
-      queueChangedDuringHydration: false,
-      sceneMotionChangedDuringHydration: false,
-      progressChangedDuringHydration: false,
-      recordCountsChangedDuringHydration: false,
-    };
-    case 'set-filter': {
-      if (action.filter === 'theme') return { ...state, theme: action.value };
-      if (action.filter === 'subject') return { ...state, subject: action.value };
-      return { ...state, rhythm: action.value };
-    }
+    case 'hydrate': return hydrateWorkflow(state, action);
+    case 'set-filter': return setFilter(state, action);
     case 'set-queue': return { ...state, queue: action.queue, queueChangedDuringHydration: state.hydration === 'pending' || state.queueChangedDuringHydration };
     case 'prepare': return { ...state, pending: action.pending };
     case 'cancel-preparing': return { ...state, pending: null };
-    case 'start': {
-      if (!state.pending) return state;
-      const { manifest, variant: variants, seed, comparison } = state.pending;
-      return { ...state, pending: null, active: { manifest, variants, seed, playbackMode: action.playbackMode, sceneMotionMode: state.sceneMotionMode, setup: action.setup, ...(comparison ? { comparison } : {}) } };
-    }
-    case 'finish': {
-      const update = sessionUpdate(state.active, action.result);
-      if (!update || !state.active) return state;
-      return {
-        ...state,
-        active: null,
-        completed: update.completed,
-        progress: { ...state.progress, [state.active.manifest.id]: update.progress },
-        progressChangedDuringHydration: state.hydration === 'pending' || state.progressChangedDuringHydration,
-      };
-    }
+    case 'start': return startPendingSession(state, action);
+    case 'finish': return finishActiveSession(state, action);
     case 'clear-completed': return { ...state, completed: null };
     case 'set-panel': return { ...state, [action.panel]: action.open };
     case 'set-evidence': return { ...state, evidenceOpen: action.evidenceOpen };
@@ -96,4 +65,41 @@ export function catalogueWorkflowReducer(state: CatalogueWorkflowState, action: 
       recordCountsChangedDuringHydration: state.hydration === 'pending' || state.recordCountsChangedDuringHydration,
     };
   }
+}
+
+function hydrateWorkflow(state: CatalogueWorkflowState, action: Extract<CatalogueWorkflowAction, { type: 'hydrate' }>): CatalogueWorkflowState {
+  return {
+    ...state,
+    queue: state.queueChangedDuringHydration ? mergeQueueIds(action.queue, state.queue) : action.queue,
+    progress: state.progressChangedDuringHydration ? { ...action.progress, ...state.progress } : action.progress,
+    recordCounts: state.recordCountsChangedDuringHydration
+      ? { notes: action.recordCounts.notes + state.recordCounts.notes, comparisons: action.recordCounts.comparisons + state.recordCounts.comparisons }
+      : action.recordCounts,
+    sceneMotionMode: state.sceneMotionChangedDuringHydration ? state.sceneMotionMode : action.sceneMotionMode,
+    hydration: 'complete', queueChangedDuringHydration: false, sceneMotionChangedDuringHydration: false,
+    progressChangedDuringHydration: false, recordCountsChangedDuringHydration: false,
+  };
+}
+
+function setFilter(state: CatalogueWorkflowState, action: Extract<CatalogueWorkflowAction, { type: 'set-filter' }>): CatalogueWorkflowState {
+  if (action.filter === 'theme') return { ...state, theme: action.value };
+  if (action.filter === 'subject') return { ...state, subject: action.value };
+  return { ...state, rhythm: action.value };
+}
+
+function startPendingSession(state: CatalogueWorkflowState, action: Extract<CatalogueWorkflowAction, { type: 'start' }>): CatalogueWorkflowState {
+  if (!state.pending) return state;
+  const { manifest, variant: variants, seed, comparison } = state.pending;
+  const active = { manifest, variants, seed, playbackMode: action.playbackMode, sceneMotionMode: state.sceneMotionMode, setup: action.setup, ...(comparison ? { comparison } : {}) };
+  return { ...state, pending: null, active };
+}
+
+function finishActiveSession(state: CatalogueWorkflowState, action: Extract<CatalogueWorkflowAction, { type: 'finish' }>): CatalogueWorkflowState {
+  const update = sessionUpdate(state.active, action.result);
+  if (!update || !state.active) return state;
+  return {
+    ...state, active: null, completed: update.completed,
+    progress: { ...state.progress, [state.active.manifest.id]: update.progress },
+    progressChangedDuringHydration: state.hydration === 'pending' || state.progressChangedDuringHydration,
+  };
 }

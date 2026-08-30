@@ -5,6 +5,17 @@ import type { LocalDataBackend, StoreName } from "./indexedDb";
 import { cloneValue, createMatchedComparison, isComparisonRecord, isDeviceSettings, isLegacyDeviceSettings, isProgressRecord, isQueueItem, isRefereeNote, isSessionObservation, isStoredProvenance, isTimestamp, normalizeSettings } from "./records";
 import type { CatflixDataExport, ComparisonRecord, DeviceSettings, ProgressRecord, QueueItem, RefereeNote, SessionObservation, StorageStatus, StoredProvenance } from "./types";
 
+type ValidExportFields = {
+  exportedAt: string;
+  settings: unknown;
+  queue: readonly QueueItem[];
+  progress: readonly ProgressRecord[];
+  notes: readonly RefereeNote[];
+  observations?: unknown;
+  comparisons: readonly ComparisonRecord[];
+  provenance: readonly StoredProvenance[];
+};
+
 export interface LocalRepository {
   getSettings(): Promise<DeviceSettings>;
   setSettings(settings: DeviceSettings): Promise<void>;
@@ -53,20 +64,10 @@ export function createLocalRepository(): LocalRepository {
 export function decodeExport(value: unknown): CatflixDataExport {
   const fields = asRecord(value);
   if (!fields) throw new Error("Import must be an object.");
-  const isV1 = fields.schemaVersion === 1;
-  const isV2 = fields.schemaVersion === 2;
-  if ((!isV1 && !isV2)
-    || !hasOnlyKeys(fields, isV1 ? ["schemaVersion", "exportedAt", "settings", "queue", "progress", "notes", "comparisons", "provenance"] : ["schemaVersion", "exportedAt", "settings", "queue", "progress", "notes", "observations", "comparisons", "provenance"])
-    || !isTimestamp(fields.exportedAt)
-    || !(isV1 ? isLegacyDeviceSettings(fields.settings) : isDeviceSettings(fields.settings))
-    || !hasValidRecords(fields.queue, isQueueItem)
-    || !hasValidRecords(fields.progress, isProgressRecord)
-    || !hasValidRecords(fields.notes, isRefereeNote)
-    || !hasValidRecords(fields.comparisons, isComparisonRecord)
-    || !hasValidRecords(fields.provenance, isStoredProvenance)) {
-    throw new Error("Unsupported or corrupt Catflix export.");
-  }
-  const observations = isV2 ? fields.observations : [];
+  const schemaVersion = exportSchemaVersion(fields);
+  if (!schemaVersion || !hasValidExportFields(fields, schemaVersion)) throw new Error("Unsupported or corrupt Catflix export.");
+
+  const observations = schemaVersion === 2 ? fields.observations : [];
   if (!Array.isArray(observations)
     || !observations.every(isSessionObservation)
     || !hasUniqueStoreKeys(fields.queue, (record) => record.id)
@@ -88,6 +89,31 @@ export function decodeExport(value: unknown): CatflixDataExport {
     comparisons: cloneValue([...fields.comparisons]),
     provenance: cloneValue([...fields.provenance]),
   };
+}
+
+function exportSchemaVersion(fields: Record<string, unknown>): 1 | 2 | undefined {
+  return fields.schemaVersion === 1 || fields.schemaVersion === 2 ? fields.schemaVersion : undefined;
+}
+
+function hasValidExportFields(fields: Record<string, unknown>, schemaVersion: 1 | 2): fields is Record<string, unknown> & ValidExportFields {
+  return hasOnlyKeys(fields, exportKeys(schemaVersion))
+    && isTimestamp(fields.exportedAt)
+    && hasValidExportSettings(fields.settings, schemaVersion)
+    && hasValidRecords(fields.queue, isQueueItem)
+    && hasValidRecords(fields.progress, isProgressRecord)
+    && hasValidRecords(fields.notes, isRefereeNote)
+    && hasValidRecords(fields.comparisons, isComparisonRecord)
+    && hasValidRecords(fields.provenance, isStoredProvenance);
+}
+
+function exportKeys(schemaVersion: 1 | 2): readonly string[] {
+  return schemaVersion === 1
+    ? ["schemaVersion", "exportedAt", "settings", "queue", "progress", "notes", "comparisons", "provenance"]
+    : ["schemaVersion", "exportedAt", "settings", "queue", "progress", "notes", "observations", "comparisons", "provenance"];
+}
+
+function hasValidExportSettings(value: unknown, schemaVersion: 1 | 2): boolean {
+  return schemaVersion === 1 ? isLegacyDeviceSettings(value) : isDeviceSettings(value);
 }
 
 function saveProvenance(backend: LocalDataBackend, asset: AssetProvenance): Promise<void> {

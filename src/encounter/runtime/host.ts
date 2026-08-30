@@ -74,7 +74,7 @@ export function createEncounterRuntime(options: EncounterRuntimeOptions): Encoun
     cancelFrame(frameId);
   };
   const startPhaserUpgrade = (): void => {
-    if (options.renderer === "canvas" || phaser || phaserAbort || destroyed) return;
+    if (options.renderer === "canvas" || phaser !== undefined || phaserAbort !== undefined || destroyed) return;
     const abort = new AbortController();
     phaserAbort = abort;
     void createPhaserSimulationBootstrap({

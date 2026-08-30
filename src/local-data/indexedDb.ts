@@ -83,7 +83,7 @@ async function replaceValues(open: () => Promise<IDBDatabase | undefined>, memor
   const database = await open();
   if (!database) { memory.set(store, replacementMap(values, keyFor, store)); return; }
   const transaction = database.transaction(store, "readwrite");
-  await transactionDone(transaction, () => replaceObjectStore(transaction.objectStore(store), values, keyFor, store));
+  await transactionDone(transaction, () => { replaceObjectStore(transaction.objectStore(store), values, keyFor, store); });
 }
 
 async function replaceAllValues(open: () => Promise<IDBDatabase | undefined>, memory: Map<StoreName, Map<string, unknown>>, keyFor: (store: StoreName, value: unknown) => string, replacements: readonly StoreReplacement[]): Promise<void> {
