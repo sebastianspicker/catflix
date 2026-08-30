@@ -13,7 +13,7 @@ This is the public provenance record for the visual assets in content revision `
 
 ## Transformations
 
-The asset registry records these transformations:
+The authored catalogue records these transformations:
 
 - Poster masters combine independent environment and subject sources locally; browser formats are locally encoded from those masters.
 - Pose sheets remove a flat matte locally, apply despill, and assemble restrained RGBA transform variants.
@@ -22,7 +22,7 @@ The asset registry records these transformations:
 
 ## Asset register
 
-The entries below mirror the asset IDs, public paths, and SHA-256 checksums in [`src/content/registry.ts`](../../src/content/registry.ts).
+The entries below mirror the asset IDs, public paths, and SHA-256 checksums in [`src/catalogue/model/authoredScenes.ts`](../../src/catalogue/model/authoredScenes.ts).
 
 | Asset ID | Public path | SHA-256 |
 | --- | --- | --- |
@@ -55,4 +55,4 @@ The entries below mirror the asset IDs, public paths, and SHA-256 checksums in [
 
 ## Rights boundary
 
-The [MIT License](../../LICENSE) covers Catflix software and original project documentation, not these visual assets. The registry identifies the visual assets as subject to [OpenAI's Terms of Use](https://openai.com/policies/terms-of-use/). This record is not a licence grant and does not confirm redistribution clearance. The owner or legal reviewer must determine the terms applicable to the account, service, jurisdiction, and intended use before release or redistribution.
+The [MIT License](../../LICENSE) covers Catflix software and original project documentation, not these visual assets. The authored catalogue identifies the visual assets as subject to [OpenAI's Terms of Use](https://openai.com/policies/terms-of-use/). This record is not a licence grant and does not confirm redistribution clearance. The owner or legal reviewer must determine the terms applicable to the account, service, jurisdiction, and intended use before release or redistribution.

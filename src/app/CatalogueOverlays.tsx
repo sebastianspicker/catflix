@@ -1,13 +1,13 @@
 import { lazy, Suspense } from 'react';
-import { CuratorPanel } from '../components/CuratorPanel';
-import { DataPanel } from '../components/DataPanel';
-import { RefereeNotes } from '../components/RefereeNotes';
-import { SafetyGate } from '../components/SafetyGate';
-import type { SceneId, VariantSelection } from '../content/types';
-import { catalogueMeta, type PendingSession } from './catalogueModel';
+import { DataPanel } from '../catalogue/ui/DataPanel';
+import { CuratorPanel } from '../encounter/ui/CuratorPanel';
+import { RefereeNotes } from '../encounter/ui/RefereeNotes';
+import { SafetyGate } from '../encounter/ui/SafetyGate';
+import type { SceneId, VariantSelection } from '../domain';
+import { type PendingSession } from './catalogueModel';
 import { manifests, type CatalogueApp } from './useCatalogueApp';
 
-const EvidencePanel = lazy(() => import('../components/EvidencePanel').then((module) => ({ default: module.EvidencePanel })));
+const EvidencePanel = lazy(() => import('../research/EvidencePanel').then((module) => ({ default: module.EvidencePanel })));
 
 function TargetMark({ className = '' }: { className?: string }) {
   return <span className={`target-mark ${className}`} aria-hidden="true"><i /><b /></span>;
@@ -16,8 +16,8 @@ function TargetMark({ className = '' }: { className?: string }) {
 function SessionOverlays({ app }: { app: CatalogueApp }) {
   const pending = app.pending;
   return <>
-    {pending ? <SafetyGate sceneTitle={catalogueMeta[pending.manifest.id].title} onCancel={() => { app.setPending(null); }} onContinue={(playbackMode, setup) => { app.setActive({ manifest: pending.manifest, variants: pending.variant, seed: pending.seed, playbackMode, sceneMotionMode: app.sceneMotionMode, setup, ...(pending.comparison ? { comparison: pending.comparison } : {}) }); app.setPending(null); }} /> : null}
-    {app.completed ? <RefereeNotes sceneTitle={catalogueMeta[app.completed.plan.manifest.id].title} observedCat={app.completed.plan.setup.observedCat} touchTimestamps={app.completed.touches} completed={app.completed.complete} onClose={() => { app.setCompleted(null); }} onSave={app.saveNotes} /> : null}
+    {pending ? <SafetyGate sceneTitle={pending.manifest.catalogue.displayTitle} onCancel={app.cancelPreparing} onContinue={app.startSession} /> : null}
+    {app.completed ? <RefereeNotes sceneTitle={app.completed.plan.manifest.catalogue.displayTitle} observedCat={app.completed.plan.setup.observedCat} touchTimestamps={app.completed.touches} completed={app.completed.complete} onClose={app.clearCompleted} onSave={app.saveNotes} /> : null}
   </>;
 }
 
@@ -33,7 +33,7 @@ function PanelOverlays({ app }: { app: CatalogueApp }) {
 
 function QueueDrawer({ app }: { app: CatalogueApp }) {
   if (!app.queueOpen) return null;
-  return <aside ref={app.queueDialogRef} className="queue-drawer" role="dialog" aria-modal="true" aria-label="Queued scenes" tabIndex={-1}><header><TargetMark /><span>Saved encounters</span><button type="button" aria-label="Close queue" onClick={() => { app.setQueueOpen(false); }}>×</button></header><h2>Today’s encounter list</h2>{app.queue.length ? <ol>{app.queue.map((id) => { const item = manifests.find((manifest) => manifest.id === id); if (!item) return null; return <li key={id}><button type="button" onClick={() => { app.setQueueOpen(false); app.prepare(item); }}>{catalogueMeta[item.id].title}</button><button type="button" onClick={() => { app.removeFromQueue(id); }}>Remove</button></li>; })}</ol> : <p>Your queue is clear. Nothing starts automatically.</p>}</aside>;
+  return <aside ref={app.queueDialogRef} className="queue-drawer" role="dialog" aria-modal="true" aria-label="Queued scenes" tabIndex={-1}><header><TargetMark /><span>Saved encounters</span><button type="button" aria-label="Close queue" onClick={() => { app.setQueueOpen(false); }}>×</button></header><h2>Today’s encounter list</h2>{app.queue.length ? <ol>{app.queue.map((id) => { const item = manifests.find((manifest) => manifest.id === id); if (!item) return null; return <li key={id}><button type="button" onClick={() => { app.setQueueOpen(false); app.prepare(item); }}>{item.catalogue.displayTitle}</button><button type="button" onClick={() => { app.removeFromQueue(id); }}>Remove</button></li>; })}</ol> : <p>Your queue is clear. Nothing starts automatically.</p>}</aside>;
 }
 
 export function CatalogueOverlays({ app }: { app: CatalogueApp }) {
