@@ -41,7 +41,8 @@
     "verify:build-budget": "node scripts/verify-build-budget.mjs",
     "verify:architecture": "node scripts/check-architecture.mjs",
     "verify:pages": "node scripts/verify-pages-artifact.mjs && npm run verify:build-budget",
-    "verify": "npm run lint && npm run quality:size && npm run quality:duplication && npm run test && npm run test:build && npm run verify:architecture && npm run build && npm run verify:build-budget"
+    "verify:checks": "run-p --aggregate-output --print-label lint quality:size quality:duplication test test:build verify:architecture build",
+    "verify": "npm run verify:checks && npm run verify:build-budget"
   },
   "dependencies": {
     "phaser": "4.2.1",
@@ -51,8 +52,8 @@
     "remark-gfm": "4.0.1"
   },
   "devDependencies": {
-    "@playwright/test": "1.62.1",
     "@eslint/js": "10.0.1",
+    "@playwright/test": "1.62.1",
     "@types/node": "24.13.3",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
@@ -62,6 +63,7 @@
     "eslint-plugin-react-refresh": "0.5.6",
     "eslint-plugin-sonarjs": "4.2.0",
     "jscpd": "5.1.2",
+    "npm-run-all2": "9.0.3",
     "stylelint": "17.14.1",
     "stylelint-config-standard": "40.0.0",
     "typescript": "5.9.3",
