@@ -6,7 +6,7 @@ test('desktop import preview, history, literal text, and confirmed deletion pers
   await expect(dialog.getByRole('button', { name: 'Close local data' })).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Local data' })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Local data', exact: true })).toBeFocused();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
   const reopened = await openLocalRecord(page);

@@ -46,7 +46,9 @@ test('preparation remains gated and applies the chosen television and motion mod
   await expect(stage).toHaveAttribute('data-playback-mode', 'tv-passive');
   await expect(stage).toHaveAttribute('data-scene-motion', 'low');
   await expect(stage).toHaveCSS('pointer-events', 'none');
-  await expect(page.getByRole('button', { name: 'Sound unavailable' })).toBeDisabled();
+  const sound = page.getByRole('button', { name: 'Sound off' });
+  await expect(sound).toBeEnabled();
+  await expect(sound).toHaveAttribute('aria-pressed', 'false');
   await page.getByRole('button', { name: 'Stop encounter' }).click();
   await expect(page.getByRole('dialog', { name: 'What did you observe?' })).toBeVisible();
   await page.getByRole('button', { name: 'Finish without saving' }).click();

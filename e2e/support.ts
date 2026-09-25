@@ -44,7 +44,7 @@ export function importFixture() {
 export async function openLocalRecord(page: Page) {
   const receipt = page.getByRole('dialog', { name: 'Observation saved', exact: true });
   if (await receipt.isVisible()) await receipt.getByRole('button', { name: 'View observations' }).click();
-  else await page.getByRole('button', { name: 'Local data' }).click();
+  else await page.getByRole('button', { name: 'Local data', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Your local record' });
   await expect(dialog).toBeVisible();
   return dialog;
