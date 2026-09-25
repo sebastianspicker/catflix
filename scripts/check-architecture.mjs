@@ -8,7 +8,7 @@ const modules = new Map(sourceFiles.map((file) => [file, moduleFor(file)]));
 const dependencies = new Map(sourceFiles.map((file) => [file, []]));
 const violations = [];
 const knownModules = new Set([
-  "ambient", "app", "catalogue-model", "catalogue-ui", "domain", "encounter-engine",
+  "ambient", "app", "catalogue-model", "catalogue-ui", "demo", "domain", "encounter-engine",
   "encounter-runtime", "encounter-session", "encounter-ui", "local-data", "platform",
   "research", "root", "ui",
 ]);
@@ -51,8 +51,12 @@ async function collectSourceFiles(directory) {
   const entries = await readDirectory(directory, { withFileTypes: true });
   const nested = await Promise.all(entries.map(async (entry) => entry.isDirectory()
     ? collectSourceFiles(resolve(directory, entry.name))
-    : sourceExtensions.has(extname(entry.name)) && !entry.name.endsWith(".test.ts") ? [resolve(directory, entry.name)] : []));
+    : sourceExtensions.has(extname(entry.name)) && !isTestFile(entry.name) ? [resolve(directory, entry.name)] : []));
   return nested.flat();
+}
+
+function isTestFile(fileName) {
+  return fileName.endsWith(".test.ts") || fileName.endsWith(".test.tsx");
 }
 
 function moduleFor(file) {
@@ -90,9 +94,9 @@ function isAllowed(sourceModule, targetModule, sourceFile) {
     ["encounter-engine", new Set(["domain"])], ["encounter-runtime", new Set(["domain", "encounter-engine", "catalogue-model", "platform"])],
     ["encounter-ui", new Set(["domain", "catalogue-model", "encounter-engine", "encounter-runtime", "encounter-session", "local-data", "ui"])],
     ["encounter-session", new Set(["domain", "catalogue-model"])], ["local-data", new Set(["domain", "catalogue-model"])],
-    ["research", new Set(["ui", "platform"])], ["ui", new Set()], ["styles", new Set()], ["platform", new Set()],
+    ["research", new Set(["ui", "platform"])], ["demo", new Set(["platform"])], ["ui", new Set()], ["styles", new Set()], ["platform", new Set()],
     ["app", new Set(["domain", "catalogue-model", "catalogue-ui", "encounter-session", "encounter-ui", "local-data", "research", "ui"])],
-    ["root", new Set(["app", "catalogue-ui", "encounter-ui", "research", "platform"])], ["ambient", new Set()],
+    ["root", new Set(["app", "catalogue-ui", "demo", "encounter-ui", "research", "platform"])], ["ambient", new Set()],
   ]);
   if (sourceModule === "app" && targetModule === "encounter-ui") return display(sourceFile).endsWith("app/CatalogueOverlays.tsx");
   return allowed.get(sourceModule)?.has(targetModule) ?? false;

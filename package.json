@@ -2,7 +2,24 @@
   "name": "catflix",
   "private": true,
   "version": "0.2.0",
+  "description": "Local-first, supervised visual encounter catalogue for cats.",
   "license": "MIT",
+  "homepage": "https://sebastianspicker.github.io/catflix/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sebastianspicker/catflix.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sebastianspicker/catflix/issues"
+  },
+  "keywords": [
+    "cats",
+    "local-first",
+    "react",
+    "phaser",
+    "indexeddb",
+    "accessibility"
+  ],
   "type": "module",
   "engines": {
     "node": "24.x"
@@ -11,14 +28,20 @@
     "dev": "vite",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:build": "node --test scripts/*.test.mjs",
+    "test:e2e": "playwright test",
     "typecheck": "tsc -b",
+    "lint": "eslint . --max-warnings 0 && stylelint \"**/*.css\" --max-warnings 0",
+    "lint:fix": "eslint . --fix --max-warnings 0 && stylelint \"**/*.css\" --fix --max-warnings 0",
+    "quality:size": "node scripts/check-source-size.mjs",
+    "quality:duplication": "jscpd src scripts e2e vite.config.ts playwright.config.ts --config .jscpd.json",
     "build": "npm run typecheck && vite build",
     "build:pages": "npm run typecheck && vite build --base=/catflix/ && node scripts/prepare-pages.mjs && npm run verify:pages",
     "preview:pages": "vite preview --base=/catflix/ --host 127.0.0.1 --port 4174 --strictPort",
     "verify:build-budget": "node scripts/verify-build-budget.mjs",
     "verify:architecture": "node scripts/check-architecture.mjs",
     "verify:pages": "node scripts/verify-pages-artifact.mjs && npm run verify:build-budget",
-    "verify": "npm run test && npm run verify:architecture && npm run build && npm run verify:build-budget"
+    "verify": "npm run lint && npm run quality:size && npm run quality:duplication && npm run test && npm run test:build && npm run verify:architecture && npm run build && npm run verify:build-budget"
   },
   "dependencies": {
     "phaser": "4.2.1",
@@ -28,11 +51,21 @@
     "remark-gfm": "4.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "@eslint/js": "10.0.1",
     "@types/node": "24.13.3",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "5.2.0",
+    "eslint": "10.9.1",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-react-refresh": "0.5.6",
+    "eslint-plugin-sonarjs": "4.2.0",
+    "jscpd": "5.1.2",
+    "stylelint": "17.14.1",
+    "stylelint-config-standard": "40.0.0",
     "typescript": "5.9.3",
+    "typescript-eslint": "8.69.0",
     "vite": "8.1.5",
     "vitest": "4.1.10"
   }
