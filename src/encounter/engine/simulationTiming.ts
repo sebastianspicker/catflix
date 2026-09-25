@@ -17,5 +17,5 @@ export function behaviorAt(score: SceneScore, timeMs: number, continuous: boolea
   const cycle = segments.reduce((sum, segment) => sum + segment.duration, 0);
   let cursor = ((timeMs % cycle) + cycle) % cycle;
   for (const segment of segments) { if (cursor <= segment.duration) return { behavior: segment.behavior, progress: clamp(cursor / segment.duration, 0, 1) }; cursor -= segment.duration; }
-  return { behavior: segments[0].behavior, progress: 0 };
+  return { behavior: segments[0]!.behavior, progress: 0 };
 }

@@ -38,7 +38,7 @@ function markdownHrefs(source: string): string[] {
 }
 
 function renderedHrefs(html: string): string[] {
-  return [...html.matchAll(/<a href="([^"]*)"/g)].map((match) => match[1]);
+  return [...html.matchAll(/<a href="([^"]*)"/g)].map((match) => match[1]!);
 }
 
 function rendersMarkup(markup: string, expectedMarkup: string): boolean {

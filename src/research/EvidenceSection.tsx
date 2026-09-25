@@ -15,7 +15,7 @@ export function EvidenceSection({ onOpen }: EvidenceSectionProps) {
         </div>
         <div className="evidence-intro">
           <p>Catflix is shaped by peer-reviewed research, with the limits kept as visible as the findings.</p>
-          <button type="button" onClick={() => { onOpen(evidenceThemes[0].id); }}>Read the evidence</button>
+          <button type="button" onClick={() => { onOpen(evidenceThemes[0]!.id); }}>Read the evidence</button>
           <a href={publicUrl('/research')}>Full research record</a>
         </div>
       </div>

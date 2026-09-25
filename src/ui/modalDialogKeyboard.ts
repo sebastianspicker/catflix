@@ -33,8 +33,8 @@ function trapTabWithin(dialog: HTMLElement, event: KeyboardEvent): void {
     dialog.focus();
     return;
   }
-  const first = controls[0];
-  const last = controls[controls.length - 1];
+  const first = controls[0]!;
+  const last = controls[controls.length - 1]!;
   if (event.shiftKey && document.activeElement === first) moveFocus(event, last);
   if (!event.shiftKey && document.activeElement === last) moveFocus(event, first);
 }

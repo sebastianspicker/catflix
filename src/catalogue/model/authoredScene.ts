@@ -13,7 +13,7 @@ export interface AuthoredRuntime extends Omit<SceneScore, "id" | "durationMs" | 
   touchPolicy: { refractoryMs: number; allowedResponses: readonly NonNullable<TouchResponse["response"]>[]; };
 }
 
-const withAudioProvenance = (audio: AuthoredScene["audio"]): AudioProfile | undefined => audio && {
+const withAudioProvenance = (audio: NonNullable<AuthoredScene["audio"]>): AudioProfile => ({
   ...audio,
   provenance: audio.eventKinds.map((eventKind) => ({
     eventKind,
@@ -21,7 +21,7 @@ const withAudioProvenance = (audio: AuthoredScene["audio"]): AudioProfile | unde
     license: "Ineligible until recording provenance and clearance are added",
     eligible: false,
   })),
-};
+});
 
 export function compileContentManifest(scene: AuthoredScene): ContentManifest {
   const manifest = { ...scene };

@@ -4,7 +4,7 @@ import type { SoundEvent } from "../../domain";
 export interface SceneAudioPlayer { play(events: readonly SoundEvent[], enabled: boolean): void; silence(): void; }
 
 export interface AudioPlaybackMetadata {
-  provenance?: readonly { eventKind: string; source: string; license: string; eligible: boolean }[];
+  provenance?: readonly { eventKind: string; source: string; license: string; eligible: boolean }[] | undefined;
 }
 
 export function createSceneAudioPlayer(audioMetadata: AudioPlaybackMetadata | undefined): SceneAudioPlayer {

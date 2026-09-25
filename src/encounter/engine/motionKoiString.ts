@@ -3,7 +3,7 @@ import { accelerateAndMove, rotateVelocity, steer } from "./motionMath";
 import { clamp, lerp, normalize, pulse, smoothstep } from "./simulationMath";
 import { isLowMotion } from "./simulationTiming";
 
-const patternValue = (values: readonly number[], pattern: number): number => values.at(pattern) ?? values[0];
+const patternValue = (values: readonly number[], pattern: number): number => values.at(pattern) ?? values[0]!;
 export const advanceKoi: MotionStrategy = (actor, time, deltaSeconds, reducedScale, behavior, _progress, context) => {
   const seconds = time / 1000, pattern = Math.abs(Math.floor(time / 8_500)) % 3, bout = ((seconds / 1.8 + actor.phase * .00011) % 1 + 1) % 1, burst = smoothstep(0, .16, bout) * (1 - smoothstep(.38, .68, bout));
   const gliding = behavior.state === "gliding", reappearing = behavior.state === "reappearing", targetPropulsion = gliding ? .02 : reappearing ? .32 : patternValue([.34, burst * .62, .24], pattern), propulsion = lerp(actor.propulsion, targetPropulsion, deltaSeconds * 1.45), turnRate = patternValue([.2, .12, .32], pattern);

@@ -16,7 +16,7 @@ export interface SetupContext {
   supervised: true;
   roomLightBand: "dim" | "moderate" | "bright";
   viewingDistanceBand: "near-screen" | "room-display";
-  observedCat?: "Arri" | "Ozzy" | "Mika";
+  observedCat?: "Arri" | "Ozzy" | "Mika" | undefined;
 }
 
 export interface SessionSetup {
@@ -100,11 +100,11 @@ export interface SceneSnapshot {
   phase: EncounterPhase;
   beatId: string;
   remainingMs: number;
-  signatureEffect?: { kind: "perch-lights" | "reflected-ring" | "folded-shadow" | "fern-shadow" | "slack-curve"; x: number; y: number; alpha: number };
+  signatureEffect?: { kind: "perch-lights" | "reflected-ring" | "folded-shadow" | "fern-shadow" | "slack-curve"; x: number; y: number; alpha: number } | undefined;
   actors: readonly SceneActorSnapshot[];
   soundEvents: readonly SoundEvent[];
   events: readonly SceneEvent[];
-  reminder?: Extract<SceneEvent, { type: "contact-reminder" }>;
+  reminder?: Extract<SceneEvent, { type: "contact-reminder" }> | undefined;
 }
 export interface SimulationPreferences {
   sceneMotionMode?: SceneMotionMode;

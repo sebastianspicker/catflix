@@ -24,10 +24,10 @@ export interface PhaserSimulationRenderer {
 
 interface PhaserRendererState {
   options: PhaserSimulationRendererOptions;
-  activeScene?: Phaser.Scene;
-  background?: Phaser.GameObjects.Image;
-  foreground?: Phaser.GameObjects.Graphics;
-  redStringRope?: Phaser.GameObjects.Rope;
+  activeScene?: Phaser.Scene | undefined;
+  background?: Phaser.GameObjects.Image | undefined;
+  foreground?: Phaser.GameObjects.Graphics | undefined;
+  redStringRope?: Phaser.GameObjects.Rope | undefined;
   actorImages: Map<string, Phaser.GameObjects.Image>;
 }
 

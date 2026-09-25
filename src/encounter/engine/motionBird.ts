@@ -6,7 +6,7 @@ import { isLowMotion } from "./simulationTiming";
 import type { SceneScore } from "../../domain";
 
 export const advanceBird: MotionStrategy = (actor, time, deltaSeconds, reducedScale, behavior, progress, context) => {
-  const lowMotion = isLowMotion(context.preferences), mode = birdModes[behavior.state], motion = birdMotionFor(mode, actor, progress, lowMotion);
+  const lowMotion = isLowMotion(context.preferences), mode = birdModes[behavior.state]!, motion = birdMotionFor(mode, actor, progress, lowMotion);
   const settled = settleBird(actor, mode, deltaSeconds, reducedScale, context.score);
   if (!mode.perch) steerBird(actor, motion.desiredY, deltaSeconds, mode, context.score);
   const speed = accelerateAndMove(actor, context.score.baseSpeed * mode.speedScale * reducedScale, deltaSeconds, context.score);
@@ -34,7 +34,7 @@ const birdPresentationFor = ({ actor, mode, motion, time, deltaSeconds, speed, m
   const wing = Math.sin(time * .019) * mode.flight;
   return {
     angle: lowMotion ? 0 : clamp(actor.vy * .22, -.13, .13), stretchX: 1 + wing * .035, stretchY: 1 - wing * .055,
-    scale: actor.baseScale * (1 + motion.hopArc * .035 + mode.flight * .045), motionEnergy: clamp(speed / maxSpeed + Math.abs(wing) * .35, 0, 1), propulsion: [motion.hopArc, Math.abs(wing)][mode.flight],
+    scale: actor.baseScale * (1 + motion.hopArc * .035 + mode.flight * .045), motionEnergy: clamp(speed / maxSpeed + Math.abs(wing) * .35, 0, 1), propulsion: mode.flight ? Math.abs(wing) : motion.hopArc,
     posePhase: (actor.posePhase + deltaSeconds * mode.flight * (lowMotion ? .45 : 1.35)) % 1,
     state: ["moving", "paused"][Number(mode.perch && settled && actor.currentSpeed <= .01)] as MutableActor["state"],
   };
