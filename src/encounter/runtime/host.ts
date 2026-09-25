@@ -1,145 +1,268 @@
+import type { SceneMotionMode, SceneSnapshot } from "../../domain";
 import { createSceneSimulationEngine } from "../engine/sceneSimulation";
+import { createSceneAudioPlayer } from "./audio";
 import { createCanvasSimulationRenderer } from "./canvasRenderer";
 import type { EncounterRuntime, EncounterRuntimeOptions } from "./contract";
-import { createSceneAudioPlayer } from "./audio";
-import { cancelFrame, clampSimulationDelta, createFallbackCanvas, scheduleFrame } from "./runtimeHelpers";
 import { createPhaserSimulationBootstrap, type PhaserSimulationBootstrap } from "./phaserBootstrap";
-import type { SceneMotionMode, SceneSnapshot } from "../../domain";
+import { cancelFrame, clampSimulationDelta, createFallbackCanvas, scheduleFrame } from "./runtimeHelpers";
+
+type Simulation = ReturnType<typeof createSceneSimulationEngine>;
+type AudioPlayer = ReturnType<typeof createSceneAudioPlayer>;
+
+interface RuntimePreferences {
+  sceneMotionMode: SceneMotionMode;
+  playbackMode: "tablet-touch" | "tv-passive";
+}
 
 /** Browser-only owner of lifecycle, visibility, pointer translation, renderers, and media. */
 export function createEncounterRuntime(options: EncounterRuntimeOptions): EncounterRuntime {
-  const preferences = { sceneMotionMode: options.sceneMotionMode ?? "standard", playbackMode: options.playbackMode ?? "tablet-touch" };
-  const simulation = createSceneSimulationEngine(options.score, options.audio, options.variant, options.seed, preferences);
-  const canvas = createFallbackCanvas();
-  const canvasRenderer = createCanvasSimulationRenderer({ canvas, score: options.score, variant: options.variant, visuals: options.visuals });
-  let phaser: PhaserSimulationBootstrap | undefined;
-  let phaserAbort: AbortController | undefined;
-  let running = false;
-  let paused = false;
-  let destroyed = false;
-  let fallbackActive = false;
-  let fallbackGeneration = 0;
-  let completeNotified = false;
-  let reminderId: string | undefined;
-  let lastTime = 0;
-  let frameId = 0;
-  let soundEnabled = false; // Audio begins muted even when the variant allows it.
-  const audioPlayer = createSceneAudioPlayer(options.audioPlayback);
+  return new EncounterRuntimeController(options);
+}
 
-  const handleTouch = (x: number, y: number): void => {
-    if (preferences.playbackMode === "tv-passive") return;
-    const response = simulation.touch({ x, y });
-    if (!response.accepted) return;
-    options.container.dataset.lastContactResponse = response.response ?? "accepted";
-    options.container.dataset.lastContactAt = String(performance.now());
-    options.onTouch?.(simulation.snapshot().elapsedMs);
-    options.container.dispatchEvent(new CustomEvent("catflix-contact-response", { detail: response.response }));
-  };
-  const onPointerDown = (event: PointerEvent): void => {
-    const bounds = canvas.getBoundingClientRect();
-    handleTouch((event.clientX - bounds.left) / Math.max(bounds.width, 1), (event.clientY - bounds.top) / Math.max(bounds.height, 1));
-  };
-  const tick = (delta: number): SceneSnapshot => {
-    const state = simulation.advance(clampSimulationDelta(delta));
-    const primaryActor = state.actors.find((actor) => actor.visible);
-    if (primaryActor) { options.container.dataset.actorX = String(primaryActor.x); options.container.dataset.actorY = String(primaryActor.y); }
-    options.container.dataset.encounterPhase = state.phase;
-    canvasRenderer.render(state, preferences.sceneMotionMode);
-    audioPlayer.play(state.soundEvents, soundEnabled);
-    if (state.reminder && state.reminder.id !== reminderId) { reminderId = state.reminder.id; options.onReminder?.(state.reminder); }
-    options.onProgress?.(state.elapsedMs, state.durationMs);
-    if (state.complete && !completeNotified) { completeNotified = true; pause(); options.onComplete?.(); }
-    return state;
-  };
-  const phaserFrame = (delta: number): void => {
-    if (running && !paused && phaser) phaser.render(tick(delta));
-  };
-  const fallbackFrame = (now: number, generation: number): void => {
-    if (!running || !fallbackActive || generation !== fallbackGeneration) return;
-    if (!paused) tick(lastTime === 0 ? 0 : clampSimulationDelta(now - lastTime));
-    lastTime = now;
-    frameId = scheduleFrame((nextNow) => { fallbackFrame(nextNow, generation); });
-  };
-  const startFallback = (): void => {
-    if (!canvas.isConnected) options.container.appendChild(canvas);
-    canvasRenderer.render(simulation.snapshot(), preferences.sceneMotionMode);
-    fallbackActive = true;
-    const generation = ++fallbackGeneration;
-    lastTime = performance.now();
-    frameId = scheduleFrame((now) => { fallbackFrame(now, generation); });
-  };
-  const stopFallback = (): void => {
-    fallbackActive = false;
-    fallbackGeneration += 1;
-    cancelFrame(frameId);
-  };
-  const startPhaserUpgrade = (): void => {
-    if (options.renderer === "canvas" || phaser !== undefined || phaserAbort !== undefined || destroyed) return;
-    const abort = new AbortController();
-    phaserAbort = abort;
-    void createPhaserSimulationBootstrap({
-      container: options.container,
-      variant: options.variant,
+class EncounterRuntimeController implements EncounterRuntime {
+  private readonly preferences: RuntimePreferences;
+  private readonly simulation: Simulation;
+  private readonly canvas = createFallbackCanvas();
+  private readonly canvasRenderer;
+  private readonly audioPlayer: AudioPlayer;
+  private phaser: PhaserSimulationBootstrap | undefined;
+  private phaserAbort: AbortController | undefined;
+  private running = false;
+  private paused = false;
+  private destroyed = false;
+  private fallbackActive = false;
+  private fallbackGeneration = 0;
+  private completeNotified = false;
+  private reminderId: string | undefined;
+  private lastTime = 0;
+  private frameId: number | undefined;
+  private soundEnabled = false;
+
+  constructor(private readonly options: EncounterRuntimeOptions) {
+    this.preferences = {
+      sceneMotionMode: options.sceneMotionMode ?? "standard",
+      playbackMode: options.playbackMode ?? "tablet-touch",
+    };
+    this.simulation = createSceneSimulationEngine(options.score, options.audio, options.variant, options.seed, this.preferences);
+    this.canvasRenderer = createCanvasSimulationRenderer({
+      canvas: this.canvas,
       score: options.score,
+      variant: options.variant,
       visuals: options.visuals,
-      acceptsTouch: preferences.playbackMode === "tablet-touch",
-      onTouch: handleTouch,
-      sceneMotionMode: (): SceneMotionMode => preferences.sceneMotionMode,
-      initialState: (): SceneSnapshot => simulation.snapshot(),
-      onFrame: phaserFrame,
+    });
+    this.audioPlayer = createSceneAudioPlayer(options.audioPlayback);
+    document.addEventListener("visibilitychange", this.onVisibilityChange);
+    if (this.preferences.playbackMode === "tablet-touch") this.canvas.addEventListener("pointerdown", this.onPointerDown);
+  }
+
+  start(): void {
+    if (this.running) return;
+    this.running = true;
+    this.paused = false;
+    if (this.phaser) this.phaser.resume();
+    else {
+      this.startFallback();
+      this.startPhaserUpgrade();
+    }
+  }
+
+  pause(): void {
+    if (this.paused) return;
+    this.paused = true;
+    this.suspendFallbackLoop();
+    this.silence();
+    this.phaser?.pause();
+  }
+
+  resume(): void {
+    if (!this.running || !this.paused || this.simulation.snapshot().complete) return;
+    this.paused = false;
+    // Resume is an owner click; re-resume a context the browser suspended while hidden or paused.
+    if (this.soundEnabled) void this.audioPlayer.enable();
+    if (this.phaser) this.phaser.resume();
+    else this.resumeFallbackLoop();
+  }
+
+  stop(): void {
+    this.paused = true;
+    this.running = false;
+    this.stopFallback();
+    this.phaserAbort?.abort();
+    this.phaserAbort = undefined;
+    this.silence();
+    this.phaser?.pause();
+  }
+
+  destroy(): void {
+    this.destroyed = true;
+    this.stop();
+    this.audioPlayer.destroy();
+    this.phaser?.destroy();
+    this.phaser = undefined;
+    this.canvasRenderer.destroy();
+    this.canvas.remove();
+    this.canvas.removeEventListener("pointerdown", this.onPointerDown);
+    document.removeEventListener("visibilitychange", this.onVisibilityChange);
+  }
+
+  setSoundEnabled(enabled: boolean): void {
+    this.soundEnabled = enabled;
+    // Enabling must happen synchronously in this call so iOS/Safari accepts the owner's gesture.
+    if (enabled) void this.audioPlayer.enable();
+    else this.silence();
+  }
+
+  setSceneMotionMode(mode: SceneMotionMode): void {
+    this.preferences.sceneMotionMode = mode;
+  }
+
+  dismissReminder(): void {
+    this.reminderId = undefined;
+    this.simulation.dismissReminder();
+  }
+
+  snapshot(): SceneSnapshot {
+    return this.simulation.snapshot();
+  }
+
+  private readonly handleTouch = (x: number, y: number): void => {
+    if (this.preferences.playbackMode === "tv-passive") return;
+    const response = this.simulation.touch({ x, y });
+    if (!response.accepted) return;
+    this.options.container.dataset.lastContactResponse = response.response ?? "accepted";
+    this.options.container.dataset.lastContactAt = String(performance.now());
+    this.options.onTouch?.(this.simulation.snapshot().elapsedMs);
+    this.options.container.dispatchEvent(new CustomEvent("catflix-contact-response", { ...(response.response !== undefined ? { detail: response.response } : {}) }));
+  };
+
+  private readonly onPointerDown = (event: PointerEvent): void => {
+    const bounds = this.canvas.getBoundingClientRect();
+    this.handleTouch(
+      (event.clientX - bounds.left) / Math.max(bounds.width, 1),
+      (event.clientY - bounds.top) / Math.max(bounds.height, 1),
+    );
+  };
+
+  private advance(delta: number): SceneSnapshot {
+    const state = this.simulation.advance(clampSimulationDelta(delta));
+    this.publishState(state);
+    this.canvasRenderer.render(state, this.preferences.sceneMotionMode);
+    this.audioPlayer.play(state.soundEvents, this.soundEnabled);
+    this.notifyCallbacks(state);
+    return state;
+  }
+
+  private publishState(state: SceneSnapshot): void {
+    const primaryActor = state.actors.find((actor) => actor.visible);
+    if (primaryActor) {
+      this.options.container.dataset.actorX = String(primaryActor.x);
+      this.options.container.dataset.actorY = String(primaryActor.y);
+    }
+    this.options.container.dataset.encounterPhase = state.phase;
+  }
+
+  private notifyCallbacks(state: SceneSnapshot): void {
+    if (state.reminder && state.reminder.id !== this.reminderId) {
+      this.reminderId = state.reminder.id;
+      this.options.onReminder?.(state.reminder);
+    }
+    this.options.onProgress?.(state.elapsedMs, state.durationMs, state.phase);
+    if (!state.complete || this.completeNotified) return;
+    this.completeNotified = true;
+    this.pause();
+    this.options.onComplete?.();
+  }
+
+  private readonly phaserFrame = (delta: number): void => {
+    if (!this.running || this.paused || !this.phaser) return;
+    const state = this.advance(delta);
+    if (this.running && !this.paused && this.phaser) this.phaser.render(state);
+  };
+
+  private readonly fallbackFrame = (now: number, generation: number): void => {
+    if (!this.running || !this.fallbackActive || generation !== this.fallbackGeneration) return;
+    this.frameId = undefined;
+    if (this.paused) return;
+    this.advance(clampSimulationDelta(now - this.lastTime));
+    if (!this.running || this.paused || !this.fallbackActive || generation !== this.fallbackGeneration) return;
+    this.lastTime = now;
+    this.frameId = scheduleFrame((nextNow) => { this.fallbackFrame(nextNow, generation); });
+  };
+
+  private startFallback(): void {
+    if (!this.canvas.isConnected) this.options.container.appendChild(this.canvas);
+    this.canvasRenderer.render(this.simulation.snapshot(), this.preferences.sceneMotionMode);
+    this.fallbackActive = true;
+    this.resumeFallbackLoop();
+  }
+
+  private stopFallback(): void {
+    this.fallbackActive = false;
+    this.suspendFallbackLoop();
+  }
+
+  private suspendFallbackLoop(): void {
+    this.fallbackGeneration += 1;
+    if (this.frameId === undefined) return;
+    cancelFrame(this.frameId);
+    this.frameId = undefined;
+  }
+
+  private resumeFallbackLoop(): void {
+    if (!this.running || this.paused || !this.fallbackActive || this.frameId !== undefined) return;
+    const generation = ++this.fallbackGeneration;
+    this.lastTime = performance.now();
+    this.frameId = scheduleFrame((now) => { this.fallbackFrame(now, generation); });
+  }
+
+  private startPhaserUpgrade(): void {
+    if (!this.canStartPhaserUpgrade()) return;
+    const abort = new AbortController();
+    this.phaserAbort = abort;
+    void createPhaserSimulationBootstrap({
+      container: this.options.container,
+      variant: this.options.variant,
+      score: this.options.score,
+      visuals: this.options.visuals,
+      acceptsTouch: this.preferences.playbackMode === "tablet-touch",
+      onTouch: this.handleTouch,
+      sceneMotionMode: () => this.preferences.sceneMotionMode,
+      initialState: () => this.simulation.snapshot(),
+      onFrame: this.phaserFrame,
       signal: abort.signal,
     }).then((loadedPhaser) => {
-      phaserAbort = undefined;
-      if (abort.signal.aborted || !running || destroyed) { loadedPhaser.destroy(); return; }
-      phaser = loadedPhaser;
-      stopFallback();
-      canvas.remove();
-      if (paused) phaser.pause();
+      this.completePhaserUpgrade(loadedPhaser, abort);
     }).catch(() => {
-      if (phaserAbort === abort) phaserAbort = undefined;
-      // Canvas remains mounted and advancing if Phaser cannot load or start.
+      if (this.phaserAbort === abort) this.phaserAbort = undefined;
     });
-  };
-  const start = (): void => {
-    if (running) return;
-    running = true;
-    paused = false;
-    if (phaser) phaser.resume();
-    else {
-      startFallback();
-      startPhaserUpgrade();
-    }
-  };
-  const silence = (): void => { audioPlayer.silence(); };
-  const pause = (): void => { paused = true; silence(); phaser?.pause(); };
-  const resume = (): void => { if (!running || simulation.snapshot().complete) return; paused = false; lastTime = performance.now(); phaser?.resume(); };
-  const stop = (): void => { paused = true; running = false; stopFallback(); phaserAbort?.abort(); phaserAbort = undefined; silence(); phaser?.pause(); };
-  const destroy = (): void => {
-    destroyed = true;
-    stop();
-    phaser?.destroy();
-    phaser = undefined;
-    canvas.remove();
-    canvas.removeEventListener("pointerdown", onPointerDown);
-    document.removeEventListener("visibilitychange", onVisibilityChange);
-  };
-  const onVisibilityChange = (): void => {
-    if (!document.hidden) return;
-    pause();
-    options.onVisibilityPause?.();
-  };
-  document.addEventListener("visibilitychange", onVisibilityChange);
-  if (preferences.playbackMode === "tablet-touch") canvas.addEventListener("pointerdown", onPointerDown);
+  }
 
-  return {
-    start,
-    pause,
-    resume,
-    stop,
-    destroy,
-    setSoundEnabled: (enabled: boolean): void => { soundEnabled = enabled; if (!enabled) silence(); },
-    setSceneMotionMode: (mode: SceneMotionMode): void => { preferences.sceneMotionMode = mode; },
-    dismissReminder: (): void => { reminderId = undefined; simulation.dismissReminder(); },
-    snapshot: (): SceneSnapshot => simulation.snapshot(),
+  private canStartPhaserUpgrade(): boolean {
+    return this.options.renderer !== "canvas"
+      && this.phaser === undefined
+      && this.phaserAbort === undefined
+      && !this.destroyed;
+  }
+
+  private completePhaserUpgrade(loadedPhaser: PhaserSimulationBootstrap, abort: AbortController): void {
+    if (this.phaserAbort === abort) this.phaserAbort = undefined;
+    if (abort.signal.aborted || !this.running || this.destroyed) {
+      loadedPhaser.destroy();
+      return;
+    }
+    this.phaser = loadedPhaser;
+    this.stopFallback();
+    this.canvas.remove();
+    if (this.paused) this.phaser.pause();
+  }
+
+  private silence(): void {
+    this.audioPlayer.silence();
+  }
+
+  private readonly onVisibilityChange = (): void => {
+    if (!document.hidden) return;
+    this.pause();
+    this.options.onVisibilityPause?.();
   };
 }

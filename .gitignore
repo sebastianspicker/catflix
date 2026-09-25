@@ -1,26 +1,40 @@
 # Dependencies
 /node_modules/
+/.pnp/
+/.pnp.js
 
 # Build and generated output
 /dist/
+/build/
 *.tsbuildinfo
+vite.config.*.timestamp-*
 
 # Test and coverage output
 /coverage/
 /test-results/
+/playwright-report/
 /.coverage
 /.coverage.*
 /coverage.xml
 /junit*.xml
 
-# Logs, temporary files, and recovery copies
+# Caches and logs
+.cache/
+.eslintcache
+.stylelintcache
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Temporary and recovery files
 *.tmp
 *.temp
 *.bak
 *.backup
 *.orig
+*.rej
 /tmp/
 /backups/
 
@@ -31,17 +45,43 @@ npm-debug.log*
 !.env.*.example
 !.env.sample
 !.env.template
+*.local
 .npmrc
 .npmrc.local
 .netrc
 secrets.local.*
 credentials.local.*
-*.local.pem
-*.local.key
+*.pem
+*.key
 *.p12
 *.pfx
 *.jks
 *.keystore
+*.ppk
+*.ovpn
+*.crt
+*.der
+*.p8
+*.secret
+*.secrets
+id_rsa*
+id_dsa*
+id_ecdsa*
+id_ed25519*
+*_rsa
+*_dsa
+*_ed25519
+.ssh/
+.aws/
+.git-credentials
+.pypirc
+.envrc
+.direnv/
+*.tfstate
+*.tfstate.*
+*service-account*.json
+*serviceAccount*.json
+*credentials*.json
 
 # Editors and operating-system metadata
 /.history/
@@ -49,6 +89,7 @@ credentials.local.*
 /.vscode/
 .DS_Store
 Thumbs.db
+desktop.ini
 *.swp
 
 # Local analysis and design tools
@@ -56,11 +97,11 @@ Thumbs.db
 /.codegraph/
 /.impeccable/
 /.mcp.json
-/.repowise/
 /.serena/
+/docs/audits/
 *.sarif
 
-# Coding-agent and assistant files
+# Coding-agent and assistant scaffolding
 /.agent/
 /.agents/
 /.ai/
@@ -71,9 +112,7 @@ Thumbs.db
 /.cursorrules
 /.github/copilot-instructions.md
 /AGENT.md
-/AGENTS.md
 /agent.md
-/agents.md
 /CLAUDE.md
 /CODEX.md
 /GEMINI.md

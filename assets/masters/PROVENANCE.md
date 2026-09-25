@@ -1,28 +1,29 @@
 # Visual asset provenance
 
-This is the public provenance record for the visual assets in content revision `2026.08.12.1`.
+This is the public provenance record for the visual assets in content revision
+`2026.08.12.1`.
 
-## Recorded origin and limits
+## How these were made
 
 - Creator: Catflix studio.
-- Generation provider and tool: OpenAI built-in image generation for the independently generated visual sources.
-- Recorded build date: 12 August 2026. The record identifies the rebuild date, not an individual generation date for each source.
+- Generation provider and tool: OpenAI built-in image generation, used for the independently generated visual sources.
+- Build date: 12 August 2026. This is the rebuild date for the record, not the generation date of each source.
 - Model: not recorded.
-- Inputs: no former Catflix poster, background, pose sheet, or other image was recorded as an input or reference.
-- Real-person limitation: these are synthetic visual assets; no real-person source or reference is recorded. This does not establish that an image cannot resemble a person or resolve any third-party-rights question.
+- Inputs: no earlier Catflix poster, background, pose sheet, or other image was recorded as an input or reference.
+- Real people: these are synthetic assets, and no real-person source or reference is recorded. That does not establish that an image can't resemble a person, and it doesn't settle any third-party-rights question.
 
 ## Transformations
 
 The authored catalogue records these transformations:
 
-- Poster masters combine independent environment and subject sources locally; browser formats are locally encoded from those masters.
-- Pose sheets remove a flat matte locally, apply despill, and assemble restrained RGBA transform variants.
+- Poster masters combine independent environment and subject sources locally; the browser formats are encoded locally from those masters.
+- Pose sheets have a flat matte removed locally and despill applied, then assemble restrained RGBA transform variants.
 - Background plates are locally cropped and encoded as 1920 by 1080 WebP runtime masters.
-- The red-string tile is locally constructed from original geometric cord strokes.
+- The red-string tile is built locally from original geometric cord strokes.
 
 ## Asset register
 
-The entries below mirror the asset IDs, public paths, and SHA-256 checksums in [`src/catalogue/model/authoredScenes.ts`](../../src/catalogue/model/authoredScenes.ts).
+These entries mirror the asset IDs, public paths, and SHA-256 checksums in [`src/catalogue/model/authoredScenes.ts`](../../src/catalogue/model/authoredScenes.ts).
 
 | Asset ID | Public path | SHA-256 |
 | --- | --- | --- |
@@ -53,6 +54,19 @@ The entries below mirror the asset IDs, public paths, and SHA-256 checksums in [
 | `red-string-rope-tile-v3` | `/assets/scenes/v2/red-string-tile.png` | `4a63cce76f8c72aa6a4ada9ed586f54c29446d5b51e24c6884f65477e89caeb8` |
 | `red-string-background-v3` | `/assets/scenes/v2/red-string-background.webp` | `39c04a572bc8a538f8b4418a822eb0ac45a0c9e77355cbb340bd8459cbc964e5` |
 
+## Audio
+
+Scene audio is synthesized in the browser at runtime by
+[`src/encounter/runtime/audioRecipes.ts`](../../src/encounter/runtime/audioRecipes.ts)
+and `audio.ts`; it is original code, generated at runtime, with no bundled or
+streamed recording.
+
 ## Rights boundary
 
-The [MIT License](../../LICENSE) covers Catflix software and original project documentation, not these visual assets. The authored catalogue identifies the visual assets as subject to [OpenAI's Terms of Use](https://openai.com/policies/terms-of-use/). This record is not a licence grant and does not confirm redistribution clearance. The owner or legal reviewer must determine the terms applicable to the account, service, jurisdiction, and intended use before release or redistribution.
+The [MIT License](../../LICENSE) covers the Catflix software and original project
+documentation, not these visual assets. The authored catalogue identifies the
+visual assets as subject to [OpenAI's Terms of
+Use](https://openai.com/policies/terms-of-use/). This record is not a licence
+grant and does not confirm redistribution clearance. Before release or
+redistribution, the owner or a legal reviewer must determine the terms that apply
+to the account, service, jurisdiction, and intended use.

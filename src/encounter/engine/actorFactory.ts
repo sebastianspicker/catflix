@@ -41,6 +41,7 @@ function createActor(sceneId: SceneId, index: number, random: RandomSource): Mut
     id: `${sceneId}-${index + 1}`, x: placement.x, y: placement.y, vx: direction.x || 1, vy: direction.y, angle: 0, state: "moving", visible: true, scale: baseScale, opacity: 1,
     stretchX: 1, stretchY: 1, facing: direction.x < 0 ? -1 : 1, motionEnergy: 0, animationState: "resting", poseFrame: 0, stateProgress: 0,
     depth: 2 + placement.y, alpha: 1, scaleX: 1, scaleY: 1, pauseUntilMs: 0, hiddenUntilMs: 0, responseUntilMs: 0, baseScale,
+    previous: { x: placement.x, y: placement.y, angle: 0, scale: baseScale },
     phase: random.next() * 1_200 + index * 650, anchorY: placement.y, turnBias: random.signed(), currentSpeed: 0, propulsion: 0, posePhase: random.next(), surfaceVx: 0, surfaceVy: 0,
   };
 }

@@ -1,13 +1,32 @@
 # Security policy
 
-Catflix is a local-first source alpha. It stores queue state, progress, settings, observations, comparisons, and asset provenance in the browser. Exported JSON can contain free-form household observation notes and should be handled as private data.
+Catflix is a local-first source alpha. When IndexedDB is available, the browser
+database `catflix-local` stores your queue, progress, settings, legacy notes,
+observations, comparisons, and asset provenance. If IndexedDB can't open, the
+page falls back to temporary memory and reports degraded mode.
+
+Exports can contain free-form household observations, so treat them as private
+data. Strip unnecessary names and household details before sharing a
+reproduction, and never attach a real export to a public issue.
+
+Access to your browser profile is what controls these records. IndexedDB and JSON
+exports are local but are **not encrypted** by Catflix. The import preview checks
+bounded record counts, text lengths, identifiers, timestamps, and cross-record
+links, but confirming an import still replaces all seven stores — export your
+current record first if you might need it again.
 
 ## Reporting a vulnerability
 
-Do not open a public issue for a vulnerability or a report containing private observation data. Use GitHub's private vulnerability reporting feature once it is enabled for the repository. Until that channel exists, publication remains incomplete and security reports should stay private with the repository owner.
+Please don't open a public issue for an exploitable vulnerability or a report
+that contains private observation data. This repository has no dedicated security
+contact, so share a minimal report with the repository owner through a trusted
+private channel. If none is available, don't publish the exploit or the private
+data as a workaround.
 
-Include affected version or commit, reproduction steps, impact, and a minimal proof of concept. Remove names, household details, exported records, and other unnecessary personal data.
+Include the affected commit, reproduction steps, impact, and the smallest proof
+of concept that demonstrates the issue.
 
 ## Supported versions
 
-No published version is currently supported. Security fixes will target the latest source-alpha candidate until a public release policy is established.
+No version has been published yet, so no release is officially supported. Security
+fixes target the latest source-alpha candidate until a release policy exists.

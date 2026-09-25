@@ -13,15 +13,15 @@ export interface AuthoredRuntime extends Omit<SceneScore, "id" | "durationMs" | 
   touchPolicy: { refractoryMs: number; allowedResponses: readonly NonNullable<TouchResponse["response"]>[]; };
 }
 
-const withAudioProvenance = (audio: AuthoredScene["audio"]): AudioProfile | undefined => audio && {
+const withAudioProvenance = (audio: NonNullable<AuthoredScene["audio"]>): AudioProfile => ({
   ...audio,
   provenance: audio.eventKinds.map((eventKind) => ({
     eventKind,
-    source: "No cleared environmental recording bundled in this revision",
-    license: "Ineligible until recording provenance and clearance are added",
-    eligible: false,
+    source: "Synthesized in the browser by Catflix",
+    license: "Original work (MIT)",
+    eligible: true,
   })),
-};
+});
 
 export function compileContentManifest(scene: AuthoredScene): ContentManifest {
   const manifest = { ...scene };

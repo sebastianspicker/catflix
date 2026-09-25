@@ -173,16 +173,6 @@ svg { display: block; height: 1.15em; width: 1.15em; }
 .raw-note { display: block; font-size: .6rem; font-weight: 900; letter-spacing: .1em; margin-top: 14px; text-transform: uppercase; }
 .raw-note textarea { background: white; border: 2px solid var(--ink); display: block; min-height: 90px; padding: 9px; resize: vertical; width: 100%; }
 .touch-summary, .import-status { font-size: .65rem; }
-.comparison-form { border-block: 2px solid var(--ink); display: grid; gap: 16px; grid-template-columns: repeat(3, 1fr); margin-top: 22px; padding: 20px 0; }
-.comparison-form > label, .comparison-form legend { font-size: .63rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
-.comparison-form select { background: white; border: 2px solid var(--ink); display: block; margin-top: 8px; min-height: 44px; padding: 7px; width: 100%; }
-.comparison-form fieldset { border: 0; margin: 0; padding: 0; }
-.comparison-form fieldset label { display: flex; font-size: .7rem; gap: 7px; margin-top: 8px; text-transform: capitalize; }
-.comparison-preview { align-items: center; background: var(--lilac); border: 2px solid var(--ink); display: flex; font-size: .68rem; gap: 14px; margin-top: 14px; padding: 14px; }
-.data-actions { display: grid; gap: 14px; grid-template-columns: 1fr 1fr; margin-top: 22px; }
-.data-actions button { background: var(--lilac); border: 2px solid var(--ink); min-height: 140px; padding: 18px; text-align: left; }
-.data-actions strong { display: block; font-family: var(--display); font-size: 2rem; text-transform: uppercase; }
-.data-actions span { display: block; font-size: .68rem; margin-top: 9px; }
 .referee-intro { max-width: 680px; }
 .referee-intro > div { display: grid; gap: 12px; grid-template-columns: repeat(3, 1fr); margin: 24px 0; }
 .referee-intro > div strong { background: var(--lime); border: 2px solid var(--ink); font-family: var(--display); font-size: 2rem; padding: 20px 8px; text-align: center; }
@@ -298,7 +288,7 @@ svg { display: block; height: 1.15em; width: 1.15em; }
   .console-controls button { font-size: 1rem; min-height: 105px; }
   .console-controls .pause-control { font-size: 2rem; }
   .tap-controls { display: none; }
-  .referee-grid, .comparison-form, .data-actions { grid-template-columns: 1fr; }
+  .referee-grid { grid-template-columns: 1fr; }
   .evidence-section { padding: 72px 18px 86px; }
   .evidence-lead { grid-template-columns: 1fr; }
   .evidence-summary-list { margin-top: 50px; }
