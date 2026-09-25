@@ -52,16 +52,22 @@ export function checkDiagram(markdown) {
     violations.push("docs/ARCHITECTURE.md has no mermaid flowchart diagram");
     return violations;
   }
-  for (const [, sourceId, targetId] of flowchart[1].matchAll(/(\w+)(?:\[[^\]]*\])?\s*-->\s*(\w+)(?:\[[^\]]*\])?/g)) {
-    const sourceModule = config.diagramNodes[sourceId];
-    const targetModule = config.diagramNodes[targetId];
-    if (!sourceModule) { violations.push(`diagram node ${sourceId} has no module mapping`); continue; }
-    if (!targetModule) { violations.push(`diagram node ${targetId} has no module mapping`); continue; }
-    if (!isAllowed(sourceModule, targetModule)) {
-      violations.push(`diagram edge ${sourceId} --> ${targetId} (${sourceModule} -> ${targetModule}) is not an allowed dependency`);
-    }
-  }
+  const lines = flowchart[1].split("\n").filter((line) => /--|==|-\.|~~/.test(line));
+  if (lines.length === 0) violations.push("the mermaid flowchart draws no dependency edges");
+  for (const line of lines) violations.push(...checkDiagramLine(line.trim()));
   return violations;
+}
+
+function checkDiagramLine(line) {
+  const edge = line.match(/^(\w+)(?:\[[^\]]*\])?\s*-->\s*(\w+)(?:\[[^\]]*\])?$/);
+  if (!edge) return [`diagram line "${line}" is not a plain "A --> B" edge the checker can verify`];
+  const [, sourceId, targetId] = edge;
+  const sourceModule = config.diagramNodes[sourceId];
+  const targetModule = config.diagramNodes[targetId];
+  if (!sourceModule) return [`diagram node ${sourceId} has no module mapping`];
+  if (!targetModule) return [`diagram node ${targetId} has no module mapping`];
+  if (isAllowed(sourceModule, targetModule)) return [];
+  return [`diagram edge ${sourceId} --> ${targetId} (${sourceModule} -> ${targetModule}) is not an allowed dependency`];
 }
 
 async function collectSourceFiles(directory) {

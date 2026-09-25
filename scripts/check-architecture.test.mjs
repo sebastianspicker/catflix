@@ -59,6 +59,13 @@ await test('reports a diagram edge the config forbids', () => {
   assert.ok(violations.some((violation) => /diagram edge domain --> localData .* is not an allowed dependency/.test(violation)), violations.join('\n'));
 });
 
+await test('reports diagram edges the checker cannot verify instead of skipping them', () => {
+  const labeled = '```mermaid\nflowchart TD\n    app -->|uses| domain\n    app -.-> ui\n```\n';
+  assert.equal(checkDiagram(labeled).filter((violation) => violation.includes('is not a plain')).length, 2);
+  const empty = '```mermaid\nflowchart TD\n    app[src/app]\n```\n';
+  assert.deepEqual(checkDiagram(empty), ['the mermaid flowchart draws no dependency edges']);
+});
+
 await test('the documented architecture diagram matches the allowed-dependency config', async () => {
   const { readFile } = await import('node:fs/promises');
   const markdown = await readFile(new URL('../docs/ARCHITECTURE.md', import.meta.url), 'utf8');

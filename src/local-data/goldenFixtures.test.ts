@@ -96,11 +96,11 @@ describe("golden fixtures: valid imports", () => {
     expect(storedFields(secondExport)).toEqual(storedFields(firstExport));
   });
 
-  it("keeps the emitted v2 export for v2-full.json stable against a committed snapshot", async () => {
+  it.each(["v1-full", "v2-full"])("keeps the emitted v2 export for %s.json stable against a committed snapshot", async (name) => {
     const repository = createLocalRepository();
-    await repository.importData(readFixture("v2-full.json"));
+    await repository.importData(readFixture(`${name}.json`));
     const exported = await repository.exportData();
-    await expect(JSON.stringify(storedFields(exported), null, 2)).toMatchFileSnapshot("./fixtures/v2-full.expected-export.json");
+    await expect(JSON.stringify(storedFields(exported), null, 2)).toMatchFileSnapshot(`./fixtures/${name}.expected-export.json`);
   });
 });
 
