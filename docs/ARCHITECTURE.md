@@ -43,6 +43,7 @@ flowchart TD
     app --> encounterSession[encounter/session]
     app --> localData[local-data]
     app --> catalogueUI
+    app --> encounterUI
 
     catalogueUI --> catalogueModel
     encounterUI --> encounterSession

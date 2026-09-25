@@ -1,50 +1,67 @@
 import { extname, relative, resolve } from "node:path";
+import { URL } from "node:url";
+import ts from "typescript";
 
 const { readdir: readDirectory, readFile: readTextFile } = await import("node:fs/promises");
-const sourceRoot = resolve("src");
 const sourceExtensions = new Set([".ts", ".tsx"]);
-const sourceFiles = await collectSourceFiles(sourceRoot);
-const modules = new Map(sourceFiles.map((file) => [file, moduleFor(file)]));
-const dependencies = new Map(sourceFiles.map((file) => [file, []]));
-const violations = [];
-const knownModules = new Set([
-  "ambient", "app", "catalogue-model", "catalogue-ui", "demo", "domain", "encounter-engine",
-  "encounter-runtime", "encounter-session", "encounter-ui", "local-data", "platform",
-  "research", "root", "ui",
-]);
+const config = JSON.parse(await readTextFile(new URL("./architecture.config.json", import.meta.url), "utf8"));
+const knownModules = new Set(config.knownModules);
+const allowedDependencies = new Map(
+  Object.entries(config.allowedDependencies).map(([sourceModule, targets]) => [sourceModule, new Set(targets)]),
+);
 
-for (const file of sourceFiles) {
+export async function checkSourceTree(root) {
+  const sourceRoot = resolve(root);
+  const sourceFiles = await collectSourceFiles(sourceRoot);
+  const modules = new Map(sourceFiles.map((file) => [file, moduleFor(sourceRoot, file)]));
+  const dependencies = new Map(sourceFiles.map((file) => [file, []]));
+  const violations = [];
+
+  for (const file of sourceFiles) violations.push(...await checkFileDependencies(modules, dependencies, file));
+  for (const cycle of findCycles(dependencies)) violations.push(`dependency cycle: ${cycle.map(display).join(" -> ")}`);
+  return { violations, fileCount: sourceFiles.length };
+}
+
+async function checkFileDependencies(modules, dependencies, file) {
+  const violations = [];
   const sourceModule = modules.get(file);
   if (!knownModules.has(sourceModule)) violations.push(`${display(file)} is outside the deliberate source modules`);
   const imports = importSpecifiers(await readTextFile(file, "utf8"));
   for (const specifier of new Set(imports)) {
-    if (specifier.includes("/content/") || specifier.includes("/components/") || specifier.includes("/simulation/") || specifier.includes("/storage/") || specifier.includes("/validation/")) {
-      violations.push(`${display(file)} imports removed legacy path ${specifier}`);
-      continue;
-    }
-    if (!specifier.startsWith(".") || specifier.includes("?")) continue;
-    const extension = extname(specifier);
-    if (extension && !sourceExtensions.has(extension)) continue;
-    const target = await resolveSourceFile(file, specifier);
-    if (!target) {
-      violations.push(`${display(file)} has an unresolved relative import ${specifier}`);
-      continue;
-    }
-    dependencies.get(file).push(target);
-    const targetModule = modules.get(target);
-    if (!isAllowed(sourceModule, targetModule, file)) {
-      violations.push(`${display(file)} (${sourceModule}) must not depend on ${display(target)} (${targetModule})`);
-    }
+    violations.push(...await checkImportSpecifier(modules, dependencies, file, sourceModule, specifier));
   }
+  return violations;
 }
 
-for (const cycle of findCycles(dependencies)) violations.push(`dependency cycle: ${cycle.map(display).join(" -> ")}`);
+async function checkImportSpecifier(modules, dependencies, file, sourceModule, specifier) {
+  if (!specifier.startsWith(".") || specifier.includes("?")) return [];
+  const extension = extname(specifier);
+  if (extension && !sourceExtensions.has(extension)) return [];
+  const target = await resolveSourceFile(modules, file, specifier);
+  if (!target) return [`${display(file)} has an unresolved relative import ${specifier}`];
+  dependencies.get(file).push(target);
+  const targetModule = modules.get(target);
+  if (isAllowed(sourceModule, targetModule)) return [];
+  return [`${display(file)} (${sourceModule}) must not depend on ${display(target)} (${targetModule})`];
+}
 
-if (violations.length > 0) {
-  console.error("Architecture check failed:\n" + violations.map((violation) => `- ${violation}`).join("\n"));
-  process.exitCode = 1;
-} else {
-  console.log(`Architecture check passed for ${sourceFiles.length} source files.`);
+export function checkDiagram(markdown) {
+  const violations = [];
+  const flowchart = markdown.match(/```mermaid\s+flowchart[^\n]*\n([\s\S]*?)```/);
+  if (!flowchart) {
+    violations.push("docs/ARCHITECTURE.md has no mermaid flowchart diagram");
+    return violations;
+  }
+  for (const [, sourceId, targetId] of flowchart[1].matchAll(/(\w+)(?:\[[^\]]*\])?\s*-->\s*(\w+)(?:\[[^\]]*\])?/g)) {
+    const sourceModule = config.diagramNodes[sourceId];
+    const targetModule = config.diagramNodes[targetId];
+    if (!sourceModule) { violations.push(`diagram node ${sourceId} has no module mapping`); continue; }
+    if (!targetModule) { violations.push(`diagram node ${targetId} has no module mapping`); continue; }
+    if (!isAllowed(sourceModule, targetModule)) {
+      violations.push(`diagram edge ${sourceId} --> ${targetId} (${sourceModule} -> ${targetModule}) is not an allowed dependency`);
+    }
+  }
+  return violations;
 }
 
 async function collectSourceFiles(directory) {
@@ -59,25 +76,20 @@ function isTestFile(fileName) {
   return fileName.endsWith(".test.ts") || fileName.endsWith(".test.tsx");
 }
 
-function moduleFor(file) {
+function moduleFor(sourceRoot, file) {
   const sourcePath = relative(sourceRoot, file);
-  const [topLevel, secondLevel] = sourcePath.split("/");
-  if (topLevel === "catalogue") return secondLevel === "model" ? "catalogue-model" : secondLevel === "ui" ? "catalogue-ui" : "unknown";
-  if (topLevel === "encounter") {
-    if (["engine", "runtime", "ui"].includes(secondLevel)) return `encounter-${secondLevel}`;
-    return sourcePath === "encounter/session.ts" ? "encounter-session" : "unknown";
+  for (const rule of config.moduleRules) {
+    if (rule.exact && sourcePath === rule.exact) return rule.module;
+    if (rule.prefix && sourcePath.startsWith(rule.prefix)) return rule.module;
   }
-  if (sourcePath === "paths.ts") return "platform";
-  if (sourcePath === "vite-env.d.ts") return "ambient";
-  return ["App.tsx", "main.tsx"].includes(sourcePath) ? "root" : topLevel;
+  return sourcePath.split("/")[0];
 }
 
 function importSpecifiers(source) {
-  const patterns = [/\bfrom\s*["']([^"'\r\n]+)["']/g, /\bimport\s*["']([^"'\r\n]+)["']/g, /\bimport\(\s*["']([^"'\r\n]+)["']\s*\)/g];
-  return patterns.flatMap((pattern) => [...source.matchAll(pattern)].map((match) => match[1]));
+  return ts.preProcessFile(source, true, true).importedFiles.map((imported) => imported.fileName);
 }
 
-async function resolveSourceFile(from, specifier) {
+async function resolveSourceFile(modules, from, specifier) {
   const base = resolve(from, "..");
   const candidate = resolve(base, specifier);
   for (const option of [candidate, `${candidate}.ts`, `${candidate}.tsx`, resolve(candidate, "index.ts"), resolve(candidate, "index.tsx")]) {
@@ -86,20 +98,9 @@ async function resolveSourceFile(from, specifier) {
   return undefined;
 }
 
-function isAllowed(sourceModule, targetModule, sourceFile) {
+function isAllowed(sourceModule, targetModule) {
   if (sourceModule === targetModule) return true;
-  const allowed = new Map([
-    ["domain", new Set()], ["catalogue-model", new Set(["domain"])],
-    ["catalogue-ui", new Set(["catalogue-model", "domain", "research", "ui", "platform"])],
-    ["encounter-engine", new Set(["domain"])], ["encounter-runtime", new Set(["domain", "encounter-engine", "catalogue-model", "platform"])],
-    ["encounter-ui", new Set(["domain", "catalogue-model", "encounter-engine", "encounter-runtime", "encounter-session", "local-data", "ui"])],
-    ["encounter-session", new Set(["domain", "catalogue-model"])], ["local-data", new Set(["domain", "catalogue-model"])],
-    ["research", new Set(["ui", "platform"])], ["demo", new Set(["platform"])], ["ui", new Set()], ["styles", new Set()], ["platform", new Set()],
-    ["app", new Set(["domain", "catalogue-model", "catalogue-ui", "encounter-session", "encounter-ui", "local-data", "research", "ui"])],
-    ["root", new Set(["app", "catalogue-ui", "demo", "encounter-ui", "research", "platform"])], ["ambient", new Set()],
-  ]);
-  if (sourceModule === "app" && targetModule === "encounter-ui") return display(sourceFile).endsWith("app/CatalogueOverlays.tsx");
-  return allowed.get(sourceModule)?.has(targetModule) ?? false;
+  return allowedDependencies.get(sourceModule)?.has(targetModule) ?? false;
 }
 
 function findCycles(graph) {
@@ -129,4 +130,16 @@ function findCycles(graph) {
 
 function display(file) {
   return relative(process.cwd(), file);
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const { violations: importViolations, fileCount } = await checkSourceTree("src");
+  const diagramViolations = checkDiagram(await readTextFile(resolve("docs/ARCHITECTURE.md"), "utf8"));
+  const violations = [...importViolations, ...diagramViolations];
+  if (violations.length > 0) {
+    console.error("Architecture check failed:\n" + violations.map((violation) => `- ${violation}`).join("\n"));
+    process.exitCode = 1;
+  } else {
+    console.log(`Architecture check passed for ${fileCount} source files.`);
+  }
 }
