@@ -30,7 +30,7 @@ const scoreWithInteraction = (configuration: {
 const createSimulationForScore = (score: SceneScore) => createSceneSimulationEngine(score, undefined, defaultVariantSelection, 12, {});
 const triggersRestReminder = (score: SceneScore) => {
   const simulation = createSimulationForScore(score);
-  const actor = simulation.snapshot().actors[0];
+  const actor = simulation.snapshot().actors[0]!;
   simulation.touch(actor, 0);
   simulation.touch(actor, 10);
   return simulation.snapshot().reminder !== undefined;
@@ -65,7 +65,7 @@ describe('deterministic simulation trajectories', () => {
   it('rate-limits touches without changing speed or duration', () => {
     const simulation = createSceneSimulation('red-string', defaultVariantSelection, 12);
     const duration = simulation.score.durationMs;
-    const actor = simulation.snapshot().actors[0];
+    const actor = simulation.snapshot().actors[0]!;
     const first = simulation.touch({ x: actor.x, y: actor.y }, 1000);
     const repeated = simulation.touch({ x: actor.x, y: actor.y }, 1001);
     expect(first.accepted).toBe(true);
@@ -76,7 +76,7 @@ describe('deterministic simulation trajectories', () => {
 
   it('rejects background taps instead of rerouting a distant actor', () => {
     const simulation = createSceneSimulation('paper-moth', defaultVariantSelection, 44);
-    const actor = simulation.snapshot().actors[0];
+    const actor = simulation.snapshot().actors[0]!;
     const distant = { x: actor.x < .5 ? .98 : .02, y: actor.y < .5 ? .98 : .02 };
     expect(simulation.touch(distant, 1000).accepted).toBe(false);
   });
@@ -88,11 +88,11 @@ describe('simulation runtime contracts', () => {
     const reduced = createSceneSimulation('paper-moth', defaultVariantSelection, 91, { sceneMotionMode: 'low' });
     let fullDistance = 0;
     let reducedDistance = 0;
-    let previousFull = full.snapshot().actors[0];
-    let previousReduced = reduced.snapshot().actors[0];
+    let previousFull = full.snapshot().actors[0]!;
+    let previousReduced = reduced.snapshot().actors[0]!;
     for (let index = 0; index < 120; index += 1) {
-      const nextFull = full.advance(100).actors[0];
-      const nextReduced = reduced.advance(100).actors[0];
+      const nextFull = full.advance(100).actors[0]!;
+      const nextReduced = reduced.advance(100).actors[0]!;
       fullDistance += Math.hypot(nextFull.x - previousFull.x, nextFull.y - previousFull.y);
       reducedDistance += Math.hypot(nextReduced.x - previousReduced.x, nextReduced.y - previousReduced.y);
       previousFull = nextFull;
@@ -121,9 +121,9 @@ describe('simulation runtime contracts', () => {
   it('exposes renderer fields and keeps every scene subject-interactive', () => {
     for (const sceneId of sceneIds) {
       const simulation = createSceneSimulation(sceneId, defaultVariantSelection, 24);
-      const actor = simulation.snapshot().actors[0];
+      const actor = simulation.snapshot().actors[0]!;
       expect(simulation.touch({ x: actor.x, y: actor.y }, 0).accepted).toBe(true);
-      const frame = simulation.advance(100).actors[0];
+      const frame = simulation.advance(100).actors[0]!;
       expect(typeof frame.animationState).toBe('string');
       expect(typeof frame.poseFrame).toBe('number');
       expect(typeof frame.stateProgress).toBe('number');
@@ -136,7 +136,7 @@ describe('simulation runtime contracts', () => {
 
   it('emits one dismissible reminder after three accepted contacts in twenty seconds', () => {
     const simulation = createSceneSimulation('red-string', defaultVariantSelection, 33);
-    const actor = simulation.snapshot().actors[0];
+    const actor = simulation.snapshot().actors[0]!;
     expect(simulation.touch(actor, 0).accepted).toBe(true);
     expect(simulation.touch(actor, 3_501).accepted).toBe(true);
     expect(simulation.touch(actor, 7_002).accepted).toBe(true);
@@ -164,7 +164,7 @@ describe('simulation runtime contracts', () => {
     for (const sceneId of sceneIds) {
       const simulation = createSceneSimulation(sceneId, defaultVariantSelection, 442);
       const seen = new Set<string>();
-      let previous = simulation.snapshot().actors[0].poseFrame;
+      let previous = simulation.snapshot().actors[0]!.poseFrame;
       let changes = 0;
       while (!simulation.snapshot().complete) {
         for (const actor of simulation.advance(100).actors) {
@@ -197,7 +197,7 @@ describe('simulation interaction contracts', () => {
       expected: [true, false],
       exercise: (score: SceneScore) => {
         const simulation = createSimulationForScore(score);
-        return simulation.touch(simulation.snapshot().actors[0], 0).accepted;
+        return simulation.touch(simulation.snapshot().actors[0]!, 0).accepted;
       },
     },
     {
@@ -207,7 +207,7 @@ describe('simulation interaction contracts', () => {
       expected: [true, false],
       exercise: (score: SceneScore) => {
         const simulation = createSimulationForScore(score);
-        const actor = simulation.snapshot().actors[0];
+        const actor = simulation.snapshot().actors[0]!;
         return simulation.touch({ x: actor.x + .02, y: actor.y }, 0).accepted;
       },
     },
@@ -218,7 +218,7 @@ describe('simulation interaction contracts', () => {
       expected: [true, false],
       exercise: (score: SceneScore) => {
         const simulation = createSimulationForScore(score);
-        const actor = simulation.snapshot().actors[0];
+        const actor = simulation.snapshot().actors[0]!;
         simulation.touch(actor, 0);
         return simulation.touch(actor, 10).accepted;
       },
@@ -244,7 +244,7 @@ describe('simulation interaction contracts', () => {
       expected: [100, 500],
       exercise: (score: SceneScore) => {
         const simulation = createSimulationForScore(score);
-        const actor = simulation.snapshot().actors[0];
+        const actor = simulation.snapshot().actors[0]!;
         simulation.touch(actor, 0);
         return simulation.snapshot().events.find((event) => event.type === 'rest-window')?.durationMs;
       },
@@ -256,7 +256,7 @@ describe('simulation interaction contracts', () => {
 
   it('rejects all cat-facing contacts in passive television mode', () => {
     const simulation = createSceneSimulation('paper-moth', defaultVariantSelection, 7319, { playbackMode: 'tv-passive' });
-    expect(simulation.touch(simulation.snapshot().actors[0], 0).accepted).toBe(false);
+    expect(simulation.touch(simulation.snapshot().actors[0]!, 0).accepted).toBe(false);
     expect(simulation.snapshot().events).toEqual([]);
   });
 });

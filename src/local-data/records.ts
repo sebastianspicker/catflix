@@ -208,7 +208,15 @@ function hasValidComparisonFields(record: Record<string, unknown>): boolean {
     && optional(record, "observation", isObservationText);
 }
 function isVocabulary(value: unknown): boolean { return Array.isArray(value) && value.every((item) => isOneOf(item, observationBehaviors)) && new Set(value).size === value.length; }
-function isContactTimestampList(value: unknown): value is readonly number[] { return Array.isArray(value) && value.length <= 10_000 && value.every((timestamp) => isNumberAtLeast(timestamp, 0)) && value.every((timestamp, index, values) => index === 0 || values[index - 1] <= timestamp); }
+function isContactTimestampList(value: unknown): value is readonly number[] {
+  if (!Array.isArray(value) || value.length > 10_000) return false;
+  let previous = Number.NEGATIVE_INFINITY;
+  for (const timestamp of value) {
+    if (!isNumberAtLeast(timestamp, 0) || timestamp < previous) return false;
+    previous = timestamp;
+  }
+  return true;
+}
 export function isTimestamp(value: unknown): value is string {
   if (typeof value !== "string") return false;
   const parts = timestampParts(value);
@@ -225,6 +233,7 @@ function timestampParts(value: string): readonly [number, number, number, number
   if (dateParts.length !== 3 || timeParts.length !== 3) return undefined;
   const [year, month, day] = dateParts;
   const [hour, minute, secondFraction] = timeParts;
+  if (secondFraction === undefined) return undefined;
   const secondParts = secondFraction.split(".");
   if (secondParts.length > 2) return undefined;
   const [second] = secondParts;

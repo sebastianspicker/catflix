@@ -93,7 +93,7 @@ async function leaveRoomForOneObservation(page: Parameters<typeof openLocalRecor
       records.onerror = () => { reject(records.error ?? new Error('Read failed')); };
     })));
     const notes = Array.from({ length: 250 }, (_, index) => ({ ...note, id: `capacity-${index}`, rawNote: 'x'.repeat(20_000) }));
-    const data = { schemaVersion: 2, exportedAt: new Date().toISOString(), settings: values[0][0], queue: values[1], progress: values[2], notes, observations: values[4], comparisons: values[5], provenance: values[6] };
+    const data = { schemaVersion: 2, exportedAt: new Date().toISOString(), settings: values[0]?.[0], queue: values[1], progress: values[2], notes, observations: values[4], comparisons: values[5], provenance: values[6] };
     const size = () => new TextEncoder().encode(JSON.stringify(data, null, 2)).byteLength;
     while (size() < maximumBytes - 1_000) {
       const next = { ...note, id: `capacity-${notes.length}`, rawNote: '' };

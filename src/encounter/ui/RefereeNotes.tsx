@@ -6,7 +6,7 @@ import { useModalDialog } from '../../ui/useModalDialog';
 const behaviors: ObservationBehavior[] = ['approach', 'orientation', 'tracking', 'pouncing', 'disengagement', 're-engagement', 'post-session behavior'];
 export type { ObservationDraft } from '../../local-data/types';
 
-interface RefereeNotesProps { sceneTitle: string; observedCat?: 'Arri' | 'Ozzy' | 'Mika'; touchTimestamps: number[]; completed: boolean; onClose: () => void; onSave: (_draft: ObservationDraft) => Promise<void>; }
+interface RefereeNotesProps { sceneTitle: string; observedCat?: 'Arri' | 'Ozzy' | 'Mika' | undefined; touchTimestamps: number[]; completed: boolean; onClose: () => void; onSave: (_draft: ObservationDraft) => Promise<void>; }
 
 export function RefereeNotes({ sceneTitle, observedCat, touchTimestamps, completed, onClose, onSave }: RefereeNotesProps) {
   const [selected, setSelected] = useState<ObservationBehavior[]>([]);

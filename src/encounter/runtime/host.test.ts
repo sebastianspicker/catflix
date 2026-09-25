@@ -180,13 +180,13 @@ describe("encounter runtime lifecycle", () => {
   it("registers target input only for tablet playback", () => {
     const tabletEnvironment = installRuntimeEnvironment();
     const tablet = createEncounterRuntime(runtimeOptions(tabletEnvironment));
-    expect(tabletEnvironment.canvases[0].listeners.get("pointerdown")).toHaveLength(1);
+    expect(tabletEnvironment.canvases[0]!.listeners.get("pointerdown")).toHaveLength(1);
     tablet.destroy();
-    expect(tabletEnvironment.canvases[0].listeners.get("pointerdown")).toHaveLength(0);
+    expect(tabletEnvironment.canvases[0]!.listeners.get("pointerdown")).toHaveLength(0);
 
     const televisionEnvironment = installRuntimeEnvironment();
     const television = createEncounterRuntime(runtimeOptions(televisionEnvironment, { playbackMode: "tv-passive" }));
-    expect(televisionEnvironment.canvases[0].listeners.get("pointerdown")).toBeUndefined();
+    expect(televisionEnvironment.canvases[0]!.listeners.get("pointerdown")).toBeUndefined();
     television.destroy();
   });
 
@@ -195,11 +195,11 @@ describe("encounter runtime lifecycle", () => {
     const runtime = createEncounterRuntime(runtimeOptions(environment));
 
     runtime.start();
-    expect(environment.canvases[0].connected()).toBe(true);
+    expect(environment.canvases[0]!.connected()).toBe(true);
     expect(environment.documentListeners.get("visibilitychange")).toHaveLength(1);
 
     runtime.destroy();
-    expect(environment.canvases[0].connected()).toBe(false);
+    expect(environment.canvases[0]!.connected()).toBe(false);
     expect(environment.documentListeners.get("visibilitychange")).toHaveLength(0);
   });
 });
@@ -269,7 +269,7 @@ describe("encounter runtime frame ownership", () => {
     const runtime = createEncounterRuntime(runtimeOptions(environment, { renderer: "auto" }));
 
     runtime.start();
-    const signal = phaserBootstrapMock.create.mock.calls[0][0].signal;
+    const signal = phaserBootstrapMock.create.mock.calls[0]![0].signal;
     runtime.pause();
     expect(signal.aborted).toBe(false);
     expect(environment.pendingFrameCount()).toBe(0);
@@ -278,7 +278,7 @@ describe("encounter runtime frame ownership", () => {
     await Promise.resolve();
     expect(loadedPhaser.pause).toHaveBeenCalledOnce();
     expect(loadedPhaser.resume).not.toHaveBeenCalled();
-    expect(environment.canvases[0].connected()).toBe(false);
+    expect(environment.canvases[0]!.connected()).toBe(false);
 
     environment.setHidden(false);
     dispatchVisibilityChange(environment);
@@ -297,7 +297,7 @@ describe("encounter runtime frame ownership", () => {
     const runtime = createEncounterRuntime(runtimeOptions(environment, { renderer: "auto" }));
 
     runtime.start();
-    const signal = phaserBootstrapMock.create.mock.calls[0][0].signal;
+    const signal = phaserBootstrapMock.create.mock.calls[0]![0].signal;
     runtime.destroy();
     expect(signal.aborted).toBe(true);
 

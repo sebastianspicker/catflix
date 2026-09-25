@@ -26,7 +26,7 @@ function dimensionLabel(dimension: ComparisonDimension): string {
 }
 
 export function CuratorPanel({ manifests, onClose, onStart }: CuratorPanelProps) {
-  const [sceneId, setSceneId] = useState(manifests[0].id);
+  const [sceneId, setSceneId] = useState(manifests[0]!.id);
   const [dimension, setDimension] = useState<ComparisonDimension>('contrast');
   const [order, setOrder] = useState<'a' | 'b'>('a');
   const dialogRef = useModalDialog<HTMLElement>(onClose);

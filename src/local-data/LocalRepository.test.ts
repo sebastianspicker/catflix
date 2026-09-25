@@ -20,7 +20,7 @@ const validV2 = () => ({
 
 function currentObservation(id: string, variant: SessionObservation["variant"] = defaultVariantSelection, confirmedAt = timestamp, comparisonDimension: "figureGround" | "motion" = "figureGround", context: Partial<Pick<SessionObservation, "contentRevision" | "seed" | "encounterScore">> = {}): SessionObservation {
   return {
-    ...validV2().observations[0],
+    ...validV2().observations[0]!,
     id,
     variant,
     contentRevision: context.contentRevision ?? "2026.07.29",
@@ -111,7 +111,7 @@ describe("local data import contracts", () => {
     ["progress", (data: ReturnType<typeof validV2>) => ({ ...data, progress: [{ ...data.progress[0], elapsedMs: Number.POSITIVE_INFINITY }] })],
     ["notes", (data: ReturnType<typeof validV2>) => ({ ...data, notes: [{ ...data.notes[0], vocabulary: ["made-up-behavior"] }] })],
     ["observations", (data: ReturnType<typeof validV2>) => ({ ...data, observations: [{ ...data.observations[0], acceptedContactTimestamps: [-1] }] })],
-    ["comparisons", (data: ReturnType<typeof validV2>) => ({ ...data, comparisons: [{ ...data.comparisons[0], first: { ...data.comparisons[0].first, seed: Number.NaN } }] })],
+    ["comparisons", (data: ReturnType<typeof validV2>) => ({ ...data, comparisons: [{ ...data.comparisons[0], first: { ...data.comparisons[0]!.first, seed: Number.NaN } }] })],
     ["provenance", (data: ReturnType<typeof validV2>) => ({ ...data, provenance: [{ ...data.provenance[0], savedAt: "not-a-timestamp" }] })],
   ])("rejects malformed %s data without changing any store", async (_family, corrupt) => expectRejectedImport(corrupt));
 
@@ -251,11 +251,11 @@ describe("local import references and limits", () => {
   });
 
   it.each([
-    ["missing", () => ({ ...validV2(), comparisons: [{ ...validV2().comparisons[0], first: { ...validV2().comparisons[0].first, observationId: "missing" } }] })],
-    ["mismatched scene", () => ({ ...validV2(), comparisons: [{ ...validV2().comparisons[0], first: { ...validV2().comparisons[0].first, sceneId: "koi-pool" as const } }] })],
+    ["missing", () => ({ ...validV2(), comparisons: [{ ...validV2().comparisons[0], first: { ...validV2().comparisons[0]!.first, observationId: "missing" } }] })],
+    ["mismatched scene", () => ({ ...validV2(), comparisons: [{ ...validV2().comparisons[0], first: { ...validV2().comparisons[0]!.first, sceneId: "koi-pool" as const } }] })],
     ["reused observation", () => {
       const source = validV2();
-      return { ...source, comparisons: [...source.comparisons, { ...source.comparisons[0], id: "c2", second: { ...source.comparisons[0].second } }] };
+      return { ...source, comparisons: [...source.comparisons, { ...source.comparisons[0], id: "c2", second: { ...source.comparisons[0]!.second } }] };
     }],
   ])("rejects %s comparison references", (_case, corrupt) => {
     expect(() => decodeExport(corrupt())).toThrow("Unsupported or corrupt Catflix export.");
@@ -273,7 +273,7 @@ describe("local import references and limits", () => {
 
   it("measures a v1 import after normalizing it to the pretty schema-v2 representation", () => {
     const source = legacyNoteLinkedComparison();
-    source.notes = Array.from({ length: 5_000 }, (_, index) => ({ ...source.notes[0], id: `n${index}`, rawNote: "" }));
+    source.notes = Array.from({ length: 5_000 }, (_, index) => ({ ...source.notes[0]!, id: `n${index}`, rawNote: "" }));
     let remaining = maximumBackupBytes - new TextEncoder().encode(JSON.stringify(source, null, 2)).byteLength;
     for (const item of source.notes) {
       const added = Math.min(remaining, 20_000);
@@ -298,12 +298,12 @@ describe("local import references and limits", () => {
   it("admits only one of two concurrent writes at the last record slot", async () => {
     const repository = createLocalRepository();
     const source = validV2();
-    source.notes = Array.from({ length: 9_999 }, (_, index) => ({ ...source.notes[0], id: `n${index}`, rawNote: "" }));
+    source.notes = Array.from({ length: 9_999 }, (_, index) => ({ ...source.notes[0]!, id: `n${index}`, rawNote: "" }));
     await repository.importData(source);
 
     const outcomes = await Promise.allSettled([
-      repository.saveNote({ ...source.notes[0], id: "last-a" }),
-      repository.saveNote({ ...source.notes[0], id: "last-b" }),
+      repository.saveNote({ ...source.notes[0]!, id: "last-a" }),
+      repository.saveNote({ ...source.notes[0]!, id: "last-b" }),
     ]);
 
     expect(outcomes.filter((outcome) => outcome.status === "fulfilled")).toHaveLength(1);

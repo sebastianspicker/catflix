@@ -126,7 +126,7 @@ class EncounterRuntimeController implements EncounterRuntime {
     this.options.container.dataset.lastContactResponse = response.response ?? "accepted";
     this.options.container.dataset.lastContactAt = String(performance.now());
     this.options.onTouch?.(this.simulation.snapshot().elapsedMs);
-    this.options.container.dispatchEvent(new CustomEvent("catflix-contact-response", { detail: response.response }));
+    this.options.container.dispatchEvent(new CustomEvent("catflix-contact-response", { ...(response.response !== undefined ? { detail: response.response } : {}) }));
   };
 
   private readonly onPointerDown = (event: PointerEvent): void => {

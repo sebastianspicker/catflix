@@ -65,7 +65,7 @@ export function useCatalogueApp() {
   const resumable = manifests.filter((item) => (state.progress[item.id] ?? 0) > 0 && (state.progress[item.id] ?? 0) < 1);
   const prepare = (manifest: ContentManifest, variant = defaultSessionVariant, comparison?: { dimension: ComparisonDimension; side: ComparisonSide }) => {
     const resolvedVariant = resolvePreparedVariant(variant, comparison, window.location.search);
-    dispatch({ type: 'prepare', pending: { manifest, variant: resolvedVariant, comparison, seed: requestedSeedFor(manifest, comparison) } });
+    dispatch({ type: 'prepare', pending: { manifest, variant: resolvedVariant, seed: requestedSeedFor(manifest, comparison), ...(comparison ? { comparison } : {}) } });
   };
   const setQueue = (queue: SceneId[]) => { dispatch({ type: 'set-queue', queue }); };
   const addToQueue = (id: SceneId) => { if (!state.queue.includes(id)) setQueue([...state.queue, id]); };
