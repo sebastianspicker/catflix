@@ -30,7 +30,7 @@ export const createSceneSimulationEngine = (score: SceneScore, audio: EncounterA
     const encounter = scenePhaseAt(score, elapsedMs);
     if (encounter.phase !== lastPhase) { frameEvents.push({ type: "phase-change", phase: encounter.phase, beatId: encounter.id, atMs: elapsedMs }); lastPhase = encounter.phase; }
     const context = { sceneId, score, variants, preferences, elapsedMs, forcedRestUntilMs: contacts.state.forcedRestUntilMs };
-    for (const actor of actors) advanceActorForFixedStep(actor, encounter, deltaMs, context);
+    for (const actor of actors) { actor.previous.x = actor.x; actor.previous.y = actor.y; actor.previous.angle = actor.angle; actor.previous.scale = actor.scale; advanceActorForFixedStep(actor, encounter, deltaMs, context); }
     if (shadowActors) {
       const shadowContext = { sceneId, score, variants, preferences, elapsedMs, forcedRestUntilMs: 0 };
       for (const actor of shadowActors) advanceActorForFixedStep(actor, encounter, deltaMs, shadowContext);
@@ -46,7 +46,7 @@ export const createSceneSimulationEngine = (score: SceneScore, audio: EncounterA
   }
   function touch(point: { x: number; y: number }, timestampMs = elapsedMs) { const contact = contacts.touch(score, preferences, actors, elapsedMs, point, timestampMs, () => random.next()); pendingEvents.push(...contact.events); return contact.result; }
   function snapshot(): SceneSnapshot {
-    return sceneSnapshot({ score, elapsedMs, forcedRestUntilMs: contacts.state.forcedRestUntilMs, actors, soundEvents, frameEvents, pendingEvents, reminder: contacts.state.reminder });
+    return sceneSnapshot({ score, elapsedMs, forcedRestUntilMs: contacts.state.forcedRestUntilMs, actors, soundEvents, frameEvents, pendingEvents, reminder: contacts.state.reminder, interpolationAlpha: clock.alpha });
   }
   function reset(): SceneSnapshot { elapsedMs = 0; clock.reset(); lastSoundBucket = -1; shadowSoundBucket = -1; completionSent = false; frameEvents = []; pendingEvents = []; soundEvents = []; contacts.reset(); lastPhase = scenePhaseAt(score, 0).phase; random = new SeededRandom(seed); random.next(); actors = createActors(sceneId, actorCount, random); shadowActors = hasShadow ? structuredClone(actors) : undefined; return snapshot(); }
   function dismissReminder(): SceneSnapshot { contacts.dismissReminder(); return snapshot(); }

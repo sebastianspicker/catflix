@@ -1,6 +1,6 @@
 import type { SceneActorSnapshot, SceneMotionMode, SceneScore, SceneSnapshot, VariantSelection } from "../../domain";
 import { publicUrl } from "../../paths";
-import { coverRect, drawOccluder, orderedActors, poseAnchor, poseCrop, ropeCurve, spriteUsesHorizontalFlip } from "./renderGeometry";
+import { coverRect, drawOccluder, interpolateActor, orderedActors, poseAnchor, poseCrop, ropeCurve, spriteUsesHorizontalFlip } from "./renderGeometry";
 
 export interface EncounterVisualAssets { backgroundUrl: string; poseSheetUrl: string; ropeTextureUrl?: string; }
 
@@ -16,13 +16,32 @@ interface CanvasRendererState {
   backdrop: HTMLImageElement;
   poses: HTMLImageElement;
   ropeTexture: HTMLImageElement;
+  context: CanvasRenderingContext2D | null;
+  ropePattern: CanvasPattern | null;
+  backdropCanvas: HTMLCanvasElement | undefined;
+  backdropCanvasKey: string | undefined;
+  size: { width: number; height: number };
+  resizeObserver: ResizeObserver | undefined;
 }
 
-export interface CanvasSimulationRenderer { render(state: SceneSnapshot, sceneMotionMode: SceneMotionMode): void; }
+const maximumPixelRatio = 2;
+const hexColorCache = new Map<number, string>();
+const hexColor = (color: number): string => {
+  const cached = hexColorCache.get(color);
+  if (cached) return cached;
+  const hex = `#${color.toString(16).padStart(6, "0")}`;
+  hexColorCache.set(color, hex);
+  return hex;
+};
+
+export interface CanvasSimulationRenderer { render(state: SceneSnapshot, sceneMotionMode: SceneMotionMode): void; destroy(): void; }
 
 export function createCanvasSimulationRenderer(options: CanvasSimulationRendererOptions): CanvasSimulationRenderer {
   const renderer = createRendererState(options);
-  return { render: (state, sceneMotionMode) => { renderFrame(renderer, state, sceneMotionMode); } };
+  return {
+    render: (state, sceneMotionMode) => { renderFrame(renderer, state, sceneMotionMode); },
+    destroy: () => { renderer.resizeObserver?.disconnect(); },
+  };
 }
 
 function createRendererState(options: CanvasSimulationRendererOptions): CanvasRendererState {
@@ -32,23 +51,43 @@ function createRendererState(options: CanvasSimulationRendererOptions): CanvasRe
   poses.src = publicUrl(options.visuals.poseSheetUrl);
   const ropeTexture = new Image();
   if (options.visuals.ropeTextureUrl) ropeTexture.src = publicUrl(options.visuals.ropeTextureUrl);
-  return { options, backdrop, poses, ropeTexture };
+  const state: CanvasRendererState = {
+    options,
+    backdrop,
+    poses,
+    ropeTexture,
+    context: options.canvas.getContext("2d"),
+    ropePattern: null,
+    backdropCanvas: undefined,
+    backdropCanvasKey: undefined,
+    size: measureCanvasSize(options.canvas),
+    resizeObserver: undefined,
+  };
+  if (typeof ResizeObserver === "function") {
+    state.resizeObserver = new ResizeObserver(() => { state.size = measureCanvasSize(options.canvas); });
+    state.resizeObserver.observe(options.canvas);
+  }
+  return state;
+}
+
+function measureCanvasSize(canvas: HTMLCanvasElement): { width: number; height: number } {
+  const ratio = Math.min(window.devicePixelRatio || 1, maximumPixelRatio);
+  return { width: Math.max(1, Math.round(canvas.clientWidth * ratio)), height: Math.max(1, Math.round(canvas.clientHeight * ratio)) };
 }
 
 function renderFrame(renderer: CanvasRendererState, state: SceneSnapshot, sceneMotionMode: SceneMotionMode): void {
-  const { canvas, score } = renderer.options;
-  if (!canvas.isConnected) return;
-  const { width, height } = resizeCanvas(canvas);
-  const context = canvas.getContext("2d");
-  if (!context) return;
+  const { canvas } = renderer.options;
+  const { context } = renderer;
+  if (!canvas.isConnected || !context) return;
+  const { width, height } = applyCanvasSize(renderer);
   beginFrame(context, width, height);
   drawBackdrop(renderer, context, width, height);
-  for (const actor of orderedActors(state)) drawActor(renderer, context, actor, width, height);
+  for (const actor of orderedActors(state)) drawActor(renderer, context, interpolateActor(actor, state.interpolationAlpha), width, height);
   drawRope(renderer, context, state, width, height, sceneMotionMode);
   drawSignature(context, state, width, height);
-  drawOccluder(score.id, {
+  drawOccluder(renderer.options.score.id, {
     fillStyle: (color, alpha) => {
-      context.fillStyle = `#${color.toString(16).padStart(6, "0")}`;
+      context.fillStyle = hexColor(color);
       context.globalAlpha = alpha;
     },
     rect: (x, y, rectWidth, rectHeight) => { context.fillRect(x, y, rectWidth, rectHeight); },
@@ -61,10 +100,9 @@ function renderFrame(renderer: CanvasRendererState, state: SceneSnapshot, sceneM
   context.globalAlpha = 1;
 }
 
-function resizeCanvas(canvas: HTMLCanvasElement): { width: number; height: number } {
-  const ratio = window.devicePixelRatio || 1;
-  const width = Math.max(1, Math.round(canvas.clientWidth * ratio));
-  const height = Math.max(1, Math.round(canvas.clientHeight * ratio));
+function applyCanvasSize(renderer: CanvasRendererState): { width: number; height: number } {
+  const { canvas } = renderer.options;
+  const { width, height } = renderer.size;
   if (canvas.width !== width || canvas.height !== height) {
     canvas.width = width;
     canvas.height = height;
@@ -79,12 +117,26 @@ function beginFrame(context: CanvasRenderingContext2D, width: number, height: nu
 }
 
 function drawBackdrop(renderer: CanvasRendererState, context: CanvasRenderingContext2D, width: number, height: number): void {
-  const { backdrop, options } = renderer;
+  const { backdrop } = renderer;
   if (!backdrop.complete || !backdrop.naturalWidth) return;
+  const key = `${width}x${height}:${renderer.options.variant.figureGround}`;
+  if (renderer.backdropCanvasKey !== key || !renderer.backdropCanvas) rebuildBackdropCanvas(renderer, width, height, key);
+  if (renderer.backdropCanvas) context.drawImage(renderer.backdropCanvas, 0, 0);
+}
+
+function rebuildBackdropCanvas(renderer: CanvasRendererState, width: number, height: number, key: string): void {
+  const { backdrop, options } = renderer;
+  const offscreen = renderer.backdropCanvas ?? document.createElement("canvas");
+  offscreen.width = width;
+  offscreen.height = height;
+  const offscreenContext = offscreen.getContext("2d");
+  if (!offscreenContext) return;
   const cover = coverRect(backdrop.naturalWidth, backdrop.naturalHeight, width, height);
-  context.globalAlpha = options.variant.figureGround === "enhanced" ? 0.52 : 0.78;
-  context.drawImage(backdrop, cover.x, cover.y, cover.width, cover.height);
-  context.globalAlpha = 1;
+  offscreenContext.globalAlpha = options.variant.figureGround === "enhanced" ? 0.52 : 0.78;
+  offscreenContext.drawImage(backdrop, cover.x, cover.y, cover.width, cover.height);
+  offscreenContext.globalAlpha = 1;
+  renderer.backdropCanvas = offscreen;
+  renderer.backdropCanvasKey = key;
 }
 
 function drawActor(renderer: CanvasRendererState, context: CanvasRenderingContext2D, actor: SceneActorSnapshot, width: number, height: number): void {
@@ -106,11 +158,12 @@ function drawActor(renderer: CanvasRendererState, context: CanvasRenderingContex
 function drawRope(renderer: CanvasRendererState, context: CanvasRenderingContext2D, state: SceneSnapshot, width: number, height: number, sceneMotionMode: SceneMotionMode): void {
   const actor = renderer.options.score.id === "red-string" ? state.actors.at(0) : undefined;
   if (!actor?.visible) return;
-  const curve = ropeCurve(actor, width, height, sceneMotionMode);
+  const curve = ropeCurve(interpolateActor(actor, state.interpolationAlpha), width, height, sceneMotionMode);
+  if (!renderer.ropePattern && renderer.ropeTexture.complete && renderer.ropeTexture.naturalWidth) renderer.ropePattern = context.createPattern(renderer.ropeTexture, "repeat");
   context.save();
   context.globalAlpha = actor.alpha;
   context.lineCap = "round";
-  context.strokeStyle = renderer.ropeTexture.complete ? context.createPattern(renderer.ropeTexture, "repeat") ?? "#a92d2f" : "#a92d2f";
+  context.strokeStyle = renderer.ropePattern ?? "#a92d2f";
   context.lineWidth = Math.max(5, width * 0.01);
   context.beginPath();
   context.moveTo(curve.start.x, curve.start.y);

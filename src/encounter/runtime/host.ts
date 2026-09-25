@@ -97,6 +97,7 @@ class EncounterRuntimeController implements EncounterRuntime {
     this.audioPlayer.destroy();
     this.phaser?.destroy();
     this.phaser = undefined;
+    this.canvasRenderer.destroy();
     this.canvas.remove();
     this.canvas.removeEventListener("pointerdown", this.onPointerDown);
     document.removeEventListener("visibilitychange", this.onVisibilityChange);
