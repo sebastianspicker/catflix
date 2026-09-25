@@ -1,0 +1,180 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": "2026-01-01T00:00:00.000Z",
+  "settings": {
+    "soundEnabled": true,
+    "reducedMotion": true,
+    "sceneMotionMode": "low",
+    "safetyAcknowledgedAt": "2026-01-01T00:00:00.000Z"
+  },
+  "queue": [
+    {
+      "id": "q1",
+      "sceneId": "paper-moth",
+      "variant": {
+        "figureGround": "natural",
+        "motion": "continuous",
+        "sound": "off",
+        "novelty": "familiar"
+      },
+      "addedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "q2",
+      "sceneId": "red-string",
+      "variant": {
+        "figureGround": "enhanced",
+        "motion": "continuous",
+        "sound": "off",
+        "novelty": "familiar"
+      },
+      "addedAt": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "progress": [
+    {
+      "sceneId": "paper-moth",
+      "revision": "2026.01.01",
+      "elapsedMs": 1000,
+      "durationMs": 90000,
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "sceneId": "red-string",
+      "revision": "2026.01.01",
+      "elapsedMs": 2000,
+      "durationMs": 45000,
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "notes": [
+    {
+      "id": "n1",
+      "cat": "Ozzy",
+      "sceneId": "beetle-under-the-fern",
+      "contentRevision": "2026.01.01",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "rawNote": "Brief glance, then left.",
+      "vocabulary": [
+        "orientation"
+      ],
+      "touchTimestamps": [
+        200
+      ]
+    }
+  ],
+  "observations": [
+    {
+      "schemaVersion": 2,
+      "id": "o-a",
+      "sceneId": "paper-moth",
+      "contentRevision": "2026.01.01",
+      "variant": {
+        "figureGround": "natural",
+        "motion": "continuous",
+        "sound": "off",
+        "novelty": "familiar"
+      },
+      "seed": 42,
+      "encounterScore": "authored-score",
+      "comparisonDimension": "figureGround",
+      "playbackMode": "tablet-touch",
+      "viewingDistanceBand": "near-screen",
+      "roomLightBand": "moderate",
+      "soundEnabled": false,
+      "observedCat": "Arri",
+      "elapsedMs": 1000,
+      "endReason": "completed",
+      "acceptedContactTimestamps": [
+        100,
+        900
+      ],
+      "vocabulary": [
+        "approach",
+        "tracking"
+      ],
+      "safetyEvent": "Paused briefly to observe.",
+      "physicalPlayHandoff": "offered",
+      "rawNote": "Tracked steadily.",
+      "confirmedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "schemaVersion": 2,
+      "id": "o-b",
+      "sceneId": "paper-moth",
+      "contentRevision": "2026.01.01",
+      "variant": {
+        "figureGround": "enhanced",
+        "motion": "continuous",
+        "sound": "off",
+        "novelty": "familiar"
+      },
+      "seed": 42,
+      "encounterScore": "authored-score",
+      "comparisonDimension": "figureGround",
+      "playbackMode": "tablet-touch",
+      "viewingDistanceBand": "near-screen",
+      "roomLightBand": "moderate",
+      "soundEnabled": false,
+      "observedCat": "Arri",
+      "elapsedMs": 800,
+      "endReason": "owner-ended",
+      "acceptedContactTimestamps": [
+        50
+      ],
+      "vocabulary": [
+        "pouncing"
+      ],
+      "physicalPlayHandoff": "voluntarily-joined",
+      "rawNote": "Pounced twice.",
+      "confirmedAt": "2026-01-01T00:00:01.000Z"
+    }
+  ],
+  "comparisons": [
+    {
+      "id": "cmp-1",
+      "createdAt": "2026-01-01T00:00:01.000Z",
+      "first": {
+        "sceneId": "paper-moth",
+        "variant": {
+          "figureGround": "natural",
+          "motion": "continuous",
+          "sound": "off",
+          "novelty": "familiar"
+        },
+        "seed": 42,
+        "encounterScore": "authored-score",
+        "observationId": "o-a"
+      },
+      "second": {
+        "sceneId": "paper-moth",
+        "variant": {
+          "figureGround": "enhanced",
+          "motion": "continuous",
+          "sound": "off",
+          "novelty": "familiar"
+        },
+        "seed": 42,
+        "encounterScore": "authored-score",
+        "observationId": "o-b"
+      },
+      "changedDimension": "figureGround",
+      "observation": "Enhanced contrast held attention longer."
+    }
+  ],
+  "provenance": [
+    {
+      "assetId": "paper-moth-poster",
+      "creator": "Catflix",
+      "source": "/assets/paper-moth.webp",
+      "license": "CC0",
+      "derivativeHistory": [
+        "original"
+      ],
+      "checksum": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "masteringFormat": "webp",
+      "contentRevision": "2026.01.01",
+      "savedAt": "2026-01-01T00:00:00.000Z"
+    }
+  ]
+}
