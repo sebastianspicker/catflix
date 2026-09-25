@@ -20,7 +20,7 @@ const MASTER_LOWPASS_HZ = 12_000;
 const SILENCE_FADE_SECONDS = 0.05;
 
 interface MasterChain { context: AudioContext; master: GainNode; }
-interface ActiveVoice { stopImmediately(): void; fadeOut(): void; }
+interface ActiveVoice { fadeOut(): void; }
 
 function resolveAudioContextClass(): typeof AudioContext | undefined {
   const scope = globalThis as typeof globalThis & { webkitAudioContext?: typeof AudioContext };
@@ -110,7 +110,6 @@ function scheduleVoice(chain: MasterChain, plan: VoicePlan, x: number, cache: { 
   sources.forEach((source) => { source.addEventListener("ended", () => { layersRemaining -= 1; if (layersRemaining <= 0) teardown(); }, { once: true }); });
   if (sources.length === 0) teardown();
   return {
-    stopImmediately: (): void => { sources.forEach((source) => { try { source.stop(context.currentTime); } catch { /* already stopped */ } }); teardown(); },
     fadeOut: (): void => {
       const fadeEnd = context.currentTime + SILENCE_FADE_SECONDS;
       voiceGain.gain.cancelScheduledValues(context.currentTime);
@@ -142,7 +141,7 @@ export function createSceneAudioPlayer(audioMetadata: AudioPlaybackMetadata | un
     if (!enabled || !chain || !recipes) return;
     for (const event of events) {
       if (!isEligibleKind(event.kind)) continue;
-      activeVoice?.stopImmediately();
+      activeVoice?.fadeOut(); // Never cut a sounding voice off abruptly.
       activeVoice = scheduleVoice(chain, recipes.voicePlanFor(event.kind, event.atMs), event.x, noiseBufferCache);
       break; // At most one audible voice at a time.
     }

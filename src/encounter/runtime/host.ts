@@ -77,6 +77,8 @@ class EncounterRuntimeController implements EncounterRuntime {
   resume(): void {
     if (!this.running || !this.paused || this.simulation.snapshot().complete) return;
     this.paused = false;
+    // Resume is an owner click; re-resume a context the browser suspended while hidden or paused.
+    if (this.soundEnabled) void this.audioPlayer.enable();
     if (this.phaser) this.phaser.resume();
     else this.resumeFallbackLoop();
   }

@@ -8,6 +8,8 @@ import type { PhaserSimulationBootstrap } from "./phaserBootstrap";
 type PhaserBootstrapFactory = (options: { signal: AbortSignal }) => Promise<PhaserSimulationBootstrap>;
 const phaserBootstrapMock = vi.hoisted(() => ({ create: vi.fn<PhaserBootstrapFactory>() }));
 vi.mock("./phaserBootstrap", () => ({ createPhaserSimulationBootstrap: phaserBootstrapMock.create }));
+const audioPlayerMock = vi.hoisted(() => ({ play: vi.fn(), enable: vi.fn(() => Promise.resolve()), silence: vi.fn(), destroy: vi.fn() }));
+vi.mock("./audio", () => ({ createSceneAudioPlayer: () => audioPlayerMock }));
 
 const originalDocument = Object.getOwnPropertyDescriptor(globalThis, "document");
 const originalImage = Object.getOwnPropertyDescriptor(globalThis, "Image");
@@ -201,6 +203,26 @@ describe("encounter runtime lifecycle", () => {
     runtime.destroy();
     expect(environment.canvases[0]!.connected()).toBe(false);
     expect(environment.documentListeners.get("visibilitychange")).toHaveLength(0);
+  });
+});
+
+describe("encounter runtime audio gestures", () => {
+  it("re-resumes audio from the owner's resume click only while sound is on", () => {
+    const environment = installRuntimeEnvironment();
+    const runtime = createEncounterRuntime(runtimeOptions(environment));
+    runtime.start();
+    audioPlayerMock.enable.mockClear();
+
+    runtime.pause();
+    runtime.resume();
+    expect(audioPlayerMock.enable).not.toHaveBeenCalled();
+
+    runtime.setSoundEnabled(true);
+    expect(audioPlayerMock.enable).toHaveBeenCalledTimes(1);
+    runtime.pause();
+    runtime.resume();
+    expect(audioPlayerMock.enable).toHaveBeenCalledTimes(2);
+    runtime.destroy();
   });
 });
 

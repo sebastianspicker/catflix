@@ -97,7 +97,7 @@ describe("createSceneAudioPlayer", () => {
     expect(masterGain?.gain.value).toBe(MASTER_GAIN);
   });
 
-  it("plays at most one voice at a time, stopping the previous one", async () => {
+  it("plays at most one voice at a time, fading out the previous one", async () => {
     const context = new FakeAudioContext();
     vi.stubGlobal("AudioContext", class { constructor() { return context; } });
     const player = createSceneAudioPlayer(metadata);
