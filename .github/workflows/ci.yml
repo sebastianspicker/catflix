@@ -34,6 +34,21 @@ jobs:
       - name: Run core verification
         run: npm run verify
 
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Run end-to-end verification
+        run: npm run test:e2e
+
+      - name: Preserve verified Pages artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: catflix-pages-dist
+          path: dist
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
   pages:
     needs: verify
     runs-on: ubuntu-latest
@@ -49,20 +64,14 @@ jobs:
           node-version-file: '.nvmrc'
           package-manager-cache: false
 
-      - name: Install dependencies
-        run: npm ci --ignore-scripts
-
-      - name: Build GitHub Pages artifact
-        run: npm run build:pages
-
-      - name: Preserve verified Pages artifact
-        uses: actions/upload-artifact@v4
+      - name: Retrieve the tested Pages artifact
+        uses: actions/download-artifact@v4
         with:
           name: catflix-pages-dist
           path: dist
-          include-hidden-files: true
-          if-no-files-found: error
-          retention-days: 1
+
+      - name: Validate the tested Pages artifact
+        run: node scripts/verify-pages-artifact.mjs && node scripts/verify-build-budget.mjs
 
   deploy:
     needs: pages
