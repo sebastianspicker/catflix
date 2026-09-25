@@ -6,9 +6,7 @@ import { createSceneSimulationEngine } from './sceneSimulation';
 
 /**
  * Product-invariant properties for the deterministic encounter engine, exercised only through
- * `SceneSimulation`'s public surface (advance/touch/snapshot). See the report accompanying this
- * change for two invariants the real engine does not fully satisfy: sound-event escalation under
- * contact, minimized to a concrete counterexample below rather than fuzzed.
+ * `SceneSimulation`'s public surface (advance/touch/snapshot).
  */
 
 interface Step { deltaMs: number; touch: Point | undefined; }
@@ -23,6 +21,7 @@ const variantArb: fc.Arbitrary<VariantSelection> = fc.record({
   novelty: fc.constantFrom('familiar', 'alternate'),
 });
 const seedArb = fc.integer({ min: 1, max: 1_000_000 });
+const soundOnVariantArb: fc.Arbitrary<VariantSelection> = variantArb.map((variant) => ({ ...variant, sound: 'on' }));
 const motionModeArb = fc.constantFrom<SceneMotionMode>('standard', 'low');
 const pointArb: fc.Arbitrary<Point> = fc.record({ x: fc.float({ min: 0, max: 1, noNaN: true }), y: fc.float({ min: 0, max: 1, noNaN: true }) });
 // deltaMs stays at or above two fixed 1000/60ms physics ticks so a step's own nominal duration
@@ -42,6 +41,12 @@ const advanceStep = (engine: SceneSimulation, step: Step): SceneSnapshot => { if
 const runSequence = (engine: SceneSimulation, steps: readonly Step[]): SceneSnapshot[] => steps.map((step) => advanceStep(engine, step));
 const isRestWindow = (event: SceneEvent): event is Extract<SceneEvent, { type: 'rest-window' }> => event.type === 'rest-window';
 const firstActor = (engine: SceneSimulation): Point => { const actor = engine.snapshot().actors[0]; if (!actor) throw new Error('scene produced no actors'); return actor; };
+const soundEventMultiset = (snapshots: readonly SceneSnapshot[]): Map<string, number> => {
+  const counts = new Map<string, number>();
+  for (const snapshot of snapshots) for (const event of snapshot.soundEvents) counts.set(`${event.kind}@${event.atMs}`, (counts.get(`${event.kind}@${event.atMs}`) ?? 0) + 1);
+  return counts;
+};
+const isSubmultisetOf = (subset: Map<string, number>, superset: Map<string, number>): boolean => [...subset].every(([key, count]) => (superset.get(key) ?? 0) >= count);
 
 describe('encounter engine product invariants: finite and deterministic', () => {
   it('completes at exactly its declared duration and stays silent after completion', () => {
@@ -105,13 +110,15 @@ describe('encounter engine product invariants: contacts never escalate', () => {
     }), { numRuns: 20 });
   });
 
-  // Known engine gap: an accepted contact can shift an actor's paused/hidden animationState
-  // and position at the exact moment `updateSceneAudio` samples its time-bucket, so a touched
-  // run can emit MORE sound events than the matched contact-free run (never fewer, in samples).
-  // Minimized counterexample: balcony-birds, seed 1, defaultSessionVariant with sound "on",
-  // touching the lead actor's own position every third 250ms tick for 120 ticks yields 4 sound
-  // events touched vs 3 untouched. Do not change engine code per the brief; documented here.
-  it.fails('accepted contacts never increase the number of emitted sound events versus a contact-free run', () => {
+  // Former engine gap, now a regression test: an accepted contact could shift an actor's
+  // paused/hidden animationState and position at the exact moment `updateSceneAudio` sampled
+  // its time-bucket, so a touched run could emit MORE sound events than the matched
+  // contact-free run. Sound is now scheduled against a contact-free shadow timeline (see
+  // sceneSimulation.ts / sceneAudio.ts), so the touched run's events are always a subset of
+  // the shadow's. Minimized case retained: balcony-birds, seed 1, defaultSessionVariant with
+  // sound "on", touching the lead actor's own position every third 250ms tick for 120 ticks
+  // previously yielded 4 sound events touched vs 3 untouched; it now holds as an ordinary pass.
+  it('accepted contacts never increase the number of emitted sound events versus a contact-free run', () => {
     const variants: VariantSelection = { ...defaultSessionVariant, sound: 'on' };
     const touched = buildEngine('balcony-birds', variants, 1, 'tablet-touch', 'standard');
     const untouched = buildEngine('balcony-birds', variants, 1, 'tablet-touch', 'standard');
@@ -123,6 +130,29 @@ describe('encounter engine product invariants: contacts never escalate', () => {
       elapsedMs += 250;
     }
     expect(touchedCount).toBeLessThanOrEqual(untouchedCount);
+  });
+
+  it('keeps a touched run’s multiset of sound events a subset of the matched contact-free run’s', () => {
+    fc.assert(fc.property(sceneIdArb, soundOnVariantArb, seedArb, motionModeArb, stepsArb, (sceneId, variants, seed, sceneMotionMode, steps) => {
+      const touched = buildEngine(sceneId, variants, seed, 'tablet-touch', sceneMotionMode);
+      const untouched = buildEngine(sceneId, variants, seed, 'tablet-touch', sceneMotionMode);
+      const touchedEvents = soundEventMultiset(runSequence(touched, steps));
+      const untouchedEvents = soundEventMultiset(runSequence(untouched, withoutTouches(steps)));
+      expect(isSubmultisetOf(touchedEvents, untouchedEvents)).toBe(true);
+    }), { numRuns: 20 });
+  });
+
+  it('never plays a sound event within the scene’s quiet window after an accepted contact', () => {
+    fc.assert(fc.property(sceneIdArb, soundOnVariantArb, seedArb, motionModeArb, stepsArb, (sceneId, variants, seed, sceneMotionMode, steps) => {
+      const engine = buildEngine(sceneId, variants, seed, 'tablet-touch', sceneMotionMode);
+      const refractoryMs = engine.score.interactionPolicy.refractoryMs;
+      const acceptedAtMs: number[] = [], soundAtMs: number[] = [];
+      for (const step of steps) {
+        if (step.touch) { const timestampMs = engine.snapshot().elapsedMs; if (engine.touch(step.touch).accepted) acceptedAtMs.push(timestampMs); }
+        soundAtMs.push(...engine.advance(step.deltaMs).soundEvents.map((event) => event.atMs));
+      }
+      for (const soundMs of soundAtMs) for (const acceptedMs of acceptedAtMs) expect(soundMs < acceptedMs || soundMs - acceptedMs >= refractoryMs).toBe(true);
+    }), { numRuns: 20 });
   });
 });
 
