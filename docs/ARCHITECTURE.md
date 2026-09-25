@@ -62,7 +62,8 @@ flowchart TD
 
 The diagram shows the main edges, not every allowed UI import.
 `scripts/check-architecture.mjs` is the authority: it classifies every TypeScript
-module, rejects forbidden relative imports and removed legacy paths, and reports
+module, rejects forbidden relative imports, checks that the diagram above only draws
+edges allowed by `scripts/architecture.config.json`, and reports
 dependency cycles.
 
 ## Encounter flow

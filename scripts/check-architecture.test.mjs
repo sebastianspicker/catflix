@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { URL } from 'node:url';
-import { checkDiagram, checkSourceTree } from './check-architecture.mjs';
+import { checkDiagram, checkSourceTree } from './architecture.mjs';
 
 async function fixture(t, files) {
   const root = await mkdtemp(join(tmpdir(), 'catflix-architecture-'));
