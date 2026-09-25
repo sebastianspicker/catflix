@@ -12,13 +12,14 @@ interface SceneSnapshotInput {
   frameEvents: SceneEvent[];
   pendingEvents: SceneEvent[];
   reminder: SceneSnapshot["reminder"];
+  interpolationAlpha: number;
 }
 
 export const sceneSnapshot = (input: SceneSnapshotInput): SceneSnapshot => {
-  const { score, elapsedMs, forcedRestUntilMs, actors, soundEvents, frameEvents, pendingEvents, reminder } = input;
+  const { score, elapsedMs, forcedRestUntilMs, actors, soundEvents, frameEvents, pendingEvents, reminder, interpolationAlpha } = input;
   const sceneId = score.id;
   const encounter = elapsedMs < forcedRestUntilMs ? { ...scenePhaseAt(score, elapsedMs), phase: "rest" as const, id: `${sceneId}:contact-rest` } : scenePhaseAt(score, elapsedMs);
   const events = reminder && ![...frameEvents, ...pendingEvents].some((event) => event.type === "contact-reminder") ? [...frameEvents, ...pendingEvents, reminder] : [...frameEvents, ...pendingEvents];
-  return { sceneId, elapsedMs, durationMs: score.durationMs, complete: elapsedMs >= score.durationMs, phase: encounter.phase, beatId: encounter.id, remainingMs: Math.max(0, score.durationMs - elapsedMs), signatureEffect: signatureEffect(sceneId, encounter.phase, actors[0]!), actors: actors.map(snapshotActor), soundEvents: [...soundEvents], events, reminder };
+  return { sceneId, elapsedMs, durationMs: score.durationMs, complete: elapsedMs >= score.durationMs, phase: encounter.phase, beatId: encounter.id, remainingMs: Math.max(0, score.durationMs - elapsedMs), interpolationAlpha, signatureEffect: signatureEffect(sceneId, encounter.phase, actors[0]!), actors: actors.map(snapshotActor), soundEvents: [...soundEvents], events, reminder };
 };
-const snapshotActor = (actor: MutableActor): SceneActorSnapshot => ({ id: actor.id, x: actor.x, y: actor.y, angle: actor.angle, state: actor.state, visible: actor.visible, scale: actor.scale, opacity: actor.opacity, facing: actor.facing, animationState: actor.animationState, poseFrame: actor.poseFrame, stateProgress: actor.stateProgress, depth: actor.depth, alpha: actor.alpha, scaleX: actor.scaleX, scaleY: actor.scaleY });
+const snapshotActor = (actor: MutableActor): SceneActorSnapshot => ({ id: actor.id, x: actor.x, y: actor.y, angle: actor.angle, state: actor.state, visible: actor.visible, scale: actor.scale, opacity: actor.opacity, facing: actor.facing, animationState: actor.animationState, poseFrame: actor.poseFrame, stateProgress: actor.stateProgress, depth: actor.depth, alpha: actor.alpha, scaleX: actor.scaleX, scaleY: actor.scaleY, previous: { x: actor.previous.x, y: actor.previous.y, angle: actor.previous.angle, scale: actor.previous.scale } });

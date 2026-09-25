@@ -1,7 +1,7 @@
 import type Phaser from "phaser";
 import type { SceneActorSnapshot, SceneMotionMode, SceneScore, SceneSnapshot, VariantSelection } from "../../domain";
 import { publicUrl } from "../../paths";
-import { coverRect, drawOccluder, orderedActors, poseAnchor, poseCrop, poseTextureFrame, quadraticPoints, ropeCurve, spriteUsesHorizontalFlip } from "./renderGeometry";
+import { coverRect, drawOccluder, interpolateActor, orderedActors, poseAnchor, poseCrop, poseTextureFrame, quadraticPoints, ropeCurve, spriteUsesHorizontalFlip } from "./renderGeometry";
 import type { EncounterVisualAssets } from "./canvasRenderer";
 
 export interface PhaserSimulationRendererOptions {
@@ -29,6 +29,7 @@ interface PhaserRendererState {
   foreground?: Phaser.GameObjects.Graphics | undefined;
   redStringRope?: Phaser.GameObjects.Rope | undefined;
   actorImages: Map<string, Phaser.GameObjects.Image>;
+  poseSheetSize?: { width: number; height: number } | undefined;
 }
 
 export function createPhaserSimulationRenderer(options: PhaserSimulationRendererOptions): PhaserSimulationRenderer {
@@ -53,7 +54,7 @@ function preloadAssets(renderer: PhaserRendererState, scene: Phaser.Scene): void
 function initializeScene(renderer: PhaserRendererState, scene: Phaser.Scene): void {
   renderer.activeScene = scene;
   renderer.background = scene.add.image(0, 0, "catflix-background").setOrigin(0.5);
-  registerPoseFrames(scene);
+  renderer.poseSheetSize = registerPoseFrames(scene);
   renderer.foreground = scene.add.graphics().setDepth(10);
   if (renderer.options.acceptsTouch) {
     scene.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
@@ -67,7 +68,7 @@ function initializeScene(renderer: PhaserRendererState, scene: Phaser.Scene): vo
   renderer.options.onReady();
 }
 
-function registerPoseFrames(scene: Phaser.Scene): void {
+function registerPoseFrames(scene: Phaser.Scene): { width: number; height: number } {
   const poseTexture = scene.textures.get("catflix-poses");
   const poseSheet = poseTexture.getSourceImage() as { width: number; height: number };
   for (let poseFrame = 0; poseFrame < 8; poseFrame += 1) {
@@ -75,6 +76,7 @@ function registerPoseFrames(scene: Phaser.Scene): void {
     const frameName = poseTextureFrame(poseFrame);
     if (!poseTexture.has(frameName)) poseTexture.add(frameName, 0, crop.x, crop.y, crop.width, crop.height);
   }
+  return { width: poseSheet.width, height: poseSheet.height };
 }
 
 function renderFrame(renderer: PhaserRendererState, state: SceneSnapshot): void {
@@ -87,19 +89,19 @@ function renderFrame(renderer: PhaserRendererState, state: SceneSnapshot): void 
     .setPosition(width / 2, height / 2)
     .setDisplaySize(cover.width, cover.height)
     .setAlpha(options.variant.figureGround === "enhanced" ? 0.52 : 0.78);
-  for (const actor of orderedActors(state)) renderActor(renderer, actor, width, height);
+  for (const actor of orderedActors(state)) renderActor(renderer, interpolateActor(actor, state.interpolationAlpha), width, height);
   drawForeground(renderer, width, height, state);
 }
 
 function renderActor(renderer: PhaserRendererState, actor: SceneActorSnapshot, width: number, height: number): void {
-  const { activeScene, options } = renderer;
+  const { activeScene, options, poseSheetSize } = renderer;
   if (!activeScene) return;
   if (options.score.id === "red-string") {
     renderRope(renderer, actor, width, height);
     return;
   }
   const image = actorImage(renderer, actor);
-  const poseSheet = activeScene.textures.get("catflix-poses").getSourceImage() as { width: number; height: number };
+  const poseSheet = poseSheetSize ?? activeScene.textures.get("catflix-poses").getSourceImage();
   const crop = poseCrop(poseSheet.width, poseSheet.height, actor.poseFrame);
   const anchor = poseAnchor(options.score.id, actor.poseFrame);
   const displayWidth = options.score.displayWidth * width * actor.scale;
@@ -174,4 +176,5 @@ function destroyRenderer(renderer: PhaserRendererState): void {
   renderer.foreground = undefined;
   renderer.redStringRope = undefined;
   renderer.actorImages.clear();
+  renderer.poseSheetSize = undefined;
 }
