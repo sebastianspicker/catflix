@@ -3,9 +3,27 @@ import type { MutableActor } from "./actorFactory";
 import type { SceneScore } from "../../domain";
 import { clamp, normalize, smoothstep } from "./simulationMath";
 
+/** Maximum heading change any single fixed step may apply through {@link rotateVelocity}, so
+ *  wobble noise can never spike into a hard direction cut regardless of its authored amplitude. */
+export const MAX_HEADING_STEP_RADIANS = .35;
 export const rotateVelocity = (actor: MutableActor, radians: number): void => {
-  const cosine = Math.cos(radians), sine = Math.sin(radians), direction = normalize(actor.vx * cosine - actor.vy * sine, actor.vx * sine + actor.vy * cosine);
+  const bounded = clamp(radians, -MAX_HEADING_STEP_RADIANS, MAX_HEADING_STEP_RADIANS);
+  const cosine = Math.cos(bounded), sine = Math.sin(bounded), direction = normalize(actor.vx * cosine - actor.vy * sine, actor.vx * sine + actor.vy * cosine);
   actor.vx = direction.x; actor.vy = direction.y;
+};
+/** Eases a behaviour's local progress toward zero near its start and end, so a state transition
+ *  ramps its target speed in and out instead of stepping it at the boundary. */
+export const easeInOut = (progress: number, rampIn: number, rampOut: number): number =>
+  smoothstep(0, Math.max(rampIn, Number.EPSILON), progress) * (1 - smoothstep(1 - Math.max(rampOut, Number.EPSILON), 1, progress));
+/** Deterministic, seeded flutter noise: a small sum of sines with per-actor phases, in place of a
+ *  single jittery term, so wing wobble stays smooth while remaining unpredictable-looking. */
+export const seededNoise = (seconds: number, seed: number, terms: readonly (readonly [frequency: number, weight: number])[]): number =>
+  terms.reduce((sum, [frequency, weight], index) => sum + Math.sin(seconds * frequency + seed * (index + 1) * 2.3) * weight, 0);
+/** Advances a pose cadence by actual travel speed rather than wall time, so gait or wingbeat frame
+ *  changes track how far the actor has moved instead of drifting at a fixed rate while it is slow. */
+export const advancePoseBySpeed = (posePhase: number, deltaSeconds: number, speed: number, referenceSpeed: number, baseCadence: number): number => {
+  const cadence = baseCadence * clamp(speed / Math.max(referenceSpeed, Number.EPSILON), .35, 1.6);
+  return (posePhase + deltaSeconds * cadence) % 1;
 };
 export const steer = (actor: MutableActor, desiredX: number, desiredY: number, deltaSeconds: number, responsiveness: number, score: SceneScore): void => {
   const desired = normalize(desiredX, desiredY), currentAngle = Math.atan2(actor.vy, actor.vx), desiredAngle = Math.atan2(desired.y, desired.x), angularDifference = Math.atan2(Math.sin(desiredAngle - currentAngle), Math.cos(desiredAngle - currentAngle));

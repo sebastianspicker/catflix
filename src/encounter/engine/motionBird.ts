@@ -1,6 +1,6 @@
 import type { MutableActor } from "./actorFactory";
 import type { MotionStrategy } from "./motionTypes";
-import { accelerateAndMove, approachSurface, steer } from "./motionMath";
+import { accelerateAndMove, advancePoseBySpeed, approachSurface, steer } from "./motionMath";
 import { clamp } from "./simulationMath";
 import { isLowMotion } from "./simulationTiming";
 import type { SceneScore } from "../../domain";
@@ -9,13 +9,18 @@ export const advanceBird: MotionStrategy = (actor, time, deltaSeconds, reducedSc
   const lowMotion = isLowMotion(context.preferences), mode = birdModes[behavior.state]!, motion = birdMotionFor(mode, actor, progress, lowMotion);
   const settled = settleBird(actor, mode, deltaSeconds, reducedScale, context.score);
   if (!mode.perch) steerBird(actor, motion.desiredY, deltaSeconds, mode, context.score);
+  // The acceleration cap in accelerateAndMove already ramps speed at a constant, jerk-free rate
+  // between modes (measured: adding a further eased speed-target on top raised RMS jerk instead
+  // of lowering it, by replacing that brief, minimal-jerk ramp with a longer, continuously curved
+  // one), so take-off and landing stay a single constant-acceleration ramp rather than a re-eased
+  // target; the hop's own vertical arc below is still a clean parabola.
   const speed = accelerateAndMove(actor, context.score.baseSpeed * mode.speedScale * reducedScale, deltaSeconds, context.score);
-  Object.assign(actor, birdPresentationFor({ actor, mode, motion, time, deltaSeconds, speed, maxSpeed: context.score.maxSpeed, lowMotion, settled }));
+  Object.assign(actor, birdPresentationFor({ actor, mode, motion, time, deltaSeconds, speed, maxSpeed: context.score.maxSpeed, reducedScale, lowMotion, settled }));
 };
 
 type BirdMode = { perch: number; hop: number; flight: 0 | 1; speedScale: number; yTurn: number; responsiveness: number };
 type BirdMotion = { hopArc: number; desiredY: number };
-type BirdPresentationInput = { actor: MutableActor; mode: BirdMode; motion: BirdMotion; time: number; deltaSeconds: number; speed: number; maxSpeed: number; lowMotion: boolean; settled: boolean };
+type BirdPresentationInput = { actor: MutableActor; mode: BirdMode; motion: BirdMotion; time: number; deltaSeconds: number; speed: number; maxSpeed: number; reducedScale: number; lowMotion: boolean; settled: boolean };
 
 const birdMotionFor = (mode: BirdMode, actor: MutableActor, progress: number, lowMotion: boolean): BirdMotion => {
   const hopArc = mode.hop * (lowMotion ? 0 : 4 * progress * (1 - progress));
@@ -30,12 +35,15 @@ const steerBird = (actor: MutableActor, desiredY: number, deltaSeconds: number, 
   steer(actor, horizontalDirection, (desiredY - actor.y) * mode.yTurn, deltaSeconds, mode.responsiveness, score);
 };
 
-const birdPresentationFor = ({ actor, mode, motion, time, deltaSeconds, speed, maxSpeed, lowMotion, settled }: BirdPresentationInput): Pick<MutableActor, "angle" | "stretchX" | "stretchY" | "scale" | "motionEnergy" | "propulsion" | "posePhase" | "state"> => {
+const birdPresentationFor = ({ actor, mode, motion, time, deltaSeconds, speed, maxSpeed, reducedScale, lowMotion, settled }: BirdPresentationInput): Pick<MutableActor, "angle" | "stretchX" | "stretchY" | "scale" | "motionEnergy" | "propulsion" | "posePhase" | "state"> => {
   const wing = Math.sin(time * .019) * mode.flight;
   return {
     angle: lowMotion ? 0 : clamp(actor.vy * .22, -.13, .13), stretchX: 1 + wing * .035, stretchY: 1 - wing * .055,
     scale: actor.baseScale * (1 + motion.hopArc * .035 + mode.flight * .045), motionEnergy: clamp(speed / maxSpeed + Math.abs(wing) * .35, 0, 1), propulsion: mode.flight ? Math.abs(wing) : motion.hopArc,
-    posePhase: (actor.posePhase + deltaSeconds * mode.flight * (lowMotion ? .45 : 1.35)) % 1,
+    // Wingbeat cadence tracks actual flight speed instead of wall time. The reference speed scales
+    // with reducedScale too, so low motion mode's slower cruise still spans the same relative part
+    // of the cadence curve rather than saturating at its floor and reverting to a fixed rate.
+    posePhase: mode.flight ? advancePoseBySpeed(actor.posePhase, deltaSeconds, speed, maxSpeed * .55 * reducedScale, lowMotion ? .45 : 1.35) : actor.posePhase,
     state: ["moving", "paused"][Number(mode.perch && settled && actor.currentSpeed <= .01)] as MutableActor["state"],
   };
 };
