@@ -23,6 +23,8 @@ versioning once a release is tagged.
   mode, rest window, no contact escalation) and golden v1/v2 import fixtures
 - A declarative architecture boundary config that the checker and the
   documented dependency diagram are both verified against
+- Synthesized scene sound with the Web Audio API; sound stays optional, starts
+  muted, and is generated locally rather than loading a recording
 
 ### Changed
 

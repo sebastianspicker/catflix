@@ -1,12 +1,13 @@
 import { useRef, useState } from 'react';
 import type { ContentManifest } from '../../catalogue/model';
 import type { SceneMotionMode, SceneSnapshot } from '../../domain';
+import { isWebAudioSupported } from '../runtime';
 import type { AudioCapability, PlayerRuntime, PlayerRuntimeOptions } from './Player.types';
 import { type PlayerHost, usePlayerHostLifecycle } from './usePlayerHostLifecycle';
 
 
 const audioCapabilityFor = (manifest: ContentManifest, soundVariant: 'off' | 'on'): AudioCapability => {
-  if (soundVariant === 'off') return 'unavailable';
+  if (soundVariant === 'off' || !isWebAudioSupported()) return 'unavailable';
   return manifest.audio?.provenance?.some((record) => record.eligible) ? 'available' : 'awaiting-provenance';
 };
 

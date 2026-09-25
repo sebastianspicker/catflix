@@ -14,8 +14,9 @@ monorepo and has no independently operated service or package.
   diagnosis, or therapeutic benefit.
 - There is no runtime account, API, analytics, cloud sync, or catalogue network
   dependency.
-- Audio is unavailable until an eligible local recording and its provenance are
-  added. Existing visual assets do not establish redistribution clearance.
+- Audio is synthesized locally with the Web Audio API at playback time; no
+  recording is bundled or streamed. Existing visual assets do not establish
+  redistribution clearance.
 
 ## Source boundaries
 

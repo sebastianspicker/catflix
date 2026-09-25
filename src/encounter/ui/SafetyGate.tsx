@@ -53,7 +53,7 @@ export function SafetyGate({ sceneTitle, sceneDescription, preview, durationMs, 
     <div className="setup-layout">
       <div className="setup-preview">
         {preview}
-        <h3>{sceneTitle}</h3><p>{sceneDescription}</p><p>Finite · Sound unavailable</p>
+        <h3>{sceneTitle}</h3><p>{sceneDescription}</p><p>Finite · Muted start</p>
         <p className="setup-boundary">Let your cat approach or leave freely. Attention is not evidence of enjoyment or benefit.</p>
       </div>
       <div className="setup-form">

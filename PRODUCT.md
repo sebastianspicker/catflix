@@ -94,8 +94,9 @@ refer to that ledger.
 
 ### Audio
 
-The current catalogue has no provenance-eligible audio recording, so sound is
-unavailable in the product. These rules apply if an eligible source is added.
+Catflix synthesizes each event's sound locally with the Web Audio API at
+playback time; no environmental recording is bundled or streamed. These rules
+govern that synthesized source.
 
 1. Keep sound optional, and start it off or at the quietest ordinary household
    level. No included study establishes a feline-safe product sound-pressure

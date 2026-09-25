@@ -172,9 +172,10 @@ An approved record must also state `evidence_endpoint`: `capacity`, `attention`,
 
 ## Playback and safety principles
 
-Current implementation note: the catalogue has no provenance-eligible audio
-recording, so Catflix does not currently make sound available. The audio rules
-below constrain a future eligible source.
+Current implementation note: Catflix synthesizes each event's sound locally
+with the Web Audio API at playback time (`audio_source`: synthetic effect); no
+recording is bundled or streamed. The audio rules below constrain that
+synthesized source.
 
 1. Playback is always optional for the cat. Do not place or hold a cat in front of a screen. MOT-07 demonstrates why handling during testing limits transfer to voluntary preference.
 2. Secure televisions and tablets against tipping, sliding, claw damage, cable access, and falls before playback. This precaution follows screen-directed reaching and striking in VID-01, VID-02, and VID-04; no device-injury trial establishes a threshold.
