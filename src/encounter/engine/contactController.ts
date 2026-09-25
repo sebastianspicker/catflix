@@ -6,7 +6,7 @@ import { contactResponseFor } from "./simulationResponses";
 export interface ContactState {
   refractoryUntilMs: number;
   forcedRestUntilMs: number;
-  reminder?: Extract<SceneEvent, { type: "contact-reminder" }>;
+  reminder?: Extract<SceneEvent, { type: "contact-reminder" }> | undefined;
 }
 
 export class ContactController {

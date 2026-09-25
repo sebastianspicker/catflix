@@ -6,7 +6,7 @@ import type {
 import type { SetupContext } from '../domain';
 import type { SessionPlan } from '../encounter/session';
 import type { EvidenceThemeId } from '../research/evidence';
-import type { SceneMotionMode, StorageStatus } from '../local-data/types';
+import type { LocalRecordHistory, SceneMotionMode, SessionObservation, StorageStatus } from '../local-data/types';
 import type { CompletedSession, PendingSession, SessionResult } from './catalogueModel';
 import { mergeQueueIds, sessionUpdate } from './catalogueModel';
 
@@ -14,15 +14,16 @@ export interface CatalogueWorkflowState {
   theme: CatalogueThemeFilter; subject: CatalogueSubjectFilter; rhythm: CatalogueRhythmFilter; queue: SessionPlan['manifest']['id'][];
   progress: Partial<Record<SessionPlan['manifest']['id'], number>>;
   pending: PendingSession | null; active: SessionPlan | null; completed: CompletedSession | null;
+  savedObservation: SessionObservation | null;
   queueOpen: boolean; curatorOpen: boolean; dataOpen: boolean; refereesOpen: boolean;
-  evidenceOpen: EvidenceThemeId | null; recordCounts: { notes: number; comparisons: number };
+  evidenceOpen: EvidenceThemeId | null; recordHistory: LocalRecordHistory;
   sceneMotionMode: SceneMotionMode; storageStatus: StorageStatus;
   hydration: 'pending' | 'complete'; queueChangedDuringHydration: boolean; sceneMotionChangedDuringHydration: boolean;
-  progressChangedDuringHydration: boolean; recordCountsChangedDuringHydration: boolean;
+  progressChangedDuringHydration: boolean; recordHistoryChangedDuringHydration: boolean;
 }
 
 export type CatalogueWorkflowAction =
-  | { type: 'hydrate'; queue: CatalogueWorkflowState['queue']; progress: CatalogueWorkflowState['progress']; recordCounts: CatalogueWorkflowState['recordCounts']; sceneMotionMode: SceneMotionMode }
+  | { type: 'hydrate'; queue: CatalogueWorkflowState['queue']; progress: CatalogueWorkflowState['progress']; recordHistory: LocalRecordHistory; sceneMotionMode: SceneMotionMode }
   | { type: 'set-filter'; filter: 'theme'; value: CatalogueThemeFilter }
   | { type: 'set-filter'; filter: 'subject'; value: CatalogueSubjectFilter }
   | { type: 'set-filter'; filter: 'rhythm'; value: CatalogueRhythmFilter }
@@ -32,20 +33,22 @@ export type CatalogueWorkflowAction =
   | { type: 'start'; playbackMode: SessionPlan['playbackMode']; setup: SetupContext }
   | { type: 'finish'; result: SessionResult }
   | { type: 'clear-completed' }
+  | { type: 'observation-saved'; observation: SessionObservation; recordHistory: LocalRecordHistory }
+  | { type: 'close-receipt'; showHistory?: boolean }
   | { type: 'set-panel'; panel: 'queueOpen' | 'curatorOpen' | 'dataOpen' | 'refereesOpen'; open: boolean }
   | { type: 'set-evidence'; evidenceOpen: EvidenceThemeId | null }
   | { type: 'set-motion-mode'; sceneMotionMode: SceneMotionMode }
   | { type: 'set-storage-status'; storageStatus: StorageStatus }
-  | { type: 'increment-records'; notes: number; comparisons: number };
+  | { type: 'set-record-history'; recordHistory: LocalRecordHistory };
 
 export const initialCatalogueWorkflowState = (storageStatus: StorageStatus): CatalogueWorkflowState => ({
-  theme: 'all', subject: 'all', rhythm: 'all', queue: [], progress: {}, pending: null, active: null, completed: null,
-  queueOpen: false, curatorOpen: false, dataOpen: false, refereesOpen: false, evidenceOpen: null, recordCounts: { notes: 0, comparisons: 0 }, sceneMotionMode: 'standard', storageStatus,
+  theme: 'all', subject: 'all', rhythm: 'all', queue: [], progress: {}, pending: null, active: null, completed: null, savedObservation: null,
+  queueOpen: false, curatorOpen: false, dataOpen: false, refereesOpen: false, evidenceOpen: null, recordHistory: { notes: [], observations: [], comparisons: [] }, sceneMotionMode: 'standard', storageStatus,
   hydration: 'pending', queueChangedDuringHydration: false, sceneMotionChangedDuringHydration: false,
-  progressChangedDuringHydration: false, recordCountsChangedDuringHydration: false,
+  progressChangedDuringHydration: false, recordHistoryChangedDuringHydration: false,
 });
 
-type SessionWorkflowAction = Extract<CatalogueWorkflowAction, { type: 'hydrate' | 'set-queue' | 'prepare' | 'cancel-preparing' | 'start' | 'finish' | 'clear-completed' }>;
+type SessionWorkflowAction = Extract<CatalogueWorkflowAction, { type: 'hydrate' | 'set-queue' | 'prepare' | 'cancel-preparing' | 'start' | 'finish' | 'clear-completed' | 'observation-saved' | 'close-receipt' }>;
 type PresentationWorkflowAction = Exclude<CatalogueWorkflowAction, SessionWorkflowAction>;
 
 export function catalogueWorkflowReducer(state: CatalogueWorkflowState, action: CatalogueWorkflowAction): CatalogueWorkflowState {
@@ -54,7 +57,7 @@ export function catalogueWorkflowReducer(state: CatalogueWorkflowState, action: 
 
 function isSessionWorkflowAction(action: CatalogueWorkflowAction): action is SessionWorkflowAction {
   switch (action.type) {
-    case 'hydrate': case 'set-queue': case 'prepare': case 'cancel-preparing': case 'start': case 'finish': case 'clear-completed': return true;
+    case 'hydrate': case 'set-queue': case 'prepare': case 'cancel-preparing': case 'start': case 'finish': case 'clear-completed': case 'observation-saved': case 'close-receipt': return true;
     default: return false;
   }
 }
@@ -62,12 +65,14 @@ function isSessionWorkflowAction(action: CatalogueWorkflowAction): action is Ses
 function reduceSessionWorkflow(state: CatalogueWorkflowState, action: SessionWorkflowAction): CatalogueWorkflowState {
   switch (action.type) {
     case 'hydrate': return hydrateWorkflow(state, action);
-    case 'set-queue': return { ...state, queue: action.queue, queueChangedDuringHydration: state.hydration === 'pending' || state.queueChangedDuringHydration };
+    case 'set-queue': return setQueue(state, action.queue);
     case 'prepare': return { ...state, pending: action.pending };
     case 'cancel-preparing': return { ...state, pending: null };
     case 'start': return startPendingSession(state, action);
     case 'finish': return finishActiveSession(state, action);
     case 'clear-completed': return { ...state, completed: null };
+    case 'observation-saved': return saveObservationReceipt(state, action);
+    case 'close-receipt': return { ...state, savedObservation: null, dataOpen: action.showHistory === true };
   }
 }
 
@@ -78,10 +83,10 @@ function reducePresentationWorkflow(state: CatalogueWorkflowState, action: Prese
     case 'set-evidence': return { ...state, evidenceOpen: action.evidenceOpen };
     case 'set-motion-mode': return { ...state, sceneMotionMode: action.sceneMotionMode, sceneMotionChangedDuringHydration: state.hydration === 'pending' || state.sceneMotionChangedDuringHydration };
     case 'set-storage-status': return { ...state, storageStatus: action.storageStatus };
-    case 'increment-records': return {
+    case 'set-record-history': return {
       ...state,
-      recordCounts: { notes: state.recordCounts.notes + action.notes, comparisons: state.recordCounts.comparisons + action.comparisons },
-      recordCountsChangedDuringHydration: state.hydration === 'pending' || state.recordCountsChangedDuringHydration,
+      recordHistory: action.recordHistory,
+      recordHistoryChangedDuringHydration: state.hydration === 'pending' || state.recordHistoryChangedDuringHydration,
     };
   }
 }
@@ -91,12 +96,10 @@ function hydrateWorkflow(state: CatalogueWorkflowState, action: Extract<Catalogu
     ...state,
     queue: state.queueChangedDuringHydration ? mergeQueueIds(action.queue, state.queue) : action.queue,
     progress: state.progressChangedDuringHydration ? { ...action.progress, ...state.progress } : action.progress,
-    recordCounts: state.recordCountsChangedDuringHydration
-      ? { notes: action.recordCounts.notes + state.recordCounts.notes, comparisons: action.recordCounts.comparisons + state.recordCounts.comparisons }
-      : action.recordCounts,
+    recordHistory: state.recordHistoryChangedDuringHydration ? state.recordHistory : action.recordHistory,
     sceneMotionMode: state.sceneMotionChangedDuringHydration ? state.sceneMotionMode : action.sceneMotionMode,
     hydration: 'complete', queueChangedDuringHydration: false, sceneMotionChangedDuringHydration: false,
-    progressChangedDuringHydration: false, recordCountsChangedDuringHydration: false,
+    progressChangedDuringHydration: false, recordHistoryChangedDuringHydration: false,
   };
 }
 
@@ -104,6 +107,10 @@ function setFilter(state: CatalogueWorkflowState, action: Extract<CatalogueWorkf
   if (action.filter === 'theme') return { ...state, theme: action.value };
   if (action.filter === 'subject') return { ...state, subject: action.value };
   return { ...state, rhythm: action.value };
+}
+
+function setQueue(state: CatalogueWorkflowState, queue: CatalogueWorkflowState['queue']): CatalogueWorkflowState {
+  return { ...state, queue, queueChangedDuringHydration: state.hydration === 'pending' || state.queueChangedDuringHydration };
 }
 
 function startPendingSession(state: CatalogueWorkflowState, action: Extract<CatalogueWorkflowAction, { type: 'start' }>): CatalogueWorkflowState {
@@ -120,5 +127,12 @@ function finishActiveSession(state: CatalogueWorkflowState, action: Extract<Cata
     ...state, active: null, completed: update.completed,
     progress: { ...state.progress, [state.active.manifest.id]: update.progress },
     progressChangedDuringHydration: state.hydration === 'pending' || state.progressChangedDuringHydration,
+  };
+}
+
+function saveObservationReceipt(state: CatalogueWorkflowState, action: Extract<CatalogueWorkflowAction, { type: 'observation-saved' }>): CatalogueWorkflowState {
+  return {
+    ...state, completed: null, savedObservation: action.observation, recordHistory: action.recordHistory,
+    recordHistoryChangedDuringHydration: state.hydration === 'pending' || state.recordHistoryChangedDuringHydration,
   };
 }

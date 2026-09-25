@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ContentManifest } from '../../catalogue/model';
 import type { VariantSelection } from '../../domain';
-import type { ComparisonDimension } from '../session';
+import type { ComparisonDimension, ComparisonSide } from '../session';
 import { useModalDialog } from '../../ui/useModalDialog';
 
 export type { ComparisonDimension } from '../session';
@@ -9,7 +9,7 @@ export type { ComparisonDimension } from '../session';
 interface CuratorPanelProps {
   manifests: readonly ContentManifest[];
   onClose: () => void;
-  onStart: (_sceneId: ContentManifest['id'], _variant: VariantSelection, _comparison: { dimension: ComparisonDimension; label: string }) => void;
+  onStart: (_sceneId: ContentManifest['id'], _variant: VariantSelection, _comparison: { dimension: ComparisonDimension; side: ComparisonSide }) => void;
 }
 
 function variantFor(dimension: ComparisonDimension, order: 'a' | 'b'): VariantSelection {
@@ -26,7 +26,7 @@ function dimensionLabel(dimension: ComparisonDimension): string {
 }
 
 export function CuratorPanel({ manifests, onClose, onStart }: CuratorPanelProps) {
-  const [sceneId, setSceneId] = useState(manifests[0].id);
+  const [sceneId, setSceneId] = useState(manifests[0]!.id);
   const [dimension, setDimension] = useState<ComparisonDimension>('contrast');
   const [order, setOrder] = useState<'a' | 'b'>('a');
   const dialogRef = useModalDialog<HTMLElement>(onClose);
@@ -35,6 +35,6 @@ export function CuratorPanel({ manifests, onClose, onStart }: CuratorPanelProps)
     <button className="icon-button dialog-close" type="button" aria-label="Close curator" onClick={onClose}>×</button><p className="section-index">Curator tools</p><h2 id="curator-title">One change.<br />Two observations.</h2>
     <p className="plain-language">Matched comparisons change one dimension at a time. Each record describes one observed side; the other side remains unrecorded until its own manual session.</p>
     <div className="comparison-form"><label>Scene<select value={sceneId} onChange={(event) => { setSceneId(event.target.value as ContentManifest['id']); }}>{manifests.map((item) => <option value={item.id} key={item.id}>{item.catalogue.displayTitle}</option>)}</select></label><fieldset><legend>Dimension</legend>{(['contrast', 'motion'] as ComparisonDimension[]).map((item) => <label key={item}><input type="radio" name="dimension" value={item} checked={dimension === item} onChange={() => { setDimension(item); }} /><span>{dimensionLabel(item)}</span></label>)}</fieldset><fieldset><legend>Run</legend><label><input type="radio" name="order" checked={order === 'a'} onChange={() => { setOrder('a'); }} /><span>A / baseline</span></label><label><input type="radio" name="order" checked={order === 'b'} onChange={() => { setOrder('b'); }} /><span>B / changed dimension</span></label></fieldset></div>
-    <div className="comparison-preview"><span>Fixed</span><strong>{variant.figureGround} contrast · {variant.motion} motion · sound {variant.sound} · {variant.novelty}</strong></div><div className="modal-actions"><button className="text-button" type="button" onClick={onClose}>Cancel</button><button className="primary-button" type="button" onClick={() => { onStart(sceneId, variant, { dimension, label: `${order.toUpperCase()} / ${dimension}` }); }}>Prepare this run</button></div>
+    <div className="comparison-preview"><span>Fixed</span><strong>{variant.figureGround} contrast · {variant.motion} motion · sound {variant.sound} · {variant.novelty}</strong></div><div className="modal-actions"><button className="text-button" type="button" onClick={onClose}>Cancel</button><button className="primary-button" type="button" onClick={() => { onStart(sceneId, variant, { dimension, side: order }); }}>Prepare this run</button></div>
   </section></div>;
 }

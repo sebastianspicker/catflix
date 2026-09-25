@@ -32,5 +32,5 @@ export function signatureEffect(sceneId: SceneId, phase: EncounterPhase, actor: 
 export function contactResponseFor(sceneId: SceneId, state: AnimationState, phase: EncounterPhase, allowed: readonly NonNullable<TouchResponse["response"]>[]): NonNullable<TouchResponse["response"]> {
   const keys = [`${sceneId}:${state}:${phase}`, `${sceneId}:${state}:*`, `${sceneId}:*:${phase}`, `${sceneId}:*:*`];
   const preferred = keys.map((key) => responseRules.get(key)).find((response) => response !== undefined) ?? "redirect";
-  return allowed.includes(preferred) ? preferred : allowed[0];
+  return allowed.includes(preferred) ? preferred : allowed[0] ?? "redirect";
 }

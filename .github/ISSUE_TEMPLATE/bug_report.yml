@@ -1,20 +1,19 @@
 ---
 name: Bug report
-description: >-
-  Report a reproducible Catflix problem without including private data.
+description: Report a reproducible Catflix problem without including private data.
 title: "[Bug]: "
 labels: [bug]
 body:
   - type: markdown
     attributes:
       value: >-
-        Do not include exported records, household names, or security-sensitive
+        Don't include exported records, household names, or security-sensitive
         details. Use private vulnerability reporting for security issues.
   - type: input
     id: version
     attributes:
       label: Version or commit
-      placeholder: 0.2.0 or commit identifier
+      placeholder: 0.2.0 or a commit identifier
     validations:
       required: true
   - type: dropdown
@@ -28,6 +27,7 @@ body:
         - Television scene
         - Local records or data transfer
         - Research view
+        - Screenshot tour
         - Other
     validations:
       required: true
@@ -35,7 +35,7 @@ body:
     id: steps
     attributes:
       label: Reproduction steps
-      description: Include the smallest sequence that reproduces the problem.
+      description: Give the smallest sequence that reproduces the problem.
     validations:
       required: true
   - type: textarea

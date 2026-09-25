@@ -4,6 +4,33 @@ export const poseTextureFrame = (poseFrame: number): string => `pose-${((Math.fl
 export const spriteUsesHorizontalFlip = (sceneId: SceneId): boolean => sceneId === "balcony-birds";
 export const orderedActors = (state: SceneSnapshot): SceneActorSnapshot[] => [...state.actors].sort((left, right) => left.depth - right.depth);
 
+const teleportDistance = 0.12;
+
+/**
+ * Blends an actor's transform toward its most recent fixed step using the clock's leftover
+ * fraction, so 60Hz simulation steps read smoothly on faster displays and jittery rAF cadences.
+ * Position, angle (shortest arc) and scale are blended; pose frame and alpha are not. The blend
+ * is skipped for an invisible actor or one whose position jumped further than a plausible single
+ * step, so teleports and reappearances snap instead of sliding.
+ */
+export function interpolateActor(actor: SceneActorSnapshot, alpha: number): SceneActorSnapshot {
+  if (alpha <= 0 || !actor.visible) return actor;
+  const { previous } = actor;
+  if (Math.hypot(actor.x - previous.x, actor.y - previous.y) > teleportDistance) return actor;
+  return {
+    ...actor,
+    x: previous.x + (actor.x - previous.x) * alpha,
+    y: previous.y + (actor.y - previous.y) * alpha,
+    angle: previous.angle + shortestAngleDelta(previous.angle, actor.angle) * alpha,
+    scale: previous.scale + (actor.scale - previous.scale) * alpha,
+  };
+}
+
+function shortestAngleDelta(from: number, to: number): number {
+  const twoPi = Math.PI * 2;
+  return ((to - from + Math.PI) % twoPi + twoPi) % twoPi - Math.PI;
+}
+
 export function poseCrop(sheetWidth: number, sheetHeight: number, poseFrame: number): { x: number; y: number; width: number; height: number } {
   const frame = ((Math.floor(poseFrame) % 8) + 8) % 8;
   const width = Math.floor(sheetWidth / 4);
@@ -11,17 +38,21 @@ export function poseCrop(sheetWidth: number, sheetHeight: number, poseFrame: num
   return { x: (frame % 4) * width, y: frame < 4 ? 0 : sheetHeight - height, width, height };
 }
 
+// Hoisted out of poseAnchor(): it is called once per visible actor every frame, and rebuilding this
+// map (and its Point literals) on every call was a measurable per-frame allocation.
+const defaultAnchor: Point = { x: .5, y: .5 };
+const poseAnchors = new Map<Exclude<SceneId, "red-string">, readonly Point[]>([
+  ["balcony-birds", [{ x: .5, y: .58 }, { x: .51, y: .58 }, { x: .49, y: .58 }, { x: .5, y: .61 }, { x: .48, y: .53 }, { x: .47, y: .52 }, { x: .48, y: .53 }, { x: .5, y: .82 }]],
+  ["koi-pool", [{ x: .55, y: .72 }, { x: .34, y: .68 }, { x: .43, y: .66 }, { x: .44, y: .68 }, { x: .25, y: .69 }, { x: .41, y: .72 }, { x: .5, y: .72 }, { x: .42, y: .73 }]],
+  ["paper-moth", [{ x: .48, y: .49 }, { x: .49, y: .5 }, { x: .5, y: .51 }, { x: .5, y: .52 }, { x: .6, y: .51 }, { x: .59, y: .51 }, { x: .58, y: .51 }, { x: .48, y: .52 }]],
+  ["beetle-under-the-fern", [{ x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }]],
+]);
+
 export function poseAnchor(sceneId: SceneId, poseFrame: number): Point {
+  if (sceneId === "red-string") return defaultAnchor;
   const frame = ((Math.floor(poseFrame) % 8) + 8) % 8;
-  const anchors = new Map<Exclude<SceneId, "red-string">, readonly Point[]>([
-    ["balcony-birds", [{ x: .5, y: .58 }, { x: .51, y: .58 }, { x: .49, y: .58 }, { x: .5, y: .61 }, { x: .48, y: .53 }, { x: .47, y: .52 }, { x: .48, y: .53 }, { x: .5, y: .82 }]],
-    ["koi-pool", [{ x: .55, y: .72 }, { x: .34, y: .68 }, { x: .43, y: .66 }, { x: .44, y: .68 }, { x: .25, y: .69 }, { x: .41, y: .72 }, { x: .5, y: .72 }, { x: .42, y: .73 }]],
-    ["paper-moth", [{ x: .48, y: .49 }, { x: .49, y: .5 }, { x: .5, y: .51 }, { x: .5, y: .52 }, { x: .6, y: .51 }, { x: .59, y: .51 }, { x: .58, y: .51 }, { x: .48, y: .52 }]],
-    ["beetle-under-the-fern", [{ x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }, { x: .5, y: .53 }]],
-  ]);
-  if (sceneId === "red-string") return { x: .5, y: .5 };
-  const sceneAnchors = anchors.get(sceneId);
-  return sceneAnchors?.at(frame) ?? sceneAnchors?.[0] ?? { x: .5, y: .5 };
+  const sceneAnchors = poseAnchors.get(sceneId);
+  return sceneAnchors?.at(frame) ?? sceneAnchors?.[0] ?? defaultAnchor;
 }
 
 export function coverRect(sourceWidth: number, sourceHeight: number, targetWidth: number, targetHeight: number): { x: number; y: number; width: number; height: number } {

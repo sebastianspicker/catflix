@@ -27,7 +27,7 @@ export const scenePhaseAt = (score: SceneScore, timeMs: number): EncounterBeat =
     if (cursor < weight) return encounter;
     cursor -= weight;
   }
-  return score.encounter.at(-1) ?? score.encounter[0];
+  return score.encounter.at(-1) ?? score.encounter[0]!;
 };
 
 export const advanceActorForFixedStep = (actor: MutableActor, encounter: EncounterBeat, deltaMs: number, context: ActorMotionContext): void => {

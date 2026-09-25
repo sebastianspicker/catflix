@@ -16,7 +16,7 @@ export interface SetupContext {
   supervised: true;
   roomLightBand: "dim" | "moderate" | "bright";
   viewingDistanceBand: "near-screen" | "room-display";
-  observedCat?: "Arri" | "Ozzy" | "Mika";
+  observedCat?: "Arri" | "Ozzy" | "Mika" | undefined;
 }
 
 export interface SessionSetup {
@@ -75,6 +75,8 @@ export type SceneEvent =
   | { type: "rest-window"; reason: "editorial-contact-cap" | "authored"; durationMs: number; atMs: number }
   | { type: "contact-reminder"; id: "contact-cap"; acceptedContacts: number; windowMs: number; dismissible: true; editorialSafetyCap: true; atMs: number }
   | { type: "complete"; atMs: number };
+/** The actor's fixed-step transform immediately before its most recent step, for renderer interpolation. */
+export interface ActorTransform { x: number; y: number; angle: number; scale: number; }
 export interface SceneActorSnapshot extends Point {
   id: string;
   angle: number;
@@ -90,6 +92,7 @@ export interface SceneActorSnapshot extends Point {
   alpha: number;
   scaleX: number;
   scaleY: number;
+  previous: ActorTransform;
 }
 export interface SoundEvent extends Point { kind: string; atMs: number; }
 export interface SceneSnapshot {
@@ -100,11 +103,13 @@ export interface SceneSnapshot {
   phase: EncounterPhase;
   beatId: string;
   remainingMs: number;
-  signatureEffect?: { kind: "perch-lights" | "reflected-ring" | "folded-shadow" | "fern-shadow" | "slack-curve"; x: number; y: number; alpha: number };
+  /** Fixed-step accumulator leftover, as a fraction of one step (0 up to but excluding 1). Renderers use it to interpolate actor transforms between steps; it is not itself interpolated. */
+  interpolationAlpha: number;
+  signatureEffect?: { kind: "perch-lights" | "reflected-ring" | "folded-shadow" | "fern-shadow" | "slack-curve"; x: number; y: number; alpha: number } | undefined;
   actors: readonly SceneActorSnapshot[];
   soundEvents: readonly SoundEvent[];
   events: readonly SceneEvent[];
-  reminder?: Extract<SceneEvent, { type: "contact-reminder" }>;
+  reminder?: Extract<SceneEvent, { type: "contact-reminder" }> | undefined;
 }
 export interface SimulationPreferences {
   sceneMotionMode?: SceneMotionMode;

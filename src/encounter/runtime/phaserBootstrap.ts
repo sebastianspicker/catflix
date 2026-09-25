@@ -60,6 +60,9 @@ export async function createPhaserSimulationBootstrap(options: PhaserBootstrapOp
 
     options.signal.addEventListener("abort", abort, { once: true });
     try {
+      // Phaser 4's Game/Scale/Render configs have no devicePixelRatio-scaling option: the canvas
+      // backing store already tracks CSS pixels one-to-one (effectively resolution 1), so it is
+      // already within the 2x cap the Canvas fallback renderer applies explicitly.
       game = new PhaserRuntime.Game({
         type: PhaserRuntime.AUTO,
         parent: options.container,

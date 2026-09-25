@@ -17,7 +17,7 @@
 .owner-rail .contact-reminder { background: #f3f0e7; bottom: calc(100% + 14px); display: grid; left: 18px; max-width: min(820px, calc(100vw - 36px)); padding: 18px; position: absolute; transform: none; width: auto; }
 .owner-rail .contact-reminder > div { display: flex; flex-wrap: wrap; gap: 8px; }
 .owner-rail .contact-reminder button { min-height: 44px; }
-.encounter-setup { max-height: calc(100dvh - 36px); overflow: auto; }
+.encounter-setup { max-height: calc(100dvh - 36px); max-width: 1100px; overflow: auto; padding: clamp(22px, 3vw, 36px); width: min(100%, 1100px); }
 .mode-choice, .setup-checks { border: 0; border-top: 2px solid var(--ink); display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 22px 0 0; padding: 18px 0 0; }
 .mode-choice legend, .setup-checks legend { font-family: var(--editorial-narrow); font-size: .75rem; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
 .mode-choice label, .setup-checks label { align-items: center; border: 1.5px solid var(--ink); display: flex; gap: 10px; min-height: 56px; padding: 10px 12px; }
@@ -31,12 +31,58 @@
 .observation-dialog .behavior-list { border: 2px solid var(--ink); display: flex; flex-wrap: wrap; gap: 8px; padding: 14px; }
 .observation-dialog .behavior-list label { border: 1px solid var(--ink); padding: 8px; }
 
+.encounter-time { display: grid; gap: 4px; text-align: right; }
+.encounter-time strong { font-size: 1rem; letter-spacing: 0; text-transform: none; }
+.encounter-time small { font-size: .75rem; }
+.owner-rail .pause-control { background: var(--paper); color: var(--ink); font-size: 1.15rem; }
+.owner-rail .end-control { background: #b13029; color: white !important; font-size: 1.15rem !important; }
+.owner-rail .end-control:hover, .owner-rail .end-control:focus-visible { background: #89221d; }
+.owner-rail > button:focus-visible { outline: 3px solid var(--lime); outline-offset: -5px; }
+.encounter-setup h2, .observation-dialog h2 { font-family: var(--editorial-display); font-size: clamp(2rem, 4.5vw, 4.2rem); line-height: 1; }
+.encounter-setup .section-index { padding-right: 42px; }
+.setup-duration { font-size: 1.1rem; margin: 0 0 24px; }
+.setup-layout { display: grid; gap: 24px; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); }
+.setup-preview { border-right: 1px solid var(--ink); padding-right: 24px; }
+.setup-preview img { aspect-ratio: 16 / 9; display: block; object-fit: cover; width: 100%; }
+.setup-preview h3 { border-top: 1px solid var(--ink); font-family: var(--editorial-display); font-size: 1.4rem; margin: 16px 0 10px; padding-top: 12px; text-transform: uppercase; }
+.setup-preview p { font-size: .95rem; line-height: 1.45; }
+.setup-form { min-width: 0; }
+.setup-form .mode-choice { border: 0; margin: 0; padding-top: 8px; }
+.setup-form .setup-checks { margin-top: 16px; }
+.setup-form .setup-bands { gap: 10px; margin: 16px 0; }
+.setup-form .setup-bands label { font-size: .85rem; letter-spacing: 0; text-transform: none; }
+.setup-form select { font-size: 1rem; min-width: 0; width: 100%; }
+.setup-checks label { font-size: .9rem; }
+.scene-motion-choice { border: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; padding: 0; }
+.scene-motion-choice legend { font-weight: 700; margin-bottom: 8px; }
+.scene-motion-choice label { align-items: center; border: 1px solid var(--ink); display: flex; gap: 10px; min-height: 48px; padding: 10px; }
+.scene-motion-choice label + label { border-left: 0; }
+.setup-form input { accent-color: var(--ink); flex-shrink: 0; height: 18px; width: 18px; }
+.setup-actions { background: var(--paper); border-top: 1px solid var(--ink); flex-wrap: wrap; justify-content: space-between; padding-top: 16px; }
+.setup-actions p { font-size: .8rem; }
+.setup-actions .primary-button { font-size: 1.1rem; letter-spacing: 0; padding-inline: 18px; }
+.setup-actions .text-button { font-size: .85rem; letter-spacing: 0; min-height: 48px; }
+.observation-dialog .plain-language, .observation-dialog .touch-summary { font-size: .95rem; }
+.observation-dialog .observation-fields label { font-size: .85rem; letter-spacing: 0; text-transform: none; }
+.observation-dialog .observation-fields select, .observation-dialog .observation-fields input { font-size: 1rem; min-width: 0; width: 100%; }
+.observation-dialog .behavior-list label { font-size: .95rem; margin: 0; min-height: 48px; }
+.observation-dialog .raw-note { font-size: 1rem; letter-spacing: 0; text-transform: none; }
+.observation-dialog textarea { font-size: 1rem; line-height: 1.5; }
+.observation-dialog .acknowledgement { font-size: .95rem; }
+.observation-dialog .modal-actions { flex-wrap: wrap; }
+.observation-dialog .text-button { font-size: .85rem; min-height: 48px; }
+
 @media (max-width: 900px) {
-  .encounter-player { grid-template-rows: auto auto minmax(240px, 1fr) auto; height: auto; min-height: 100dvh; overflow: auto; }
+  .encounter-player { grid-template-rows: auto auto minmax(0, 1fr) auto; height: 100dvh; }
   .owner-rail { grid-template-columns: repeat(2, 1fr); }
   .rail-status { grid-column: 1 / -1; }
   .owner-rail > button:nth-of-type(odd) { border-left: 0; }
   .setup-bands, .observation-fields { grid-template-columns: 1fr; }
+  .setup-layout { grid-template-columns: 1fr; }
+  .setup-preview { display: none; }
+  .setup-actions { bottom: -22px; margin-bottom: -22px; padding-block: 12px 22px; position: sticky; }
+  .setup-actions p { display: none; }
+  .setup-duration { margin-bottom: 16px; }
 }
 @media (max-width: 560px) {
   .session-context { padding-inline: 12px; }
@@ -44,6 +90,15 @@
   .encounter-player .player-topbar { grid-template-columns: 1fr auto; }
   .encounter-player .player-topbar h1 { text-align: left; }
   .mode-choice, .setup-checks { grid-template-columns: 1fr; }
+  .encounter-setup .primary-button { flex: 1; }
+  .setup-actions { gap: 12px; }
+  .setup-actions .text-button { width: 100%; }
+}
+@media (max-height: 500px) {
+  .encounter-player .player-topbar { min-height: 48px; }
+  .encounter-player .session-context, .owner-rail .rail-status { display: none; }
+  .encounter-player { grid-template-rows: auto minmax(0, 1fr) auto; }
+  .owner-rail { grid-template-columns: repeat(4, minmax(0, 1fr)); min-height: 64px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .encounter-player *, .encounter-player *::before, .encounter-player *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
