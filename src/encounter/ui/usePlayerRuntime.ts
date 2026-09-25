@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import type { ContentManifest } from '../../catalogue/model';
-import type { SceneMotionMode } from '../../domain';
+import type { SceneMotionMode, SceneSnapshot } from '../../domain';
 import type { AudioCapability, PlayerRuntime, PlayerRuntimeOptions } from './Player.types';
 import { type PlayerHost, usePlayerHostLifecycle } from './usePlayerHostLifecycle';
 
@@ -14,6 +14,8 @@ export const usePlayerRuntime = ({ plan, stageRef, onSceneMotionModeChange, onEx
   const { manifest, variants } = plan;
   const hostRef = useRef<PlayerHost | null>(null);
   const elapsedRef = useRef(0);
+  const displayedSecondRef = useRef(0);
+  const phaseRef = useRef<SceneSnapshot['phase']>('invitation');
   const touchesRef = useRef<number[]>([]);
   const soundRef = useRef(false);
   const [elapsed, setElapsed] = useState(0);
@@ -21,10 +23,10 @@ export const usePlayerRuntime = ({ plan, stageRef, onSceneMotionModeChange, onEx
   const [sound, setSound] = useState(false);
   const [sceneMotionMode, setSceneMotionMode] = useState(plan.sceneMotionMode);
   const [showContactReminder, setShowContactReminder] = useState(false);
-  const [phase, setPhase] = useState('invitation');
+  const [phase, setPhase] = useState<SceneSnapshot['phase']>('invitation');
   const audioCapability = audioCapabilityFor(manifest, variants.sound);
 
-  usePlayerHostLifecycle({ plan, stageRef, hostRef, elapsedRef, touchesRef, soundRef, sceneMotionMode, sound, setElapsed, setPhase, setPlaying, setShowContactReminder, onExit });
+  usePlayerHostLifecycle({ plan, stageRef, hostRef, elapsedRef, displayedSecondRef, phaseRef, touchesRef, soundRef, sceneMotionMode, sound, setElapsed, setPhase, setPlaying, setShowContactReminder, onExit });
 
   const onTogglePlay = () => {
     if (playing) hostRef.current?.pause(); else hostRef.current?.resume();

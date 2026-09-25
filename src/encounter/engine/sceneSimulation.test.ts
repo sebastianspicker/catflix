@@ -28,8 +28,15 @@ const scoreWithInteraction = (configuration: {
   };
 };
 const createSimulationForScore = (score: SceneScore) => createSceneSimulationEngine(score, undefined, defaultVariantSelection, 12, {});
+const triggersRestReminder = (score: SceneScore) => {
+  const simulation = createSimulationForScore(score);
+  const actor = simulation.snapshot().actors[0];
+  simulation.touch(actor, 0);
+  simulation.touch(actor, 10);
+  return simulation.snapshot().reminder !== undefined;
+};
 
-describe('deterministic finite simulations', () => {
+describe('deterministic simulation trajectories', () => {
   it('runs from a supplied compiled score and minimal audio metadata', () => {
     const score = getSceneScore('paper-moth');
     const simulation = createSceneSimulationEngine(score, { enabled: true }, defaultVariantSelection, 7, {});
@@ -73,7 +80,9 @@ describe('deterministic finite simulations', () => {
     const distant = { x: actor.x < .5 ? .98 : .02, y: actor.y < .5 ? .98 : .02 };
     expect(simulation.touch(distant, 1000).accepted).toBe(false);
   });
+});
 
+describe('simulation runtime contracts', () => {
   it('uses a materially calmer motion score when explicit low scene motion is requested', () => {
     const full = createSceneSimulation('paper-moth', defaultVariantSelection, 91);
     const reduced = createSceneSimulation('paper-moth', defaultVariantSelection, 91, { sceneMotionMode: 'low' });
@@ -115,7 +124,13 @@ describe('deterministic finite simulations', () => {
       const actor = simulation.snapshot().actors[0];
       expect(simulation.touch({ x: actor.x, y: actor.y }, 0).accepted).toBe(true);
       const frame = simulation.advance(100).actors[0];
-      expect(frame).toMatchObject({ animationState: expect.any(String), poseFrame: expect.any(Number), stateProgress: expect.any(Number), depth: expect.any(Number), alpha: expect.any(Number), scaleX: expect.any(Number), scaleY: expect.any(Number) });
+      expect(typeof frame.animationState).toBe('string');
+      expect(typeof frame.poseFrame).toBe('number');
+      expect(typeof frame.stateProgress).toBe('number');
+      expect(typeof frame.depth).toBe('number');
+      expect(typeof frame.alpha).toBe('number');
+      expect(typeof frame.scaleX).toBe('number');
+      expect(typeof frame.scaleY).toBe('number');
     }
   });
 
@@ -171,7 +186,9 @@ describe('deterministic finite simulations', () => {
     expect(transitions.get('koi-pool')).toBeLessThan(transitions.get('paper-moth') ?? 0);
     expect(transitions.get('paper-moth')).toBeLessThan(250);
   });
+});
 
+describe('simulation interaction contracts', () => {
   it.each([
     {
       label: 'target mode',
@@ -211,26 +228,14 @@ describe('deterministic finite simulations', () => {
       baseline: { refractoryMs: 1, rollingContactCap: { contacts: 3, windowMs: 1_000 } },
       changed: { refractoryMs: 1, rollingContactCap: { contacts: 2, windowMs: 1_000 } },
       expected: [false, true],
-      exercise: (score: SceneScore) => {
-        const simulation = createSimulationForScore(score);
-        const actor = simulation.snapshot().actors[0];
-        simulation.touch(actor, 0);
-        simulation.touch(actor, 10);
-        return simulation.snapshot().reminder !== undefined;
-      },
+      exercise: triggersRestReminder,
     },
     {
       label: 'rolling contact window',
       baseline: { refractoryMs: 1, rollingContactCap: { contacts: 2, windowMs: 5 } },
       changed: { refractoryMs: 1, rollingContactCap: { contacts: 2, windowMs: 1_000 } },
       expected: [false, true],
-      exercise: (score: SceneScore) => {
-        const simulation = createSimulationForScore(score);
-        const actor = simulation.snapshot().actors[0];
-        simulation.touch(actor, 0);
-        simulation.touch(actor, 10);
-        return simulation.snapshot().reminder !== undefined;
-      },
+      exercise: triggersRestReminder,
     },
     {
       label: 'rest duration',

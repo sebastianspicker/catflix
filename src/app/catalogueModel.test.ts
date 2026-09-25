@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { getContentManifest } from '../catalogue/model';
 import { defaultSessionVariant } from '../domain';
 import type { SessionPlan } from '../encounter/session';
-import { createComparisonRecord, createObservation, mergeQueueIds, queueRecords, sessionUpdate } from './catalogueModel';
+import { createObservation, mergeQueueIds, queueRecords, resolvePreparedVariant, sessionUpdate } from './catalogueModel';
 
 const plan: SessionPlan = {
   manifest: getContentManifest('paper-moth'),
@@ -55,15 +55,15 @@ describe('catalogue model contracts', () => {
     });
   });
 
-  it('creates an incomplete comparison with one changed dimension and states the other manual run remains unrecorded', () => {
-    const completed = { plan: { ...plan, comparison: { dimension: 'contrast' as const, label: 'A / natural' } }, elapsedMs: 90_000, complete: true, touches: [], soundEnabled: false };
+  it('records pairing context on a current curated observation', () => {
+    const completed = { plan: { ...plan, comparison: { dimension: 'contrast' as const, side: 'a' as const } }, elapsedMs: 90_000, complete: true, touches: [], soundEnabled: false };
     const observation = createObservation(completed, { endReason: 'completed', vocabulary: [], physicalPlayHandoff: 'not-recorded', rawNote: '' }, '2026-08-28T12:00:00Z');
-    const comparison = createComparisonRecord(completed, observation, '2026-08-28T12:00:00Z');
-    expect(comparison).toMatchObject({
-      createdAt: '2026-08-28T12:00:00Z', changedDimension: 'figureGround',
-      first: { sceneId: 'paper-moth', seed: 73, variant: { figureGround: 'natural', motion: 'continuous', sound: 'off', novelty: 'familiar' }, observationId: observation.id },
-      second: { sceneId: 'paper-moth', seed: 73, variant: { figureGround: 'enhanced', motion: 'continuous', sound: 'off', novelty: 'familiar' } },
-      observation: 'Shared seed and encounter score; A and B are separate manual runs. B remains unrecorded in this pair.',
-    });
+    expect(observation).toMatchObject({ seed: 73, encounterScore: plan.manifest.encounter.authoredScore, comparisonDimension: 'figureGround' });
+  });
+
+  it('applies the contrast query only to ordinary sessions, never canonical comparison sides', () => {
+    expect(resolvePreparedVariant(defaultSessionVariant, undefined, '?contrast=enhanced')).toMatchObject({ figureGround: 'enhanced' });
+    const canonicalA = { figureGround: 'natural', motion: 'continuous', sound: 'off', novelty: 'familiar' } as const;
+    expect(resolvePreparedVariant(canonicalA, { dimension: 'contrast', side: 'a' }, '?contrast=enhanced')).toBe(canonicalA);
   });
 });

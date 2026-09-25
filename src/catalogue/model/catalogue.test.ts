@@ -1,11 +1,8 @@
+/// <reference types="node" />
 // Vitest executes this contract check in Node; production code remains browser-only.
-// @ts-expect-error Node built-ins are intentionally outside the browser application tsconfig.
 import { createHash } from "node:crypto";
-// @ts-expect-error Node built-ins are intentionally outside the browser application tsconfig.
-const { readFileSync: readAssetBytes } = await import("node:fs");
-// @ts-expect-error Node built-ins are intentionally outside the browser application tsconfig.
+import { readFileSync as readAssetBytes } from "node:fs";
 import { dirname, resolve } from "node:path";
-// @ts-expect-error Node built-ins are intentionally outside the browser application tsconfig.
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { sceneIds, type SceneId } from "../../domain";
@@ -40,6 +37,24 @@ describe("authored catalogue contracts", () => {
     }
     const malformed = { ...getContentManifest("paper-moth"), finiteDurationMs: 0, assets: [] };
     expect(validateContentManifest(malformed)).toMatchObject({ ok: false });
+  });
+
+  it("reports manifest, asset, and audio faults in stable validation order", () => {
+    const malformed = structuredClone(getContentManifest("paper-moth")) as unknown as Record<string, unknown>;
+    malformed.title = "";
+    malformed.finiteDurationMs = 0;
+    malformed.assets = [];
+    malformed.audio = { enabledVariant: "on", eventKinds: ["rustle"], excluded: ["rustle"] };
+
+    expect(validateContentManifest(malformed)).toEqual({
+      ok: false,
+      errors: [
+        "Missing title.",
+        "A finite duration is required.",
+        "At least one provenance record is required.",
+        "Audio metadata must name coherent events and exclusions.",
+      ],
+    });
   });
 
   it("keeps compiled runtime, visual provenance, and audio metadata derived from one authored scene", () => {

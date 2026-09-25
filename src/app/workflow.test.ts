@@ -5,6 +5,7 @@ import { catalogueWorkflowReducer, initialCatalogueWorkflowState } from './workf
 
 const prepared = { manifest: getContentManifest('paper-moth'), variant: defaultSessionVariant, seed: 73 };
 const setup = { stableDevice: true as const, protectedCables: true as const, openExit: true as const, supervised: true as const, roomLightBand: 'dim' as const, viewingDistanceBand: 'near-screen' as const };
+const emptyHistory = { notes: [], observations: [], comparisons: [] };
 
 describe('catalogue workflow', () => {
   it('moves synchronously from catalogue through preparation, playback, and review', () => {
@@ -29,21 +30,21 @@ describe('catalogue workflow', () => {
     const initial = initialCatalogueWorkflowState({ mode: 'persistent' });
     const ownerAdded = catalogueWorkflowReducer(initial, { type: 'set-queue', queue: ['red-string'] });
     const ownerRemoved = catalogueWorkflowReducer(ownerAdded, { type: 'set-queue', queue: [] });
-    const hydrated = catalogueWorkflowReducer(ownerRemoved, { type: 'hydrate', queue: ['paper-moth'], progress: {}, recordCounts: { notes: 0, comparisons: 0 }, sceneMotionMode: 'low' });
+    const hydrated = catalogueWorkflowReducer(ownerRemoved, { type: 'hydrate', queue: ['paper-moth'], progress: {}, recordHistory: emptyHistory, sceneMotionMode: 'low' });
     expect(hydrated).toMatchObject({ hydration: 'complete', queue: ['paper-moth'] });
   });
 
   it('merges the saved queue with an early owner addition in a stable order', () => {
     const initial = initialCatalogueWorkflowState({ mode: 'persistent' });
     const ownerAdded = catalogueWorkflowReducer(initial, { type: 'set-queue', queue: ['red-string'] });
-    const hydrated = catalogueWorkflowReducer(ownerAdded, { type: 'hydrate', queue: ['paper-moth'], progress: {}, recordCounts: { notes: 0, comparisons: 0 }, sceneMotionMode: 'standard' });
+    const hydrated = catalogueWorkflowReducer(ownerAdded, { type: 'hydrate', queue: ['paper-moth'], progress: {}, recordHistory: emptyHistory, sceneMotionMode: 'standard' });
     expect(hydrated.queue).toEqual(['paper-moth', 'red-string']);
   });
 
   it('keeps early and post-hydration scene-motion choices over the loaded setting', () => {
     const initial = initialCatalogueWorkflowState({ mode: 'persistent' });
     const ownerChangedEarly = catalogueWorkflowReducer(initial, { type: 'set-motion-mode', sceneMotionMode: 'low' });
-    const hydrated = catalogueWorkflowReducer(ownerChangedEarly, { type: 'hydrate', queue: [], progress: {}, recordCounts: { notes: 0, comparisons: 0 }, sceneMotionMode: 'standard' });
+    const hydrated = catalogueWorkflowReducer(ownerChangedEarly, { type: 'hydrate', queue: [], progress: {}, recordHistory: emptyHistory, sceneMotionMode: 'standard' });
     const ownerChangedAfterHydration = catalogueWorkflowReducer(hydrated, { type: 'set-motion-mode', sceneMotionMode: 'standard' });
     expect(hydrated).toMatchObject({ hydration: 'complete', sceneMotionMode: 'low' });
     expect(ownerChangedAfterHydration.sceneMotionMode).toBe('standard');
@@ -54,14 +55,16 @@ describe('catalogue workflow', () => {
     const preparing = catalogueWorkflowReducer(initial, { type: 'prepare', pending: prepared });
     const playing = catalogueWorkflowReducer(preparing, { type: 'start', playbackMode: 'tablet-touch', setup });
     const completedEarly = catalogueWorkflowReducer(playing, { type: 'finish', result: { elapsedMs: 45_000, complete: false, touchTimestamps: [], soundEnabled: false } });
-    const hydrated = catalogueWorkflowReducer(completedEarly, { type: 'hydrate', queue: [], progress: { 'koi-pool': 0.75, 'paper-moth': 0.1 }, recordCounts: { notes: 2, comparisons: 1 }, sceneMotionMode: 'standard' });
+    const hydrated = catalogueWorkflowReducer(completedEarly, { type: 'hydrate', queue: [], progress: { 'koi-pool': 0.75, 'paper-moth': 0.1 }, recordHistory: emptyHistory, sceneMotionMode: 'standard' });
     expect(hydrated.progress).toEqual({ 'koi-pool': 0.75, 'paper-moth': 0.5 });
   });
 
-  it('adds records saved before hydration to the loaded record totals', () => {
+  it('keeps a committed history returned before hydration over an older loaded snapshot', () => {
     const initial = initialCatalogueWorkflowState({ mode: 'persistent' });
-    const savedEarly = catalogueWorkflowReducer(initial, { type: 'increment-records', notes: 1, comparisons: 1 });
-    const hydrated = catalogueWorkflowReducer(savedEarly, { type: 'hydrate', queue: [], progress: {}, recordCounts: { notes: 4, comparisons: 2 }, sceneMotionMode: 'standard' });
-    expect(hydrated.recordCounts).toEqual({ notes: 5, comparisons: 3 });
+    const committed = { notes: [], observations: [{ id: 'new' }], comparisons: [] } as unknown as typeof emptyHistory;
+    const stale = { notes: [{ id: 'old' }], observations: [], comparisons: [] } as unknown as typeof emptyHistory;
+    const savedEarly = catalogueWorkflowReducer(initial, { type: 'set-record-history', recordHistory: committed });
+    const hydrated = catalogueWorkflowReducer(savedEarly, { type: 'hydrate', queue: [], progress: {}, recordHistory: stale, sceneMotionMode: 'standard' });
+    expect(hydrated.recordHistory).toBe(committed);
   });
 });

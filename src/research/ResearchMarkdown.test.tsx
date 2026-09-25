@@ -4,6 +4,20 @@ import { describe, expect, it } from 'vitest';
 import researchMarkdown from '../../docs/research/feline-perception.md?raw';
 import { ResearchMarkdown } from './ResearchMarkdown';
 
+function markdownHrefEnd(source: string, destinationStart: number): number {
+  let depth = 0;
+  let destinationEnd = destinationStart;
+  for (; destinationEnd < source.length; destinationEnd += 1) {
+    const character = source.charAt(destinationEnd);
+    if (character === '(') depth += 1;
+    if (character === ')') {
+      if (depth === 0) break;
+      depth -= 1;
+    }
+  }
+  return destinationEnd;
+}
+
 function markdownHrefs(source: string): string[] {
   const hrefs: string[] = [];
   let cursor = 0;
@@ -13,16 +27,7 @@ function markdownHrefs(source: string): string[] {
     if (linkStart === -1) break;
 
     const destinationStart = linkStart + 2;
-    let depth = 0;
-    let destinationEnd = destinationStart;
-    for (; destinationEnd < source.length; destinationEnd += 1) {
-      const character = source.charAt(destinationEnd);
-      if (character === '(') depth += 1;
-      if (character === ')') {
-        if (depth === 0) break;
-        depth -= 1;
-      }
-    }
+    const destinationEnd = markdownHrefEnd(source, destinationStart);
 
     if (destinationEnd === source.length) break;
     hrefs.push(source.slice(destinationStart, destinationEnd));

@@ -15,7 +15,7 @@ export interface EncounterRuntimeOptions {
   renderer?: "auto" | "canvas";
   /** Scene choreography is an explicit product setting, not an OS preference. */
   sceneMotionMode?: SceneMotionMode;
-  onProgress?: (elapsedMs: number, durationMs: number) => void;
+  onProgress?: (elapsedMs: number, durationMs: number, phase: SceneSnapshot["phase"]) => void;
   onComplete?: () => void;
   onTouch?: (timestamp: number) => void;
   onReminder?: (reminder: NonNullable<SceneSnapshot["reminder"]>) => void;

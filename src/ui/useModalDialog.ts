@@ -1,14 +1,5 @@
 import { useEffect, useRef } from 'react';
-
-const focusableSelector = [
-  'button:not([disabled])',
-  'input:not([disabled])',
-  'select:not([disabled])',
-  'textarea:not([disabled])',
-  'a[href]',
-  'summary',
-  '[tabindex]:not([tabindex="-1"])',
-].join(',');
+import { createModalKeyDownHandler, focusModal } from './modalDialogKeyboard';
 
 export function useModalDialog<T extends HTMLElement>(onClose: () => void, isOpen = true) {
   const dialogRef = useRef<T>(null);
@@ -24,36 +15,8 @@ export function useModalDialog<T extends HTMLElement>(onClose: () => void, isOpe
     const previousOverflow = document.documentElement.style.overflow;
     document.documentElement.style.overflow = 'hidden';
 
-    const preferredFocus = dialog.querySelector<HTMLElement>('[data-autofocus]');
-    const firstControl = dialog.querySelector<HTMLElement>(focusableSelector);
-    (preferredFocus ?? firstControl ?? dialog).focus({ preventScroll: true });
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        closeRef.current();
-        return;
-      }
-      if (event.key !== 'Tab') return;
-
-      const controls = [...dialog.querySelectorAll<HTMLElement>(focusableSelector)]
-        .filter((control) => control.getClientRects().length > 0);
-      if (!controls.length) {
-        event.preventDefault();
-        dialog.focus();
-        return;
-      }
-
-      const first = controls[0];
-      const last = controls[controls.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
+    focusModal(dialog);
+    const handleKeyDown = createModalKeyDownHandler(dialog, () => { closeRef.current(); });
 
     document.addEventListener('keydown', handleKeyDown);
     return () => {

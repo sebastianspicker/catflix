@@ -3,8 +3,7 @@ import type { AudioCapability, PlayerControlsProps } from './Player.types';
 import { Icon } from '../../ui/Icon';
 
 const soundLabel = (audioCapability: AudioCapability, sound: boolean): string => {
-  if (audioCapability === 'unavailable') return 'Sound unavailable';
-  if (audioCapability === 'awaiting-provenance') return 'Sound awaiting provenance';
+  if (audioCapability !== 'available') return 'Sound unavailable';
   return `Sound ${sound ? 'on' : 'off'}`;
 };
 
@@ -16,7 +15,7 @@ export const PlayerControls = (props: PlayerControlsProps) => {
     <button className="pause-control" type="button" onClick={onTogglePlay}><Icon name={playing ? 'pause' : 'play'} /><strong>{playing ? 'Pause' : 'Resume'}</strong></button>
     <button type="button" aria-pressed={sound} disabled={soundDisabled} onClick={onToggleSound}><strong>{soundLabel(audioCapability, sound)}</strong></button>
     <button type="button" aria-pressed={sceneMotionMode === 'low'} onClick={onChangeMotion}><strong>{sceneMotionMode === 'low' ? 'Low scene motion' : 'Standard scene motion'}</strong></button>
-    <button className="end-control" type="button" onClick={() => { onFinish(false); }}><strong>End session</strong></button>
+    <button className="end-control" type="button" onClick={() => { onFinish(false); }}><strong>Stop encounter</strong></button>
     {showContactReminder ? <ContactReminder onFinish={onFinish} onPauseAndObserve={onPauseAndObserve} onDismissReminder={onDismissReminder} /> : null}
   </aside>;
 };
