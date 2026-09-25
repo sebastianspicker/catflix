@@ -13,12 +13,12 @@ export const createSceneSimulationEngine = (score: SceneScore, audio: EncounterA
   const sceneId = score.id, contacts = new ContactController();
   // A touched run can only pick which of the contact-free schedule's events survive, never add
   // to it: the shadow below replays the same fixed steps with no touches, purely to arbitrate
-  // sound. It has no observable surface of its own and is absent whenever contacts are impossible.
-  const hasShadow = score.audioEventKinds.length > 0 && preferences.playbackMode !== "tv-passive";
+  // sound. It has no observable surface of its own and is absent whenever contacts or sound are impossible.
+  const hasShadow = score.audioEventKinds.length > 0 && audio?.enabled === true && variants.sound === "on" && preferences.playbackMode !== "tv-passive";
   const clock = new FixedSceneClock();
   let random = new SeededRandom(seed), elapsedMs = 0, lastSoundBucket = -1, shadowSoundBucket = -1, completionSent = false;
   const actorCount = isLowMotion(preferences) ? score.lowMotionOverride.actorCount : score.actorCount[0] + Math.floor(random.next() * (score.actorCount[1] - score.actorCount[0] + 1));
-  let lastPhase = scenePhaseAt(score, 0).phase, actors = createActors(sceneId, actorCount, random), shadowActors = hasShadow ? actors.map((actor) => ({ ...actor })) : undefined, frameEvents: SceneEvent[] = [], pendingEvents: SceneEvent[] = [], soundEvents: SoundEvent[] = [];
+  let lastPhase = scenePhaseAt(score, 0).phase, actors = createActors(sceneId, actorCount, random), shadowActors = hasShadow ? structuredClone(actors) : undefined, frameEvents: SceneEvent[] = [], pendingEvents: SceneEvent[] = [], soundEvents: SoundEvent[] = [];
   function advance(deltaMs: number): SceneSnapshot {
     frameEvents = pendingEvents; pendingEvents = [];
     clock.advance(deltaMs, elapsedMs, score.durationMs, advanceFixedStep);
@@ -48,7 +48,7 @@ export const createSceneSimulationEngine = (score: SceneScore, audio: EncounterA
   function snapshot(): SceneSnapshot {
     return sceneSnapshot({ score, elapsedMs, forcedRestUntilMs: contacts.state.forcedRestUntilMs, actors, soundEvents, frameEvents, pendingEvents, reminder: contacts.state.reminder });
   }
-  function reset(): SceneSnapshot { elapsedMs = 0; clock.reset(); lastSoundBucket = -1; shadowSoundBucket = -1; completionSent = false; frameEvents = []; pendingEvents = []; soundEvents = []; contacts.reset(); lastPhase = scenePhaseAt(score, 0).phase; random = new SeededRandom(seed); random.next(); actors = createActors(sceneId, actorCount, random); shadowActors = hasShadow ? actors.map((actor) => ({ ...actor })) : undefined; return snapshot(); }
+  function reset(): SceneSnapshot { elapsedMs = 0; clock.reset(); lastSoundBucket = -1; shadowSoundBucket = -1; completionSent = false; frameEvents = []; pendingEvents = []; soundEvents = []; contacts.reset(); lastPhase = scenePhaseAt(score, 0).phase; random = new SeededRandom(seed); random.next(); actors = createActors(sceneId, actorCount, random); shadowActors = hasShadow ? structuredClone(actors) : undefined; return snapshot(); }
   function dismissReminder(): SceneSnapshot { contacts.dismissReminder(); return snapshot(); }
   return { score, variants, advance, touch, snapshot, reset, dismissReminder };
 };
