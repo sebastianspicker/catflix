@@ -1,0 +1,53 @@
+{
+  "knownModules": [
+    "ambient", "app", "catalogue-model", "catalogue-ui", "demo", "domain", "encounter-engine",
+    "encounter-runtime", "encounter-session", "encounter-ui", "local-data", "platform",
+    "research", "root", "ui"
+  ],
+  "allowedDependencies": {
+    "domain": [],
+    "catalogue-model": ["domain"],
+    "catalogue-ui": ["catalogue-model", "domain", "research", "ui", "platform"],
+    "encounter-engine": ["domain"],
+    "encounter-runtime": ["domain", "encounter-engine", "catalogue-model", "platform"],
+    "encounter-ui": ["domain", "catalogue-model", "encounter-engine", "encounter-runtime", "encounter-session", "local-data", "ui"],
+    "encounter-session": ["domain", "catalogue-model"],
+    "local-data": ["domain", "catalogue-model"],
+    "research": ["ui", "platform"],
+    "demo": ["platform"],
+    "ui": [],
+    "styles": [],
+    "platform": [],
+    "app": ["domain", "catalogue-model", "catalogue-ui", "encounter-session", "encounter-ui", "local-data", "research", "ui"],
+    "root": ["app", "catalogue-ui", "demo", "encounter-ui", "research", "platform"],
+    "ambient": []
+  },
+  "moduleRules": [
+    { "exact": "paths.ts", "module": "platform" },
+    { "exact": "vite-env.d.ts", "module": "ambient" },
+    { "exact": "App.tsx", "module": "root" },
+    { "exact": "main.tsx", "module": "root" },
+    { "exact": "encounter/session.ts", "module": "encounter-session" },
+    { "prefix": "catalogue/model/", "module": "catalogue-model" },
+    { "prefix": "catalogue/ui/", "module": "catalogue-ui" },
+    { "prefix": "catalogue/", "module": "unknown" },
+    { "prefix": "encounter/engine/", "module": "encounter-engine" },
+    { "prefix": "encounter/runtime/", "module": "encounter-runtime" },
+    { "prefix": "encounter/ui/", "module": "encounter-ui" },
+    { "prefix": "encounter/", "module": "unknown" }
+  ],
+  "diagramNodes": {
+    "root": "root",
+    "app": "app",
+    "catalogueUI": "catalogue-ui",
+    "encounterUI": "encounter-ui",
+    "research": "research",
+    "demo": "demo",
+    "catalogueModel": "catalogue-model",
+    "encounterSession": "encounter-session",
+    "localData": "local-data",
+    "encounterRuntime": "encounter-runtime",
+    "encounterEngine": "encounter-engine",
+    "domain": "domain"
+  }
+}
