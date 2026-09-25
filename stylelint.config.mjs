@@ -2,7 +2,7 @@ import standard from "stylelint-config-standard";
 
 export default {
   ...standard,
-  ignoreFiles: ["dist/**", "node_modules/**", "coverage/**", "playwright-report/**", "test-results/**"],
+  ignoreFiles: ["dist/**", "node_modules/**", "coverage/**", "playwright-report/**", "test-results/**", ".agents/**", ".claude/**", ".codex/**", "tmp/**"],
   rules: {
     ...standard.rules,
     "alpha-value-notation": null,
