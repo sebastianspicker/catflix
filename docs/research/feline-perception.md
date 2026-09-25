@@ -6,7 +6,7 @@ Scope: domestic-cat content curation, playback, audio, session design, device se
 
 ## Executive conclusion
 
-Catflix can make defensible decisions about legibility, motion, novelty, sound, session structure, and physical safety, but it cannot claim that a video is enjoyable or beneficial merely because a cat looks at, tracks, or strikes the screen. The literature establishes several relevant capacities and repeatable attention effects. It contains far less direct evidence about voluntary screen preference and almost no strong household evidence about welfare after repeated cat-video exposure.
+Catflix can make defensible calls about legibility, motion, novelty, sound, session structure, and physical safety. It cannot claim that a video is enjoyable or beneficial just because a cat looks at, tracks, or strikes the screen. The literature gives us relevant capacities and repeatable attention effects, much less direct evidence about voluntary screen preference, and almost no strong household evidence about welfare after repeated cat-video exposure.
 
 Four terms remain separate throughout this review:
 
@@ -15,7 +15,7 @@ Four terms remain separate throughout this review:
 - **Preference** is a voluntary choice between available alternatives, ideally with repeated access and opportunity to leave.
 - **Welfare** is a positive, neutral, frustrating, stressful, or physically risky outcome assessed beyond momentary attention.
 
-The evidence ledger contains 60 unique, peer-reviewed sources, 57 original empirical studies and 3 scholarly reviews. Every source has one primary domain and is counted once. The corpus is predominantly domestic-cat behavioral, field, developmental, or clinical research, with feline neurophysiology used for capacity questions. The direct display domain contains one television-enrichment trial and four screen or visual-media experiments. Only the television trial measured behavior in an enrichment setting. This is not enough to characterize cat-video viewing as a welfare intervention.
+The evidence ledger holds 60 unique peer-reviewed sources: 57 original empirical studies and 3 scholarly reviews. Each source has one primary domain and is counted once. The corpus is mostly domestic-cat behavioral, field, developmental, or clinical work, with feline neurophysiology covering capacity questions. Direct display evidence is one television-enrichment trial plus four screen or visual-media experiments, and only the TV trial measured behavior in an enrichment setting. That isn't enough to call cat-video viewing a welfare intervention.
 
 ## Executive decision table
 
@@ -34,7 +34,7 @@ Every row is a complete recommendation: a decision, evidence, confidence, applic
 | Exclude or require extra supervision for rapidly flashing edits, unstable devices, loud or spatially incoherent audio, and clips that repeatedly provoke collision or distressed searching. | SPA-01, AUD-02, AUD-05, WEL-05, WEL-06; physical risk is a precautionary product constraint rather than a tested video effect. | Moderate precautionary confidence | All household playback, with stricter review for kittens, geriatric cats, and cats with visual, auditory, neurological, pain, or anxiety concerns. | Do not claim the literature supplies feline clinical thresholds for flashing, volume, or session dose. | Owner review, device stability check, and veterinary advice when health or neurological vulnerability is suspected. |
 | Label all content-level evidence confidence and distinguish attention evidence from preference and welfare evidence. | Entire ledger, especially VID-01 through VID-05 and WEL-01 through WEL-08. | High | Editorial curation, referee notes, product copy, and future experiments. | Never turn “watched,” “tracked,” or “pounced” into “liked,” “beneficial,” or “safe” without the corresponding evidence. | Editorial audit of every public claim and traceability check against ledger IDs. |
 
-No recommendation is labelled strong. The most defensible rules are moderate, conditional design choices or high-confidence epistemic and safety boundaries. This follows the pre-set rule that a strong product recommendation requires two independent studies including an awake behavioral study.
+No recommendation is labelled strong. The most defensible rules are moderate, conditional design choices or high-confidence epistemic and safety boundaries. That follows from the pre-set rule that a strong product recommendation needs two independent studies, at least one of them an awake behavioral study.
 
 ## Method
 
@@ -171,6 +171,10 @@ Every curated programme or clip must have a stable `content_id`, `revision`, and
 An approved record must also state `evidence_endpoint`: `capacity`, `attention`, `preference`, `welfare`, or a combination with separate citations. If a rule is supported only by physiology, `indirect-capacity` is mandatory.
 
 ## Playback and safety principles
+
+Current implementation note: the catalogue has no provenance-eligible audio
+recording, so Catflix does not currently make sound available. The audio rules
+below constrain a future eligible source.
 
 1. Playback is always optional for the cat. Do not place or hold a cat in front of a screen. MOT-07 demonstrates why handling during testing limits transfer to voluntary preference.
 2. Secure televisions and tablets against tipping, sliding, claw damage, cable access, and falls before playback. This precaution follows screen-directed reaching and striking in VID-01, VID-02, and VID-04; no device-injury trial establishes a threshold.
