@@ -5,12 +5,16 @@ const root = process.cwd();
 const maximumNonblankLines = 300;
 const checkedExtensions = new Set([".ts", ".tsx", ".js", ".mjs", ".css"]);
 const ignoredDirectories = new Set([
+  ".agents",
+  ".claude",
+  ".codex",
   ".git",
   "coverage",
   "dist",
   "node_modules",
   "playwright-report",
   "test-results",
+  "tmp",
 ]);
 const files = await collectFiles(root);
 const violations = [];
