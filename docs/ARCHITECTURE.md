@@ -20,7 +20,7 @@ sources. GitHub Actions is the only deployment path.
 | `src/catalogue/model/` | Five authored scene aggregates, validation, provenance, manifests, and scene-score projections | Pure content source of truth; depends on `domain` |
 | `src/encounter/engine/` | Seeded actor state, timing, motion, contact policy, rest windows, events, and completion | Pure simulation; depends on `domain` |
 | `src/encounter/session.ts` | Converts a selected manifest and setup into a session plan | Depends on `domain` and catalogue model |
-| `src/encounter/runtime/` | Browser lifecycle, Canvas renderer, lazy Phaser renderer, visibility, pointers, and eligible audio playback | Browser adapter over the engine and catalogue runtime inputs |
+| `src/encounter/runtime/` | Browser lifecycle, Canvas renderer, lazy Phaser renderer, visibility, pointers, and synthesized Web Audio playback | Browser adapter over the engine and catalogue runtime inputs |
 | `src/encounter/ui/` | Safety gate, player shell, owner controls, curator, and observation forms | React presentation and encounter orchestration |
 | `src/local-data/` | Versioned records, validation, IndexedDB, degraded memory, import/export, and repository operations | Only persistence boundary |
 | `src/catalogue/ui/` | Catalogue, filters, queue, evidence summaries, and local-data controls | Renders supplied application state; owns no workflow or persistence |
@@ -106,8 +106,9 @@ paused. A visible tab never resumes playback automatically.
 
 Sessions are finite. Three accepted target contacts within 20 seconds open a
 10-to-12-second quiet rest window. Contact responses never add speed, actors,
-sound, contrast, or duration. Playback begins muted, and audio events play only
-when a matching local provenance record is eligible. No current record is.
+sound, contrast, or duration. Playback begins muted, and the owner's explicit
+gesture enables Web Audio; each event synthesizes quiet, source-coherent sound
+rather than loading a recording.
 
 ## Local data
 

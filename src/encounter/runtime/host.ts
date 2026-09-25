@@ -94,6 +94,7 @@ class EncounterRuntimeController implements EncounterRuntime {
   destroy(): void {
     this.destroyed = true;
     this.stop();
+    this.audioPlayer.destroy();
     this.phaser?.destroy();
     this.phaser = undefined;
     this.canvas.remove();
@@ -103,7 +104,9 @@ class EncounterRuntimeController implements EncounterRuntime {
 
   setSoundEnabled(enabled: boolean): void {
     this.soundEnabled = enabled;
-    if (!enabled) this.silence();
+    // Enabling must happen synchronously in this call so iOS/Safari accepts the owner's gesture.
+    if (enabled) void this.audioPlayer.enable();
+    else this.silence();
   }
 
   setSceneMotionMode(mode: SceneMotionMode): void {

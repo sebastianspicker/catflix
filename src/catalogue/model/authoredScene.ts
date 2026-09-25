@@ -17,9 +17,9 @@ const withAudioProvenance = (audio: NonNullable<AuthoredScene["audio"]>): AudioP
   ...audio,
   provenance: audio.eventKinds.map((eventKind) => ({
     eventKind,
-    source: "No cleared environmental recording bundled in this revision",
-    license: "Ineligible until recording provenance and clearance are added",
-    eligible: false,
+    source: "Synthesized in the browser by Catflix",
+    license: "Original work (MIT)",
+    eligible: true,
   })),
 });
 

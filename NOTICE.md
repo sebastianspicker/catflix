@@ -17,4 +17,7 @@ repository's MIT license.
 This notice does not establish that redistribution, licensing, or any particular
 use has been cleared. Before release or redistribution, the owner or a legal
 reviewer must confirm the terms that apply to the account, service, jurisdiction,
-and intended use. No cleared audio recording is bundled in this revision.
+and intended use.
+
+Scene audio is synthesized in the browser at runtime from original code, not a
+recording; no audio file is bundled or streamed.

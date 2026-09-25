@@ -54,6 +54,13 @@ These entries mirror the asset IDs, public paths, and SHA-256 checksums in [`src
 | `red-string-rope-tile-v3` | `/assets/scenes/v2/red-string-tile.png` | `4a63cce76f8c72aa6a4ada9ed586f54c29446d5b51e24c6884f65477e89caeb8` |
 | `red-string-background-v3` | `/assets/scenes/v2/red-string-background.webp` | `39c04a572bc8a538f8b4418a822eb0ac45a0c9e77355cbb340bd8459cbc964e5` |
 
+## Audio
+
+Scene audio is synthesized in the browser at runtime by
+[`src/encounter/runtime/audioRecipes.ts`](../../src/encounter/runtime/audioRecipes.ts)
+and `audio.ts`; it is original code, generated at runtime, with no bundled or
+streamed recording.
+
 ## Rights boundary
 
 The [MIT License](../../LICENSE) covers the Catflix software and original project
