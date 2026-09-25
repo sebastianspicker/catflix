@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": "2026-01-01T00:00:00.000Z",
+  "settings": {
+    "soundEnabled": false,
+    "reducedMotion": false,
+    "sceneMotionMode": "standard"
+  },
+  "queue": [
+    {
+      "id": "q1",
+      "sceneId": "paper-moth",
+      "variant": { "figureGround": "natural", "motion": "continuous", "sound": "off", "novelty": "familiar" },
+      "addedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "q1",
+      "sceneId": "red-string",
+      "variant": { "figureGround": "enhanced", "motion": "continuous", "sound": "off", "novelty": "familiar" },
+      "addedAt": "2026-01-01T00:00:01.000Z"
+    }
+  ],
+  "progress": [],
+  "notes": [],
+  "observations": [],
+  "comparisons": [],
+  "provenance": []
+}

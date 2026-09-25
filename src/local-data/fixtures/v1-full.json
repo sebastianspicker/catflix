@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "exportedAt": "2026-01-01T00:00:00.000Z",
+  "settings": {
+    "soundEnabled": true,
+    "reducedMotion": false,
+    "safetyAcknowledgedAt": "2026-01-01T00:00:00.000Z"
+  },
+  "queue": [
+    {
+      "id": "q1",
+      "sceneId": "koi-pool",
+      "variant": {
+        "figureGround": "natural",
+        "motion": "continuous",
+        "sound": "off",
+        "novelty": "familiar"
+      },
+      "addedAt": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "progress": [
+    {
+      "sceneId": "koi-pool",
+      "revision": "2025.01.01",
+      "elapsedMs": 1000,
+      "durationMs": 60000,
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "notes": [
+    {
+      "id": "n1",
+      "cat": "Mika",
+      "sceneId": "koi-pool",
+      "contentRevision": "2025.01.01",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "rawNote": "Watched the koi circle twice.",
+      "vocabulary": [
+        "tracking",
+        "disengagement"
+      ],
+      "touchTimestamps": [
+        500,
+        1200
+      ]
+    }
+  ],
+  "comparisons": [
+    {
+      "id": "c-sound",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "first": {
+        "sceneId": "koi-pool",
+        "variant": {
+          "figureGround": "natural",
+          "motion": "continuous",
+          "sound": "off",
+          "novelty": "familiar"
+        }
+      },
+      "second": {
+        "sceneId": "koi-pool",
+        "variant": {
+          "figureGround": "natural",
+          "motion": "continuous",
+          "sound": "on",
+          "novelty": "familiar"
+        }
+      },
+      "changedDimension": "sound",
+      "observation": "Historical sound comparison, retained as import data only."
+    },
+    {
+      "id": "c-novelty",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "first": {
+        "sceneId": "koi-pool",
+        "variant": {
+          "figureGround": "natural",
+          "motion": "continuous",
+          "sound": "off",
+          "novelty": "familiar"
+        }
+      },
+      "second": {
+        "sceneId": "koi-pool",
+        "variant": {
+          "figureGround": "natural",
+          "motion": "continuous",
+          "sound": "off",
+          "novelty": "alternate"
+        }
+      },
+      "changedDimension": "novelty"
+    }
+  ],
+  "provenance": [
+    {
+      "assetId": "koi-pool-poster",
+      "creator": "Catflix",
+      "source": "/assets/koi-pool.webp",
+      "license": "CC0",
+      "derivativeHistory": [
+        "original"
+      ],
+      "checksum": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "masteringFormat": "webp",
+      "contentRevision": "2025.01.01",
+      "savedAt": "2026-01-01T00:00:00.000Z"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": "2026-01-01T00:00:00.000Z",
+  "settings": {
+    "soundEnabled": false,
+    "reducedMotion": false,
+    "sceneMotionMode": "standard"
+  },
+  "queue": [],
+  "progress": [],
+  "notes": [],
+  "observations": [],
+  "comparisons": [
+    {
+      "id": "dangling",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "first": {
+        "sceneId": "paper-moth",
+        "variant": { "figureGround": "natural", "motion": "continuous", "sound": "off", "novelty": "familiar" },
+        "observationId": "missing-observation-id"
+      },
+      "second": {
+        "sceneId": "paper-moth",
+        "variant": { "figureGround": "enhanced", "motion": "continuous", "sound": "off", "novelty": "familiar" }
+      },
+      "changedDimension": "figureGround"
+    }
+  ],
+  "provenance": []
+}
