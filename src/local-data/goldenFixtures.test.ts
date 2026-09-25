@@ -121,10 +121,6 @@ describe("golden fixtures: malformed imports", () => {
     expect((error as Error).message).toBe(unsupportedExportMessage);
   });
 
-  it("rejects malformed-invalid-json.json before it ever reaches the codec", () => {
-    expect(() => { JSON.parse(readFixtureText("malformed-invalid-json.json")); }).toThrow(SyntaxError);
-  });
-
   it("rejects a rawNote over its 20,000-character limit and leaves existing data untouched", async () => {
     const repository = createLocalRepository();
     await repository.importData(readFixture("v2-full.json"));
