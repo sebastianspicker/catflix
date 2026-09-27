@@ -126,7 +126,7 @@ class EncounterRuntimeController implements EncounterRuntime {
   }
 
   private readonly handleTouch = (x: number, y: number): void => {
-    if (this.preferences.playbackMode === "tv-passive") return;
+    if (!this.running || this.paused || this.destroyed || this.preferences.playbackMode === "tv-passive") return;
     const response = this.simulation.touch({ x, y });
     if (!response.accepted) return;
     this.options.container.dataset.lastContactResponse = response.response ?? "accepted";
