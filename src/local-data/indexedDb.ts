@@ -31,6 +31,15 @@ type LoggedMutation = { kind: "put"; value: unknown } | { kind: "delete" };
 type MutationLog = Map<StoreName, Map<string, LoggedMutation>>;
 type KeyFunction = (store: StoreName, value: unknown) => string;
 
+class CallerRejection extends Error {
+  constructor(readonly reason: unknown) { super("Local-data caller callback rejected."); }
+}
+
+function invokeCaller<T>(callback: () => T): T {
+  try { return callback(); }
+  catch (reason) { throw new CallerRejection(reason); }
+}
+
 export function openLocalDatabase(): Promise<DatabaseConnection> {
   if (typeof indexedDB === "undefined") return Promise.resolve({ fallbackMessage: "IndexedDB is unavailable; Catflix is using temporary memory only." });
   return new Promise((resolve) => {
@@ -64,6 +73,7 @@ export function createLocalDataBackend(keyFor: KeyFunction, openConnection: Data
   const run = async <T>(operation: () => Promise<T>, kind: "read" | "write"): Promise<T> => {
     try { return await operation(); }
     catch (error) {
+      if (error instanceof CallerRejection) throw error.reason;
       if (!(error instanceof LocalDataCapacityError)) report({ mode: "degraded", message: `${kind === "read" ? "Local data could not be read" : "Local data could not be saved"}. ${errorMessage(error)}` });
       throw error;
     }
@@ -71,7 +81,7 @@ export function createLocalDataBackend(keyFor: KeyFunction, openConnection: Data
   return {
     get: (store, key) => run(() => getValue(open, memory, store, key), "read"),
     values: (store) => run(() => listValues(open, memory, store), "read"),
-    snapshot: (stores = storeNames) => run(() => snapshotValues(open, memory, validatedTransactionStores(stores)), "read"),
+    snapshot: (stores = storeNames) => run(() => snapshotValues(open, memory, invokeCaller(() => validatedTransactionStores(stores))), "read"),
     put: (store, value) => run(() => putValue(open, memory, keyFor, store, value, admit), "write"),
     replace: (store, values) => run(() => replaceValues(open, memory, keyFor, store, values, admit), "write"),
     replaceAll: (replacements) => run(() => replaceAllValues(open, memory, keyFor, replacements, admit), "write"),
@@ -117,30 +127,30 @@ async function replaceValues(open: () => Promise<IDBDatabase | undefined>, memor
 }
 
 async function replaceAllValues(open: () => Promise<IDBDatabase | undefined>, memory: StoreMaps, keyFor: KeyFunction, replacements: readonly StoreReplacement[], admit?: LocalDataAdmission): Promise<void> {
-  assertCompleteReplacement(replacements);
+  invokeCaller(() => assertCompleteReplacement(replacements));
   const staged = new Map(replacements.map(({ store, values }) => [store, replacementMap(values, keyFor, store)]));
   const database = await open();
   if (!database) {
-    admit?.(memory, staged, "replacement");
+    invokeCaller(() => admit?.(memory, staged, "replacement"));
     staged.forEach((values, store) => memory.set(store, values));
     return;
   }
   const transaction = database.transaction(storeNames, "readwrite");
   await transactionWithCurrentValues(transaction, keyFor, (current) => {
-    admit?.(current, staged, "replacement");
+    invokeCaller(() => admit?.(current, staged, "replacement"));
     replacements.forEach(({ store, values }) => { replaceObjectStore(transaction.objectStore(store), values, keyFor, store); });
   });
 }
 
 async function transactValues<T>(open: () => Promise<IDBDatabase | undefined>, memory: StoreMaps, keyFor: KeyFunction, stores: readonly StoreName[], mutation: (transaction: LocalDataTransaction) => T, admit?: LocalDataAdmission): Promise<T> {
-  const selectedStores = validatedTransactionStores(stores);
+  const selectedStores = invokeCaller(() => validatedTransactionStores(stores));
   const loadedStores = admit ? [...storeNames] : selectedStores;
   const database = await open();
   if (database) return transactIndexedDb(database, loadedStores, selectedStores, keyFor, mutation, admit);
   const current = selectStoreMaps(memory, loadedStores);
   const staged = cloneStoreMaps(current);
-  const result = mutation(stagedTransaction(staged, keyFor, new Set(selectedStores)));
-  admit?.(current, staged, "mutation");
+  const result = invokeCaller(() => mutation(stagedTransaction(staged, keyFor, new Set(selectedStores))));
+  invokeCaller(() => admit?.(current, staged, "mutation"));
   staged.forEach((values, store) => memory.set(store, values));
   return result;
 }
@@ -151,8 +161,8 @@ function transactIndexedDb<T>(database: IDBDatabase, loadedStores: readonly Stor
   return transactionWithCurrentValues(transaction, keyFor, (current) => {
     const staged = cloneStoreMaps(current);
     const log: MutationLog = new Map(selectedStores.map((store) => [store, new Map<string, LoggedMutation>()]));
-    result = mutation(stagedTransaction(staged, keyFor, new Set(selectedStores), log));
-    admit?.(current, staged, "mutation");
+    result = invokeCaller(() => mutation(stagedTransaction(staged, keyFor, new Set(selectedStores), log)));
+    invokeCaller(() => admit?.(current, staged, "mutation"));
     applyMutationLog(transaction, finalMutationLog(current, log));
   }).then(() => result);
 }

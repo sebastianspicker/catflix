@@ -178,7 +178,8 @@ svg { display: block; height: 1.15em; width: 1.15em; }
 .referee-intro > div strong { background: var(--lime); border: 2px solid var(--ink); font-family: var(--display); font-size: 2rem; padding: 20px 8px; text-align: center; }
 .referee-intro > span { font-size: .7rem; line-height: 1.5; }
 
-.queue-drawer { background: var(--paper); border-left: 3px solid var(--ink); bottom: 0; box-shadow: -20px 0 45px rgba(8,11,31,.28); max-width: 500px; overflow: auto; padding: 28px; position: fixed; right: 0; top: 0; width: 92vw; z-index: 50; }
+.queue-backdrop { background: rgba(8,11,31,.72); inset: 0; position: fixed; z-index: 50; }
+.queue-drawer { background: var(--paper); border-left: 3px solid var(--ink); bottom: 0; box-shadow: -20px 0 45px rgba(8,11,31,.28); max-width: 500px; overflow: auto; padding: 28px; position: absolute; right: 0; top: 0; width: 92vw; }
 .queue-drawer header { align-items: center; border-bottom: 2px solid var(--ink); display: grid; grid-template-columns: 50px 1fr 42px; padding-bottom: 15px; }
 .queue-drawer header span { font-family: var(--display); font-size: 1.5rem; text-transform: uppercase; }
 .queue-drawer header button { background: transparent; border: 0; font-size: 2.4rem; }
