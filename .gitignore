@@ -87,6 +87,8 @@ id_ed25519*
 /.history/
 /.idea/
 /.vscode/
+.fleet/
+.settings/
 .DS_Store
 Thumbs.db
 desktop.ini
@@ -94,10 +96,15 @@ desktop.ini
 
 # Local analysis and design tools
 /.codacy/
+/.codacy.yml
 /.codegraph/
 /.impeccable/
 /.mcp.json
 /.serena/
+/.repowise/
+/.continue/
+/.windsurf/
+/.aider*/
 /docs/audits/
 *.sarif
 
@@ -116,6 +123,7 @@ desktop.ini
 /CLAUDE.md
 /CODEX.md
 /GEMINI.md
+/AGENTS.md
 /prompt/
 /prompts/
 /agent-prompts/
@@ -153,3 +161,35 @@ desktop.ini
 /work-log*
 /devlog*
 /development-log*
+
+# Linked worktrees and nested checkouts
+/.worktrees/
+/worktrees/
+/.claude/worktrees/
+/.codex/worktrees/
+
+# Tests and local verification files
+/e2e/
+/playwright.config.ts
+/playwright.*.config.ts
+/src/**/*.test.ts
+/src/**/*.test.tsx
+/src/**/*.testSupport.ts
+/src/**/fixtures/
+/scripts/*.test.mjs
+/tsconfig.e2e.json
+/tsconfig.scripts.json
+/eslint.config.*
+/stylelint.config.*
+/.jscpd.json
+
+# Local helper scripts; the Pages packaging script stays public
+/scripts/*
+!/scripts/prepare-pages.mjs
+
+# Planning notes and work logs
+/RELEASE_STATUS.md
+/ROADMAP.md
+/PRD.md
+/TODO.md
+/docs/**/drafts/

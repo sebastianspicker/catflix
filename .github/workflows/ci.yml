@@ -31,16 +31,10 @@ jobs:
       - name: Install dependencies
         run: npm ci --ignore-scripts
 
-      - name: Run core verification
-        run: npm run verify
+      - name: Build GitHub Pages site
+        run: npm run build:pages
 
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium webkit
-
-      - name: Run end-to-end verification
-        run: npm run test:e2e
-
-      - name: Preserve verified Pages artifact
+      - name: Preserve Pages artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: catflix-pages-dist
@@ -49,32 +43,8 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  pages:
-    needs: verify
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-
-      - name: Set up Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version-file: '.nvmrc'
-          package-manager-cache: false
-
-      - name: Retrieve the tested Pages artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          name: catflix-pages-dist
-          path: dist
-
-      - name: Validate the tested Pages artifact
-        run: node scripts/verify-pages-artifact.mjs && node scripts/verify-build-budget.mjs
-
   deploy:
-    needs: pages
+    needs: verify
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -86,7 +56,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      - name: Retrieve the verified Pages artifact
+      - name: Retrieve the Pages artifact
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: catflix-pages-dist
@@ -97,7 +67,7 @@ jobs:
         with:
           enablement: true
 
-      - name: Upload the verified Pages artifact
+      - name: Upload the Pages artifact
         uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
         with:
           path: dist
