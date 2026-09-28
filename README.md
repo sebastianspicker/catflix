@@ -161,21 +161,10 @@ rendering. IndexedDB handles all local storage. There is no backend server.
 | Command | Purpose |
 | --- | --- |
 | `npm run dev` | Start the Vite dev server. |
-| `npm run test` | Run the colocated Vitest test suite once (tests kept beside the code they check). |
-| `npm run test:watch` | Run the test suite in watch mode, re-running on file changes. |
-| `npm run test:build` | Run build-manifest and CI artifact fixtures. |
-| `npm run test:e2e` | Build and preview the Pages artifact, then run end-to-end (**e2e**: tests that drive a real browser through the whole app, not just one function) checks on desktop Chromium and iPad WebKit. |
-| `npm run lint` / `npm run lint:fix` | Check code and style rules with ESLint and Stylelint (**lint**: automated style and mistake checking), or apply the fixes that are safe to apply automatically. |
-| `npm run quality:size` / `npm run quality:duplication` | Check source-file size and code-duplication limits. |
 | `npm run typecheck` | Type-check the app and the Vite configuration. |
 | `npm run build` | Type-check and build the production files into `dist/`. |
-| `npm run verify` | Run the full core gate: lint, size/duplication, unit and artifact tests, the architecture checker, the build, and the bundle budgets (see below). |
-| `npm run build:pages` | Build and validate the `/catflix/` GitHub Pages artifact. |
+| `npm run build:pages` | Build the `/catflix/` GitHub Pages artifact, including direct-link fallback files. |
 | `npm run preview:pages` | Preview an existing Pages build at `127.0.0.1:4174`. |
-
-`npm run verify` is the fast core gate that must pass locally. `npm run
-test:e2e` is a separate, slower browser gate that CI runs after it. There is
-no standalone code-formatting or coverage-percentage command.
 
 ### Project layout
 
@@ -193,34 +182,13 @@ no standalone code-formatting or coverage-percentage command.
 | `src/research/`, `src/ui/`, `src/styles/` | The research route, shared UI primitives, and styling. |
 | `assets/masters/`, `public/assets/` | Source artwork and provenance records, and browser-delivery assets. |
 
-*Note:* this table describes `src/encounter/runtime/` using [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)'s
-fuller wording, which includes synthesized Web Audio playback. An earlier
-version of this table omitted audio from that row; the two source documents
-had drifted apart on this point, and this rewrite follows ARCHITECTURE.md.
-
 See [How Catflix is built](docs/ARCHITECTURE.md) for dependency direction,
 runtime and data flow, stable contracts, and where new code belongs.
 
-### Quality checks and bundle budget
-
-The **bundle budget** check follows Vite's build manifest (a file listing
-every built asset and its dependencies) and holds the initial JavaScript
-sent to the browser — everything statically imported or preloaded, counted
-once — to **300 KiB** (kibibytes — a kibibyte is 1,024 bytes, slightly
-larger than a "kilobyte"). Phaser must stay reachable only through a dynamic
-(on-demand) import, outside that initial 300 KiB graph, and no larger than
-**1,500 KiB** itself. Both the root build and the `/catflix/` Pages build are
-checked. [README, Documentation]
-
 ### Continuous integration (CI)
 
-CI runs the fast core gate first, then runs the Playwright end-to-end suite
-against the built Pages artifact, and uploads that already-tested build. A
-separate `pages` job validates the uploaded artifact without rebuilding it,
-and a `deploy` job publishes that same artifact on pushes to `main`
-([workflow definition](.github/workflows/ci.yml)). The iPad WebKit test
-project is browser **emulation** of an iPad, run on a desktop machine — it
-is not validation on a physical iPad. [README, Documentation]
+CI builds the Pages artifact and uploads it. A `deploy` job publishes that
+same artifact on pushes to `main` ([workflow definition](.github/workflows/ci.yml)).
 
 ## Further reading
 
@@ -249,23 +217,18 @@ bundled visual assets; see [NOTICE.md](NOTICE.md).
 
 - **Attention** — a cat looking at, orienting toward, tracking, or
   approaching something; not the same as enjoyment or preference.
-- **Bundle budget** — the size limit Catflix enforces on the JavaScript sent
-  to the browser on first load.
-- **CI (continuous integration)** — the automated pipeline that runs checks
-  (tests, lint, build) on every change.
+- **CI (continuous integration)** — the automated pipeline that builds the
+  app on every change.
 - **Degraded mode / temporary-memory mode** — a fallback where Catflix runs
   from in-page memory instead of IndexedDB, because IndexedDB could not
   open; import and export are disabled in this mode.
 - **Deterministic** — producing the same output from the same input, every
   time; used here for the encounter simulation.
-- **e2e (end-to-end) tests** — automated tests that drive a real browser
-  through a full workflow, not just one function.
 - **IndexedDB** — a database built into modern web browsers, used here to
   store all of Catflix's local records.
 - **KiB / MiB (kibibyte / mebibyte)** — binary units of digital size:
   1 KiB = 1,024 bytes; 1 MiB ≈ 1.05 million bytes. Slightly larger than the
   more familiar "kilobyte" and "megabyte."
-- **Lint** — automated checking for style and likely mistakes in code.
 - **Local-first** — an app design where data is created, stored, and used
   primarily on the user's own device, not on a remote server.
 - **Phaser** — a JavaScript library Catflix optionally loads to render

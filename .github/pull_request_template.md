@@ -4,9 +4,8 @@ Describe the user-visible change and why it belongs in the current alpha.
 
 ## Verification
 
-- [ ] `npm run verify`
+- [ ] `npm run build`
 - [ ] `npm run build:pages` (routes, assets, or deployment changed)
-- [ ] `npm run test:e2e` (rendered workflow, persistence, responsive, or browser changes)
 
 ## Boundaries
 

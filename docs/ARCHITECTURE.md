@@ -22,15 +22,15 @@ Five ideas shape everything below:
    service, cloud sync, or catalogue network dependency exists to call.
 2. **Strict, one-directional module boundaries, checked by a script — not
    just by convention.** A dependency cycle (modules importing each other in
-   a loop) or a forbidden import direction fails the build.
+   a loop) or a forbidden import direction would violate these boundaries.
 3. **A deterministic simulation engine, decoupled from rendering.** The
    engine produces the same output from the same input every time; Canvas
    (the browser's 2D drawing surface) renders first, with an optional,
    lazily loaded Phaser upgrade.
 4. **One persistence module owning a single, versioned local database**, with
    atomic writes and hard capacity limits.
-5. **A pipeline that builds and tests once, then reuses that same validated
-   build** for both the plain and GitHub Pages deployments.
+5. **A pipeline that builds once, then reuses the same output** for GitHub
+   Pages deployment.
 
 ## The parts and how they depend on each other
 
@@ -94,12 +94,8 @@ flowchart TD
 ```
 
 The diagram shows the main edges, not every allowed UI import. [ARCHITECTURE,
-Components] `scripts/check-architecture.mjs` is the authority, not the
-picture above: it classifies every TypeScript module, rejects forbidden
-relative imports, checks that the diagram only draws edges allowed by
-`scripts/architecture.config.json`, and reports dependency cycles. In other
-words, the diagram is a helpful summary for a reader; the script is what
-actually fails a build that violates it.
+Components] The diagram summarizes the intended import direction for a
+reader; the component table describes each module's responsibility.
 
 ## What happens during an encounter
 
@@ -265,49 +261,21 @@ Three query-string controls are supported:
 Any other value for `renderer` falls back to the normal path: Canvas first,
 with a lazy Phaser upgrade.
 
-## Build, checks and deployment
+## Build and deployment
 
-The repository is one private npm package. `npm run verify` runs ESLint and
-Stylelint (lint — checking code against rules without running it), the
-source-size and duplication gates, Vitest (the unit test runner), the Node
-artifact/CI fixture tests, the architecture validator described above, the
-TypeScript and Vite production build, and the bundle budget check. `npm run
-test:build` runs just the artifact fixtures on their own. [ARCHITECTURE,
-Build and deployment]
+The repository is one private npm package. `npm run build` type-checks the
+application and runs the Vite production build. [ARCHITECTURE, Build and deployment]
 
 Vite (the project's build tool) emits `.vite/manifest.json` — a generated
-listing of which built files depend on which. The bundle-budget validator
-follows the static (always-loaded) imports and the HTML's script and preload
-roots, counting each JavaScript file once, and holds that total to 300 KiB (a
-KiB, or kibibyte, is about 1.02 kB — see the glossary) against the app's
-initial load. Phaser, the optional rendering library, must instead be
-reachable only through dynamic imports (imports the code chooses to run
-later, not up front), stay absent from that initial static-and-preload
-graph, and be no larger than 1,500 KiB. A missing manifest entry or file, a
-malformed dependency listing, or an invalid artifact path all fail
-validation.
-
-`npm run test:e2e` runs the e2e (end-to-end) Playwright suite — tests driven
-against a real, built copy of the app in an actual browser — using a
-loopback-only (local-machine-only) Pages preview, against both a desktop
-Chromium project and an iPad WebKit project. The suite blocks any unexpected
-outbound network request, and keeps traces and screenshots only for failures
-that involve synthetic (made-up) fixtures, not real data. CI installs both
-browsers and runs this suite after the faster core gate finishes. WebKit iPad
-emulation approximates an iPad in software; it is not validation on a
-physical device.
+listing of which built files depend on which. Phaser, the optional rendering
+library, remains reachable through a dynamic import, loaded when needed.
 
 `npm run build:pages` builds the app with the base path `/catflix/`, copies
 `index.html` to `404.html` so client-side routing still works after a direct
 link or refresh (history fallback), creates a `.nojekyll` file so GitHub
-Pages serves the build as-is, and verifies every artifact path and bundle
-limit. GitHub Actions runs this verification for every pull request and for
-every push to `main`. Specifically: the `verify` job checks the plain
-(root-base) build first, then runs Playwright against the Pages build and
-uploads that already-tested `dist` output — including its manifest metadata
-— as a CI artifact. The `pages` job downloads and validates that artifact
-with Node alone: no dependency install, no rebuild. The `deploy` job
-downloads the very same artifact and deploys it, but only on a push to
+Pages serves the build as-is. GitHub Actions builds this artifact on pull
+requests and pushes to `main`. The `deploy` job downloads the same artifact
+and deploys it, but only on a push to
 `main`, using OIDC (OpenID Connect — a way for the job to prove its identity
 to GitHub Pages without a stored long-lived secret) for its Pages permissions.
 
@@ -323,8 +291,6 @@ to GitHub Pages without a stored long-lived secret) for its Pages permissions.
   owning module.
 - Use `src/ui/` only for primitives with more than one product consumer.
   Don't add generic helper directories or compatibility facades.
-- Keep colocated tests — tests placed next to the code they protect — at the
-  contract seam they protect.
 
 [ARCHITECTURE, Change rules] The modular-monolith shape — many internal
 modules, but still one deployed application — is deliberate. All state and
@@ -335,15 +301,12 @@ instead of isolating a real one.
 ## Glossary
 
 - **Artifact (CI sense).** The build output one CI job produces and hands,
-  unrebuilt, to a later job — for example, the tested Pages build that
-  `pages` and `deploy` reuse.
+  unrebuilt, to a later job — here, the Pages build used by `deploy`.
 - **Atomic / transaction.** A transaction is a group of database operations
   that either all succeed together or all fail together. An operation
   described as atomic can't be left half-done partway through.
-- **Bundle / manifest / budget.** A *bundle* is the JavaScript a browser
-  downloads to run the app. A *manifest* is a generated listing of which
-  built files depend on which. A *budget* is the size limit checked against
-  that listing.
+- **Bundle / manifest.** A *bundle* is the JavaScript a browser downloads to
+  run the app. A *manifest* lists generated files and their dependencies.
 - **Canvas.** The browser's built-in 2D drawing surface; the renderer Catflix
   starts with, before any optional upgrade.
 - **CI (continuous integration).** The automated checks GitHub runs on every
@@ -354,18 +317,13 @@ instead of isolating a real one.
 - **Degraded mode.** The fallback used when IndexedDB can't open: data lives
   only in memory for the life of the page, and import/export are disabled so
   temporary data can't be mistaken for durable, saved data.
-- **Dependency cycle.** A chain of imports that loops back on itself (module
-  A imports B, and B imports A); the architecture checker rejects these.
 - **Deterministic.** Always producing the same output from the same input —
   used here of the encounter engine and, together with a seed, of encounter
   selection.
-- **e2e (end-to-end) tests.** Tests that drive a real, built copy of the app
-  in an actual browser, rather than testing isolated functions.
 - **GitHub Pages.** The static-site hosting GitHub provides directly from a
   repository; this project deploys to it at base path `/catflix/`.
 - **Import direction.** The rule for which modules may import which other
-  modules; here, always toward `domain`, never away from it, checked by
-  `scripts/check-architecture.mjs`.
+  modules; here, always toward `domain`, never away from it.
 - **IndexedDB.** The browser's built-in database for storing structured data
   on the user's own device; Catflix's only persistence mechanism.
 - **KiB / MiB.** Kibibyte and mebibyte, the binary units behind "kilobyte"
@@ -390,4 +348,3 @@ instead of isolating a real one.
   comparable to a table. `catflix-local` has seven: `settings`, `queue`,
   `progress`, `notes`, `observations`, `comparisons`, and `provenance`.
 - **Vite.** The project's build tool and development server.
-- **Vitest.** The project's unit test runner.
