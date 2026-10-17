@@ -273,7 +273,8 @@ function isIdentifier(value: unknown): value is string { return isRecordIdentifi
 function isText(value: unknown): value is string { return typeof value === "string" && value.trim() !== ""; }
 function isBoundedText(value: unknown): value is string { return isText(value) && value.length <= 256; }
 function isRevision(value: unknown): value is string { return isBoundedText(value); }
-function isObservationText(value: unknown): value is string { return typeof value === "string" && value.length <= 20_000; }
+export const observationTextMaxLength = 20_000;
+function isObservationText(value: unknown): value is string { return typeof value === "string" && value.length <= observationTextMaxLength; }
 function isProvenanceNarrative(value: unknown): value is string { return isText(value) && value.length <= 4_096; }
 function isNumberAtLeast(value: unknown, minimum: number): value is number { return typeof value === "number" && Number.isFinite(value) && value >= minimum; }
 function isNonNegativeSafeInteger(value: unknown): value is number { return typeof value === "number" && Number.isSafeInteger(value) && value >= 0; }

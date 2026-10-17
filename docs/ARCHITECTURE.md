@@ -20,9 +20,11 @@ Five ideas shape everything below:
 
 1. **One browser app, nothing else.** No server, account, API, analytics
    service, cloud sync, or catalogue network dependency exists to call.
-2. **Strict, one-directional module boundaries, checked by a script — not
-   just by convention.** A dependency cycle (modules importing each other in
-   a loop) or a forbidden import direction would violate these boundaries.
+2. **Strict, one-directional module boundaries.** A dependency cycle
+   (modules importing each other in a loop) or a forbidden import direction
+   would violate these boundaries. The public repository does not include an
+   automated boundary check, so review new imports against the component
+   table and diagram below.
 3. **A deterministic simulation engine, decoupled from rendering.** The
    engine produces the same output from the same input every time; Canvas
    (the browser's 2D drawing surface) renders first, with an optional,
@@ -61,8 +63,7 @@ which other modules — here, always toward `domain` at the bottom, never away
 from it. A **dependency cycle** is a chain of imports that loops back on
 itself (module A imports B, and B imports A); the codebase must have none.
 
-The principal import direction — copied unchanged from the source, and kept
-byte-for-byte identical because it is machine-checked in the repository:
+The principal import direction, copied unchanged from the source:
 
 ```mermaid
 flowchart TD

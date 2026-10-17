@@ -23,9 +23,9 @@ kind [README, Intro paragraphs].
 The project is also a working example of a few things done carefully:
 **deterministic**, frame-accurate simulation (deterministic means the same
 inputs — including the numeric **seed** that starts a scene — always produce
-the same scene, run after run); strict internal module
-boundaries that are checked automatically in continuous integration (**CI**
-— the automated pipeline that runs checks on every change); and private,
+the same scene, run after run); strict, one-directional internal module
+boundaries, described in [How Catflix is built](docs/ARCHITECTURE.md) (the
+public repository does not include an automated check for them); and private,
 versioned local data with a real upgrade path between data formats [README,
 Intro paragraphs].
 
@@ -33,6 +33,8 @@ Intro paragraphs].
 [README, Status]. If you are trying to decide whether to use it: it works
 today, in any modern desktop or tablet browser, but treat it as an
 early-stage, actively developed project rather than a finished product.
+Known problems and how to report new ones are listed in
+[Known issues](docs/KNOWN_ISSUES.md).
 
 ## The five scenes
 
@@ -41,12 +43,8 @@ early-stage, actively developed project rather than a finished product.
 | Balcony Birds at Dusk | 1:45 | Perch, passage, occlusion, visible rest |
 | Koi in Slow Motion | 2:00 | Long curves with a calm-water finale |
 | Paper Moth at Midnight | 1:30 | Flutter passages with long landings |
-| Beetle Beneath the Fern | — | Fern-margin crossings and shelter |
-| The Red String Incident | — | Bounded tension and slack passages |
-
-A dash ("—") in the Length column means the source catalogue does not list a
-length for that scene — it is not zero or unknown-but-omitted-here; the
-project itself has not published one. [README, Scene table]
+| Beetle Beneath the Fern | 1:35 | Fern-margin crossings and shelter |
+| The Red String Incident | 1:40 | Bounded tension and slack passages |
 
 Each scene is a finite, supervised encounter, not a loop: it plays through
 once and stops. For the reasoning behind that design — and why Catflix

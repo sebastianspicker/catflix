@@ -67,6 +67,7 @@ export async function createPhaserSimulationBootstrap(options: PhaserBootstrapOp
         type: PhaserRuntime.AUTO,
         parent: options.container,
         transparent: true,
+        banner: false,
         scale: { mode: PhaserRuntime.Scale.RESIZE, width: "100%", height: "100%" },
         scene: { preload: renderer.preload, create: renderer.create, update: (_time: number, delta: number) => { options.onFrame(delta); } },
       });

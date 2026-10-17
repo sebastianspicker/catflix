@@ -7,13 +7,16 @@ body:
   - type: markdown
     attributes:
       value: >-
-        Don't include exported records, household names, or security-sensitive
-        details. Use private vulnerability reporting for security issues.
+        Check the [known issues](https://github.com/sebastianspicker/catflix/blob/main/docs/KNOWN_ISSUES.md)
+        first. Don't include exported records, household names, or
+        security-sensitive details. Use private vulnerability reporting for
+        security issues.
   - type: input
     id: version
     attributes:
       label: Version or commit
-      placeholder: 0.2.0 or a commit identifier
+      description: Shown at the bottom of the catalogue page, for example "Version 0.2.0 · build 1a2b3c4".
+      placeholder: 0.2.0 · build 1a2b3c4
     validations:
       required: true
   - type: dropdown

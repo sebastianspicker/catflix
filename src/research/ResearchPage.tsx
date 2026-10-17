@@ -1,24 +1,17 @@
 import researchMarkdown from "../../docs/research/feline-perception.md?raw";
-import { ResearchMarkdown } from './ResearchMarkdown';
+import { headingSlug, ResearchMarkdown } from './ResearchMarkdown';
 import { publicUrl } from "../paths";
 
 export interface ResearchPageProps {
   onBack?: () => void;
 }
 
-const contents = [
-  ["Executive conclusion", "executive-conclusion"],
-  ["Executive decision table", "executive-decision-table"],
-  ["Method", "method"],
-  ["Evidence map", "evidence-map"],
-  ["Synthesis by decision area", "synthesis-by-decision-area"],
-  ["Curation metadata contract", "curation-metadata-contract"],
-  ["Playback and safety principles", "playback-and-safety-principles"],
-  ["Household observation protocol", "household-observation-protocol-for-arri-ozzy-and-mika"],
-  ["Product claim rules", "product-claim-rules"],
-  ["Limitations and research gaps", "limitations-and-research-gaps"],
-  ["Numbered bibliography", "numbered-bibliography"],
-] as const;
+const contents = researchMarkdown.split('\n')
+  .filter((line) => line.startsWith('## '))
+  .map((line) => {
+    const label = line.slice(3).trim();
+    return [label, headingSlug(label)] as const;
+  });
 
 export function ResearchPage({ onBack }: ResearchPageProps) {
   return <main className="research-page">

@@ -14,6 +14,8 @@ export interface CatalogueHydration {
 }
 
 const store = createLocalRepository();
+// Some browsers abort a download whose object URL is revoked in the same task as the click.
+const exportUrlLifetimeMs = 40_000;
 let catalogueHydration: Promise<CatalogueHydration> | undefined;
 let persistenceError = '';
 const persistenceListeners = new Set<(message: string) => void>();
@@ -85,7 +87,7 @@ async function downloadExport(recovery: boolean): Promise<void> {
   link.href = url;
   link.download = `catflix-local-${recovery ? 'recovery' : 'export'}-${new Date().toISOString().slice(0, 10)}.json`;
   link.click();
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => { URL.revokeObjectURL(url); }, exportUrlLifetimeMs);
 }
 
 export async function prepareLocalImport(file: File) {

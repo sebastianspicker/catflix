@@ -124,8 +124,8 @@ note when the cat disengages.
 
 **3. Treat novelty as something that gets used up, and rotate clips instead
 of making them faster or busier.**
-Evidence: HUN-05 and VID-01 both show response declining with repetition;
-HUN-07 shows preferences vary a lot between individual cats. Confidence:
+Evidence: HUN-05 shows response declining with repetition, and VID-01
+shows attention falling over the course of each exposure session; HUN-07 shows preferences vary a lot between individual cats. Confidence:
 **Moderate**. Applies to repeated household sessions using clips that can be
 told apart by ID. This does **not** mean one instance of a cat disengaging
 proves boredom, and it is not a license to chase the longest possible
@@ -333,26 +333,22 @@ play, novelty, and capture]`.
 ### The direct screen studies
 
 This is the small core of evidence that comes from cats actually looking at
-screens. **VID-01** randomly assigned **125 shelter cats** across what the
-review describes as **five conditions**; across the conditions where a
-television was present, cats looked at the screen in just **6.10% of
-observations** — about 6 of every 100 sampled moments, using a method called
-scan sampling (checking and recording what an animal is doing at set
-intervals, rather than watching continuously). Moving content, whether it
-showed animals or objects, drew more attention than clips of humans or a
-blank screen, and attention fell off over repeated days of exposure. This
-design supports a conclusion about attention and habituation. It does
+screens. **VID-01** randomly assigned **125 shelter cats** across **five
+conditions**: a control with no visual stimulation, and four television
+conditions (blank screen, humans, inanimate movement, and animate, prey-like
+movement). Across the conditions where a television was present, cats looked
+at the screen in just **6.10% of observations** — about 6 of every 100
+sampled moments, using a method called scan sampling (checking and recording
+what an animal is doing at set intervals, rather than watching continuously).
+Moving content, whether it showed animals or objects, drew more attention
+than a blank screen; clips of humans did not differ significantly from the
+blank screen. Average looking was highest for animate movement, but the study
+did not test moving content directly against clips of humans. Attention fell
+off within each three-hour daily session: cats looked more in the first hour
+than in the second or third. This design supports a conclusion about
+attention and habituation. It does
 **not** establish that shelter cats — or any cats — preferred the television,
 felt good about it, or benefited from it over time.
-
-> **Note:** the Research review describes VID-01 as having "five conditions,"
-> while the evidence ledger lists four stimulus types shown to the cats:
-> blank screen, humans, inanimate movement, and animate (prey-like)
-> movement. A fifth, no-television control condition would explain the
-> difference, and the review's own phrase "television-present conditions"
-> hints at one — but neither document actually states that a fifth condition
-> existed. This rewrite leaves the discrepancy exactly as it stands in the
-> source rather than guessing which number is right.
 
 The remaining screen studies confirm that cats can respond to moving lights,
 random moving dots, apparent motion across a flat surface, and animated

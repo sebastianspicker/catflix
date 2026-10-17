@@ -51,7 +51,9 @@ export function useCatalogueApp() {
     let mounted = true;
     void loadCatalogueState(manifests).then((hydrated) => {
       if (mounted) dispatch({ type: 'hydrate', ...hydrated });
-    }).catch(() => undefined);
+    }).catch(() => {
+      if (mounted) setPersistenceError('Saved records could not be loaded, so watchlist and scene-motion changes in this tab will not be kept. Reload the page to try again.');
+    });
     return () => { mounted = false; };
   }, []);
   useEffect(() => {

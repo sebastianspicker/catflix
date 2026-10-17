@@ -31,6 +31,7 @@ button:active { transform: translateY(1px); }
 .catalogue-primary-nav button:hover, .catalogue-primary-nav a:hover { background: var(--paper); }
 .catalogue-menu-toggle { display: none; }
 .catalogue-secondary-nav { align-items: center; border-top: 2px solid var(--ink); display: flex; flex-wrap: wrap; gap: 24px; justify-content: center; padding: 20px; }
+.catalogue-secondary-nav .build-stamp { flex-basis: 100%; font: 700 .75rem var(--editorial-narrow); text-align: center; }
 .catalogue-secondary-nav button, .catalogue-secondary-nav a { background: transparent; border: 0; color: var(--ink); font: 700 1rem var(--editorial-narrow); min-height: 44px; padding: 10px; text-decoration: underline; text-underline-offset: 4px; }
 
 .catalogue-main { min-height: 0; }

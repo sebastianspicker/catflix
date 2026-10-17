@@ -110,7 +110,7 @@ export function Catalogue({ app, children }: { app: CatalogueViewModel; children
       <EvidenceSection onOpen={setEvidenceOpen} />
       <ResumeSection app={app} />
     </main>
-    <nav className="catalogue-secondary-nav" aria-label="More about Catflix"><button type="button" onClick={() => { setRefereesOpen(true); }}>Meet the referees</button><a href={publicUrl('/demo')}>Screenshot tour</a><a href={publicUrl('/research')}>Scientific foundation</a></nav>
+    <nav className="catalogue-secondary-nav" aria-label="More about Catflix"><button type="button" onClick={() => { setRefereesOpen(true); }}>Meet the referees</button><a href={publicUrl('/demo')}>Screenshot tour</a><a href={publicUrl('/research')}>Scientific foundation</a><small className="build-stamp">Version {__CATFLIX_VERSION__} · build {__CATFLIX_COMMIT__}</small></nav>
     {children}
   </div>;
 }
