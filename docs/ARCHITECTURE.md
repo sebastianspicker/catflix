@@ -142,15 +142,19 @@ precise elapsed time in a ref — a React value that can change without
 triggering a re-render — and updates React's own state only when the
 displayed second or phase actually changes. This keeps frequent internal
 timing updates from causing frequent, unnecessary re-renders. Pausing cancels
-Canvas scheduling outright; an explicit resume starts one loop from a fresh
-time baseline rather than picking up a stale one. Phaser can finish loading
+Canvas scheduling outright and stops Phaser from updating or drawing; an
+explicit resume starts one loop from a fresh time baseline rather than picking
+up a stale one. Phaser can finish loading
 while playback is paused, and stays paused when it does. A visible tab never
 resumes playback automatically — bringing the tab back into view is not
 itself a reason to start playing again.
 
 Sessions are finite by design. Three accepted target contacts within 20
 seconds open a 10-to-12-second quiet rest window: a short, automatic pause
-built into the simulation itself, not a UI-only effect. Contact responses
+built into the simulation itself, not a UI-only effect. The window rolls:
+whenever three accepted contacts fall within 20 seconds, another rest opens,
+whether or not the owner dismissed the first reminder, and the reminder is
+shown only once. Contacts during a rest are not accepted. Contact responses
 never add speed, actors, sound, contrast, or duration — touching the scene
 cannot escalate it. Playback begins muted, and only the owner's explicit
 gesture enables Web Audio (the browser API used for in-page sound); each
@@ -213,10 +217,12 @@ records — for example, an observation and the comparison it would create —
 that together would exceed capacity is rejected atomically: either both are
 refused before either is written, never one committed and the other refused.
 
-**Recovery.** Capacity errors are their own typed kind of error, and they do
-not signal a degraded (broken) IndexedDB — a rejected write because a limit
-was reached is a different situation from a database that failed to open,
-and the app is careful to tell them apart. When a write is rejected for
+**Recovery.** Only a database that fails to open switches the app to degraded
+mode. A rejected read or write — including a capacity error, which has its
+own typed kind of error — is reported to the owner by the action that made
+it, and export stays available. If the browser closes the database connection,
+or a newer tab asks to upgrade it, the adapter releases the connection and the
+next operation reopens it. When a write is rejected for
 capacity, any open observation draft stays open rather than being discarded,
 and a background persistence failure raises an application alert rather than
 failing silently. Existing data that is already over a limit is never
@@ -232,7 +238,9 @@ a point to resume playback from partway through. Contrast and motion
 observations pair into an A/B comparison only when the canonical A/B variants
 match, and the scene, content revision, seed (the starting number that makes
 a deterministic run reproducible), authored score, and comparison dimension
-all agree as well. When a pair is found, pairing always picks the oldest
+all agree as well. Both sides must also record the same observed cat, playback
+mode, and scene-motion mode; the scene-motion setting is fixed for the length
+of a comparison run, because low motion changes the actor setup. When a pair is found, pairing always picks the oldest
 unused compatible observation, and it never overwrites one side of an
 existing pair or infers which side "won." Imported historical records may
 still carry older sound or novelty comparison dimensions, kept only for

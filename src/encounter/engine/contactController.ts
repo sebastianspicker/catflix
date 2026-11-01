@@ -1,9 +1,10 @@
 import type { MutableActor } from "./actorFactory";
 import type { Point, SceneEvent, SceneScore, SimulationPreferences, TouchResponse } from "../../domain";
+import { scenePhaseAt } from "./actorMotion";
 import { normalize } from "./simulationMath";
 import { contactResponseFor } from "./simulationResponses";
 
-export interface ContactState {
+interface ContactState {
   refractoryUntilMs: number;
   forcedRestUntilMs: number;
   reminder?: Extract<SceneEvent, { type: "contact-reminder" }> | undefined;
@@ -13,15 +14,13 @@ export class ContactController {
   private acceptedTimes: number[] = [];
   readonly state: ContactState = { refractoryUntilMs: 0, forcedRestUntilMs: 0 };
 
-  reset(): void { this.acceptedTimes = []; this.state.refractoryUntilMs = 0; this.state.forcedRestUntilMs = 0; this.state.reminder = undefined; }
-
   dismissReminder(): void { this.state.reminder = undefined; }
 
   touch(score: SceneScore, preferences: SimulationPreferences, actors: MutableActor[], elapsedMs: number, point: Point, timestampMs: number, nextRandom: () => number): { result: TouchResponse; events: SceneEvent[] } {
     if (this.isDisabled(score, preferences, elapsedMs, timestampMs)) return { result: { accepted: false, refractoryUntilMs: this.state.refractoryUntilMs }, events: [] };
     const actor = score.interactionPolicy.targetMode === "subject-only" ? this.closestActor(actors, point) : undefined;
     if (!actor || this.distance(actor, point) > score.interactionPolicy.hitTolerance) return { result: { accepted: false, refractoryUntilMs: this.state.refractoryUntilMs }, events: [] };
-    const response = contactResponseFor(score.id, actor.animationState, phaseAt(score, elapsedMs), score.interactionPolicy.allowedResponses);
+    const response = contactResponseFor(score.id, actor.animationState, scenePhaseAt(score, elapsedMs).phase, score.interactionPolicy.allowedResponses);
     this.state.refractoryUntilMs = timestampMs + score.interactionPolicy.refractoryMs;
     actor.responseUntilMs = timestampMs + 650;
     this.applyResponse(actor, response, point, timestampMs, score);
@@ -50,19 +49,15 @@ export class ContactController {
   private recordRest(score: SceneScore, actors: MutableActor[], timestampMs: number, nextRandom: () => number, events: SceneEvent[]): void {
     const { rollingContactCap, restResponse } = score.interactionPolicy;
     this.acceptedTimes = [...this.acceptedTimes, timestampMs].filter((time) => timestampMs - time <= rollingContactCap.windowMs);
-    if (this.acceptedTimes.length < rollingContactCap.contacts || this.state.reminder) return;
+    if (this.acceptedTimes.length < rollingContactCap.contacts) return;
     const [minimumDurationMs, maximumDurationMs] = restResponse.durationMs;
     const durationMs = minimumDurationMs + Math.floor(nextRandom() * (maximumDurationMs - minimumDurationMs + 1));
     this.state.forcedRestUntilMs = timestampMs + durationMs;
     for (const actor of actors) actor.pauseUntilMs = Math.max(actor.pauseUntilMs, this.state.forcedRestUntilMs);
+    events.push({ type: "rest-window", reason: "editorial-contact-cap", durationMs, atMs: timestampMs });
+    // The rest always applies; an undismissed reminder only suppresses a duplicate reminder.
+    if (this.state.reminder) return;
     this.state.reminder = { type: "contact-reminder", id: "contact-cap", acceptedContacts: rollingContactCap.contacts, windowMs: rollingContactCap.windowMs, dismissible: true, editorialSafetyCap: restResponse.editorialSafetyCap, atMs: timestampMs };
-    events.push({ type: "rest-window", reason: "editorial-contact-cap", durationMs, atMs: timestampMs }, this.state.reminder);
+    events.push(this.state.reminder);
   }
 }
-
-const phaseAt = (score: SceneScore, elapsedMs: number) => {
-  const weights = score.encounter.map((beat) => (beat.durationMs[0] + beat.durationMs[1]) / 2);
-  let cursor = Math.min(elapsedMs, score.durationMs - Number.EPSILON) / score.durationMs * weights.reduce((sum, weight) => sum + weight, 0);
-  for (const [index, weight] of weights.entries()) { if (cursor < weight) return score.encounter.at(index)?.phase ?? "invitation"; cursor -= weight; }
-  return score.encounter.at(-1)?.phase ?? score.encounter.at(0)?.phase ?? "invitation";
-};

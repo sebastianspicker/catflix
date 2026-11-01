@@ -101,10 +101,19 @@ function findOldestCompatibleIncompleteComparison(current: SessionObservation, o
 function isCompatibleIncompleteComparison(comparison: ComparisonRecord, current: CuratedObservation, observations: ReadonlyMap<string, SessionObservation>): boolean {
   if (!isCurrentComparison(comparison)) return false;
   const sides = compatibleComparisonSides(comparison, current);
+  const linked = sides?.linked.observationId === undefined ? undefined : observations.get(sides.linked.observationId);
   return sides !== undefined
     && sides.target.observationId === undefined
-    && sides.linked.observationId !== undefined
-    && hasCurrentCuratedObservation(observations.get(sides.linked.observationId), comparison.changedDimension, sides.linked);
+    && linked !== undefined
+    && hasCurrentCuratedObservation(linked, comparison.changedDimension, sides.linked)
+    && sameRunConditions(linked, current);
+}
+
+// Both sides must watch the same cat under the same playback and scene-motion settings.
+function sameRunConditions(left: SessionObservation, right: SessionObservation): boolean {
+  return left.observedCat === right.observedCat
+    && left.playbackMode === right.playbackMode
+    && left.sceneMotionMode === right.sceneMotionMode;
 }
 
 function compatibleComparisonSides(comparison: ComparisonRecord & { changedDimension: "figureGround" | "motion" }, current: CuratedObservation): { target: ComparisonRecord["first"]; linked: ComparisonRecord["first"] } | undefined {

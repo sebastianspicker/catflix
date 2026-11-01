@@ -22,6 +22,8 @@ export interface SessionObservation {
   encounterScore?: string;
   /** Current curator dimensions only; legacy records without it remain display-only. */
   comparisonDimension?: "figureGround" | "motion";
+  /** Recorded on curated runs: low motion changes the actor setup, so pairs must match it. */
+  sceneMotionMode?: SceneMotionMode;
   playbackMode: PlaybackMode;
   viewingDistanceBand: "near-screen" | "room-display";
   roomLightBand: "dim" | "moderate" | "bright";
@@ -39,8 +41,6 @@ export interface SessionObservation {
 /** The user-authored portion of an observation, before session context is attached. */
 export type ObservationDraft = Pick<SessionObservation, "endReason" | "vocabulary" | "safetyEvent" | "physicalPlayHandoff" | "rawNote">;
 export interface StoredProvenance extends AssetProvenance { savedAt: string; }
-export interface LegacyDeviceSettings { soundEnabled: boolean; reducedMotion: boolean; safetyAcknowledgedAt?: string; }
-export interface CatflixDataExportV1 { schemaVersion: 1; exportedAt: string; settings: LegacyDeviceSettings; queue: QueueItem[]; progress: ProgressRecord[]; notes: RefereeNote[]; comparisons: ComparisonRecord[]; provenance: StoredProvenance[]; }
 export interface CatflixDataExport { schemaVersion: 2; exportedAt: string; settings: DeviceSettings; queue: QueueItem[]; progress: ProgressRecord[]; notes: RefereeNote[]; observations: SessionObservation[]; comparisons: ComparisonRecord[]; provenance: StoredProvenance[]; }
 
 /** The local-only record families shown together in the owner history. */

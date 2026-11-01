@@ -3,7 +3,7 @@ import type { SceneId } from '../domain';
 import type { SessionPlan } from '../encounter/session';
 import { createLocalRepository } from '../local-data/LocalRepository';
 import { assertImportFileSize, serializeLocalData } from '../local-data/localDataCapacity';
-import type { LocalRecordHistory, ObservationDraft, RecordDeletionTarget, SceneMotionMode, StorageStatus } from '../local-data/types';
+import type { LocalRecordHistory, ObservationDraft, QueueItem, RecordDeletionTarget, SceneMotionMode, StorageStatus } from '../local-data/types';
 import { createObservation, mergeQueueIds, queueRecords, type CompletedSession, type SessionResult } from './catalogueModel';
 
 export interface CatalogueHydration {
@@ -17,6 +17,8 @@ const store = createLocalRepository();
 // Some browsers abort a download whose object URL is revoked in the same task as the click.
 const exportUrlLifetimeMs = 40_000;
 let catalogueHydration: Promise<CatalogueHydration> | undefined;
+let storedQueue: readonly QueueItem[] = [];
+let storedSceneMotionMode: SceneMotionMode | undefined;
 let persistenceError = '';
 const persistenceListeners = new Set<(message: string) => void>();
 
@@ -43,6 +45,8 @@ async function hydrateCatalogue(manifests: readonly ContentManifest[]): Promise<
     store.listRecordHistory(),
     store.getSettings(),
   ]);
+  storedQueue = savedQueue;
+  storedSceneMotionMode = settings.sceneMotionMode;
   return {
     queue: mergeQueueIds(savedQueue.map((item) => item.sceneId), []),
     progress: Object.fromEntries(savedProgress.filter((item) => item !== undefined).map((item) => [item.sceneId, item.elapsedMs / item.durationMs])),
@@ -51,11 +55,17 @@ async function hydrateCatalogue(manifests: readonly ContentManifest[]): Promise<
   };
 }
 
+// Both also run right after loading. Comparing with the last loaded or written value skips that
+// redundant full-store write without a read, so rapid changes still land in order (last write wins).
 export function persistQueue(queue: readonly SceneId[]): void {
-  reportRejectedStorageWrite(store.setQueue(queueRecords(queue)));
+  if (queue.join() === storedQueue.map((item) => item.sceneId).join()) return;
+  storedQueue = queueRecords(queue, storedQueue);
+  reportRejectedStorageWrite(store.setQueue(storedQueue));
 }
 
 export function persistSceneMotionMode(sceneMotionMode: SceneMotionMode): void {
+  if (sceneMotionMode === storedSceneMotionMode) return;
+  storedSceneMotionMode = sceneMotionMode;
   reportRejectedStorageWrite(store.getSettings().then((settings) => store.setSettings({ ...settings, sceneMotionMode })));
 }
 

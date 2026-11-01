@@ -19,14 +19,10 @@ export interface NoiseLayer {
 export type VoiceLayer = OscillatorLayer | NoiseLayer;
 export interface VoicePlan { readonly durationMs: number; readonly layers: readonly VoiceLayer[]; }
 
-/** Every layer's peak gain stays at or below this shared ceiling before the master gain stage. */
-export const MAX_LAYER_GAIN = 0.8;
+// Recipe limits: layer peak gain <= 0.8 before the master stage, onset >= 15 ms so nothing startles,
+// and no event loops or runs longer than 1.2 s.
 /** No partial or filter cutoff exceeds this, keeping every event ordinary and non-ultrasonic. */
-export const MAX_FREQUENCY_HZ = 12_000;
-/** No onset ramps to peak faster than this, so nothing startles on arrival. */
-export const MIN_ATTACK_MS = 15;
-/** No synthesized event loops or runs longer than this. */
-export const MAX_DURATION_MS = 1_200;
+const MAX_FREQUENCY_HZ = 12_000;
 
 function mulberry32(seed: number): () => number {
   let state = seed >>> 0;

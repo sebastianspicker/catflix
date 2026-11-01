@@ -8,8 +8,6 @@ import { advanceAuthoredActor, applyOcclusion, syncRendererFields } from "./moti
 import type { ActorMotionContext, MotionStrategy } from "./motionTypes";
 import type { EncounterBeat, SceneScore } from "../../domain";
 
-export type { ActorMotionContext } from "./motionTypes";
-
 const sceneStrategies: Readonly<Record<SceneId, MotionStrategy>> = {
   "balcony-birds": advanceBird,
   "koi-pool": advanceKoi,
@@ -32,16 +30,16 @@ export const scenePhaseAt = (score: SceneScore, timeMs: number): EncounterBeat =
 
 export const advanceActorForFixedStep = (actor: MutableActor, encounter: EncounterBeat, deltaMs: number, context: ActorMotionContext): void => {
   resetVisualState(actor);
-  if (context.elapsedMs < context.forcedRestUntilMs || encounter.phase === "finale") { pauseActor(actor, encounter.behaviorState, false, context); return; }
+  if (context.elapsedMs < context.forcedRestUntilMs || encounter.phase === "finale") { pauseActor(actor, false, context); return; }
   if (actor.hiddenUntilMs > context.elapsedMs) { actor.visible = false; actor.state = "hidden"; syncRendererFields(actor, context); return; }
   actor.visible = true;
-  if (actor.pauseUntilMs > context.elapsedMs) { pauseActor(actor, actor.animationState, true, context); return; }
+  if (actor.pauseUntilMs > context.elapsedMs) { pauseActor(actor, true, context); return; }
   advanceAuthoredActor(sceneStrategies, actor, deltaMs, context); applyOcclusion(actor, context); syncRendererFields(actor, context);
 };
 
 const resetVisualState = (actor: MutableActor): void => { actor.opacity = 1; actor.stretchX = 1; actor.stretchY = 1; actor.scale = actor.baseScale; actor.motionEnergy = 0; actor.state = "moving"; };
-const pauseActor = (actor: MutableActor, animationState: EncounterBeat["behaviorState"], showContactResponse: boolean, context: ActorMotionContext): void => {
-  actor.visible = true; actor.state = "paused"; actor.currentSpeed = 0; actor.propulsion = 0; actor.motionEnergy = 0; actor.animationState = animationState;
+const pauseActor = (actor: MutableActor, showContactResponse: boolean, context: ActorMotionContext): void => {
+  actor.visible = true; actor.state = "paused"; actor.currentSpeed = 0; actor.propulsion = 0; actor.motionEnergy = 0;
   if (showContactResponse) actor.scale = actor.baseScale * (1 + (actor.responseUntilMs > context.elapsedMs ? .055 : 0));
-  syncRendererFields(actor, context);
+  syncRendererFields(actor, context, true);
 };

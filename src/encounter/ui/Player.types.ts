@@ -24,6 +24,8 @@ export interface PlayerControlsProps extends PlayerControlHandlers {
   sound: boolean;
   audioCapability: AudioCapability;
   sceneMotionMode: SceneMotionMode;
+  /** Comparison runs keep the motion setting they started with, so both sides stay matched. */
+  motionLocked: boolean;
   showContactReminder: boolean;
 }
 

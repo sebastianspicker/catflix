@@ -208,7 +208,7 @@ function isUniqueAsset(value: unknown, revision: unknown, ids: Set<string>, chec
 export function isAssetProvenance(value: unknown): value is AssetProvenance {
   if (!isObject(value)) return false;
   return [
-    isText(value.assetId), isText(value.creator), isText(value.source, "/assets/"), isText(value.license),
+    isText(value.assetId), isText(value.creator), (isText(value.source, "/assets/") || isText(value.source, "assets/masters/")), isText(value.license),
     isTextList(value.derivativeHistory) && value.derivativeHistory.length > 0,
     typeof value.checksum === "string" && /^[a-f0-9]{64}$/.test(value.checksum),
     isOneOf(value.masteringFormat, ["webp", "avif", "png", "opus", "mp3", "wav"] as const),

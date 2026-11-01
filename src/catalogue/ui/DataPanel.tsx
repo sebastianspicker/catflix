@@ -109,7 +109,7 @@ function ComparisonSide({ name, run, observations, notes }: { name: 'A' | 'B'; r
   const observation = run.observationId ? observations.get(run.observationId) : undefined;
   const legacyNote = run.observationId ? notes.get(run.observationId) : undefined;
   return <div className="comparison-side"><b>{name}</b><span>{variantSummary(run.variant)}</span><strong>{observation ? 'Observation recorded' : legacyNote ? 'Legacy note recorded' : 'Missing'}</strong>
-    {observation ? <small>{displayDate(observation.confirmedAt)} · {observation.endReason}</small> : null}
+    {observation ? <small>{displayDate(observation.confirmedAt)} · {observation.observedCat ?? 'No cat selected'} · {observation.endReason}</small> : null}
     {legacyNote ? <small>{displayDate(legacyNote.createdAt)} · {legacyNote.cat}</small> : null}
   </div>;
 }

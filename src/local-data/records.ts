@@ -164,7 +164,7 @@ function isComparisonRun(value: unknown): boolean {
     && optional(run, "encounterScore", isBoundedText)
     && optional(run, "observationId", isIdentifier);
 }
-const sessionObservationKeys = ["schemaVersion", "id", "sceneId", "contentRevision", "variant", "seed", "encounterScore", "comparisonDimension", "playbackMode", "viewingDistanceBand", "roomLightBand", "soundEnabled", "observedCat", "elapsedMs", "endReason", "acceptedContactTimestamps", "vocabulary", "safetyEvent", "physicalPlayHandoff", "rawNote", "confirmedAt"] as const;
+const sessionObservationKeys = ["schemaVersion", "id", "sceneId", "contentRevision", "variant", "seed", "encounterScore", "comparisonDimension", "sceneMotionMode", "playbackMode", "viewingDistanceBand", "roomLightBand", "soundEnabled", "observedCat", "elapsedMs", "endReason", "acceptedContactTimestamps", "vocabulary", "safetyEvent", "physicalPlayHandoff", "rawNote", "confirmedAt"] as const;
 function hasValidObservationIdentity(record: Record<string, unknown>): boolean {
   return record.schemaVersion === 2
     && isIdentifier(record.id)
@@ -173,7 +173,8 @@ function hasValidObservationIdentity(record: Record<string, unknown>): boolean {
     && isVariant(record.variant)
     && optional(record, "seed", isNonNegativeSafeInteger)
     && optional(record, "encounterScore", isBoundedText)
-    && optional(record, "comparisonDimension", isOneOfCurrentComparisonDimension);
+    && optional(record, "comparisonDimension", isOneOfCurrentComparisonDimension)
+    && optional(record, "sceneMotionMode", (mode) => isOneOf(mode, ["standard", "low"]));
 }
 function hasValidObservationSession(record: Record<string, unknown>): boolean {
   return isOneOf(record.playbackMode, ["tablet-touch", "tv-passive"])

@@ -2,10 +2,6 @@ import researchMarkdown from "../../docs/research/feline-perception.md?raw";
 import { headingSlug, ResearchMarkdown } from './ResearchMarkdown';
 import { publicUrl } from "../paths";
 
-export interface ResearchPageProps {
-  onBack?: () => void;
-}
-
 const contents = researchMarkdown.split('\n')
   .filter((line) => line.startsWith('## '))
   .map((line) => {
@@ -13,10 +9,10 @@ const contents = researchMarkdown.split('\n')
     return [label, headingSlug(label)] as const;
   });
 
-export function ResearchPage({ onBack }: ResearchPageProps) {
+export function ResearchPage() {
   return <main className="research-page">
     <header className="research-header">
-      <a className="research-back-link" href={publicUrl('/')} onClick={onBack}>Back to catalogue</a>
+      <a className="research-back-link" href={publicUrl('/')}>Back to catalogue</a>
       <p>Catflix research baseline</p>
       <strong>What we know.<br />What we don’t.</strong>
     </header>

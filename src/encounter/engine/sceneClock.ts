@@ -16,11 +16,11 @@ export class FixedSceneClock {
     // a hair below zero; snap that noise to exactly 0 so equal-time runs agree bit-for-bit.
     return (this.accumulatorMs < 1e-6 ? 0 : this.accumulatorMs) / FixedSceneClock.stepMs;
   }
-  reset(): void { this.accumulatorMs = 0; }
-  advance(deltaMs: number, elapsedMs: number, durationMs: number, onStep: (stepMs: number) => void): void {
+  /** `elapsedMs` is a getter because each step advances it; the loop must see the scene end. */
+  advance(deltaMs: number, elapsedMs: () => number, durationMs: number, onStep: (stepMs: number) => void): void {
     this.accumulatorMs += clamp(Number.isFinite(deltaMs) ? deltaMs : 0, 0, 10_000);
     const stepMs = FixedSceneClock.stepMs;
-    while (this.accumulatorMs + 1e-6 >= stepMs && elapsedMs < durationMs) { this.accumulatorMs -= stepMs; onStep(stepMs); }
-    if (elapsedMs >= durationMs) this.accumulatorMs = 0;
+    while (this.accumulatorMs + 1e-6 >= stepMs && elapsedMs() < durationMs) { this.accumulatorMs -= stepMs; onStep(stepMs); }
+    if (elapsedMs() >= durationMs) this.accumulatorMs = 0;
   }
 }

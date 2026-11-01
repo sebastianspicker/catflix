@@ -129,10 +129,7 @@ class EncounterRuntimeController implements EncounterRuntime {
     if (!this.running || this.paused || this.destroyed || this.preferences.playbackMode === "tv-passive") return;
     const response = this.simulation.touch({ x, y });
     if (!response.accepted) return;
-    this.options.container.dataset.lastContactResponse = response.response ?? "accepted";
-    this.options.container.dataset.lastContactAt = String(performance.now());
     this.options.onTouch?.(this.simulation.snapshot().elapsedMs);
-    this.options.container.dispatchEvent(new CustomEvent("catflix-contact-response", { ...(response.response !== undefined ? { detail: response.response } : {}) }));
   };
 
   private readonly onPointerDown = (event: PointerEvent): void => {
@@ -145,20 +142,10 @@ class EncounterRuntimeController implements EncounterRuntime {
 
   private advance(delta: number): SceneSnapshot {
     const state = this.simulation.advance(clampSimulationDelta(delta));
-    this.publishState(state);
     this.canvasRenderer.render(state, this.preferences.sceneMotionMode);
     this.audioPlayer.play(state.soundEvents, this.soundEnabled);
     this.notifyCallbacks(state);
     return state;
-  }
-
-  private publishState(state: SceneSnapshot): void {
-    const primaryActor = state.actors.find((actor) => actor.visible);
-    if (primaryActor) {
-      this.options.container.dataset.actorX = String(primaryActor.x);
-      this.options.container.dataset.actorY = String(primaryActor.y);
-    }
-    this.options.container.dataset.encounterPhase = state.phase;
   }
 
   private notifyCallbacks(state: SceneSnapshot): void {

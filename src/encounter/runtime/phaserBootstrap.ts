@@ -53,8 +53,9 @@ export async function createPhaserSimulationBootstrap(options: PhaserBootstrapOp
     };
     const host: PhaserSimulationBootstrap = {
       render: (state) => { renderer.render(state); },
-      pause: () => game?.loop.pause(),
-      resume: () => game?.loop.resume(),
+      // Game.pause skips update and render each frame; loop.sleep would also stop the pending destroy from running.
+      pause: () => game?.pause(),
+      resume: () => game?.resume(),
       destroy,
     };
 

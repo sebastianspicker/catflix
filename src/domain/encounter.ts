@@ -122,6 +122,5 @@ export interface SceneSimulation {
   advance(deltaMs: number): SceneSnapshot;
   touch(point: Point, timestampMs?: number): TouchResponse;
   snapshot(): SceneSnapshot;
-  reset(): SceneSnapshot;
   dismissReminder(): SceneSnapshot;
 }

@@ -21,7 +21,7 @@ export const createSceneSimulationEngine = (score: SceneScore, audio: EncounterA
   let lastPhase = scenePhaseAt(score, 0).phase, actors = createActors(sceneId, actorCount, random), shadowActors = hasShadow ? structuredClone(actors) : undefined, frameEvents: SceneEvent[] = [], pendingEvents: SceneEvent[] = [], soundEvents: SoundEvent[] = [];
   function advance(deltaMs: number): SceneSnapshot {
     frameEvents = pendingEvents; pendingEvents = [];
-    clock.advance(deltaMs, elapsedMs, score.durationMs, advanceFixedStep);
+    clock.advance(deltaMs, () => elapsedMs, score.durationMs, advanceFixedStep);
     soundEvents = frameEvents.filter((event): event is Extract<SceneEvent, { type: "audio" }> => event.type === "audio").map(({ kind, x, y, atMs }) => ({ kind, x, y, atMs }));
     return snapshot();
   }
@@ -48,7 +48,6 @@ export const createSceneSimulationEngine = (score: SceneScore, audio: EncounterA
   function snapshot(): SceneSnapshot {
     return sceneSnapshot({ score, elapsedMs, forcedRestUntilMs: contacts.state.forcedRestUntilMs, actors, soundEvents, frameEvents, pendingEvents, reminder: contacts.state.reminder, interpolationAlpha: clock.alpha });
   }
-  function reset(): SceneSnapshot { elapsedMs = 0; clock.reset(); lastSoundBucket = -1; shadowSoundBucket = -1; completionSent = false; frameEvents = []; pendingEvents = []; soundEvents = []; contacts.reset(); lastPhase = scenePhaseAt(score, 0).phase; random = new SeededRandom(seed); random.next(); actors = createActors(sceneId, actorCount, random); shadowActors = hasShadow ? structuredClone(actors) : undefined; return snapshot(); }
   function dismissReminder(): SceneSnapshot { contacts.dismissReminder(); return snapshot(); }
-  return { score, variants, advance, touch, snapshot, reset, dismissReminder };
+  return { score, variants, advance, touch, snapshot, dismissReminder };
 };

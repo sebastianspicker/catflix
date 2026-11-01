@@ -35,6 +35,13 @@ versioning once a release is tagged.
   form, matching what can be saved
 - The README and architecture guide no longer claim that module boundaries are
   checked automatically
+- Comparison observations record the scene-motion mode, and the in-player
+  scene-motion toggle is fixed during a comparison run. Exports that contain
+  such observations cannot be imported by earlier builds
+- The production build validates the authored scene catalogue, so invalid
+  scene data stops the build instead of reaching the site
+- The PNG poster masters moved to `assets/masters/posters/` and are no longer
+  deployed with the site
 
 ### Fixed
 
@@ -47,6 +54,21 @@ versioning once a release is tagged.
 - A failure to load saved records is reported instead of silently stopping
   later saves
 - Phaser no longer prints its banner to the browser console
+- Repeated touches open a rest window every time the contact limit is reached,
+  even while the first reminder is still on screen
+- Comparison pairing only joins runs of the same cat, playback mode, and
+  scene-motion mode. An open comparison side saved by an earlier build has no
+  recorded scene-motion mode, so it no longer pairs; delete it and record both
+  sides again
+- A failed save no longer switches the app to temporary-memory mode or blocks
+  export, and a database connection closed by the browser is reopened
+- Pausing stops the Phaser renderer from drawing every frame
+- The red string is drawn at the right height by the Phaser renderer on screens
+  narrower than 1900 pixels
+- Animals that rest or reach the finale show their resting pose instead of
+  movement frames
+- Watchlist items keep the date they were added, and loading the page no
+  longer rewrites the watchlist and asset records
 
 No release has been tagged yet. Until one is, the app reports the package
 version (currently 0.2.0) together with the build commit.

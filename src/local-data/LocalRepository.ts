@@ -15,35 +15,23 @@ import { assertImportCapacity, assertMutationCapacity } from "./localDataCapacit
 import {
   asRecord,
   cloneValue,
-  createMatchedComparison,
-  isComparisonRecord,
   isDeviceSettings,
   isProgressRecord,
   isQueueItem,
-  isRefereeNote,
-  isSessionObservation,
-  isStoredProvenance,
   normalizeSettings,
 } from "./records";
 import { deleteRecord, listRecordHistory, saveObservationWithComparison } from "./recordHistory";
 import type {
   CatflixDataExport,
-  ComparisonRecord,
   DeviceSettings,
   ImportPreview,
   LocalRecordHistory,
   ProgressRecord,
   QueueItem,
   RecordDeletionTarget,
-  RefereeNote,
   SessionObservation,
   StorageStatus,
-  StoredProvenance,
 } from "./types";
-
-export { decodeExport } from "./localExportCodec";
-export { assertImportFileSize, LocalDataCapacityError, maximumBackupBytes, serializeLocalData } from "./localDataCapacity";
-export type { ImportPreview, LocalRecordHistory, RecordDeletionTarget } from "./types";
 
 export interface LocalRepository {
   getSettings(): Promise<DeviceSettings>;
@@ -52,23 +40,14 @@ export interface LocalRepository {
   setQueue(queue: readonly QueueItem[]): Promise<void>;
   getProgress(sceneId: SceneId): Promise<ProgressRecord | undefined>;
   saveProgress(progress: ProgressRecord): Promise<void>;
-  listNotes(): Promise<RefereeNote[]>;
-  saveNote(note: RefereeNote): Promise<void>;
-  listObservations(): Promise<SessionObservation[]>;
-  saveObservation(observation: SessionObservation): Promise<void>;
   listRecordHistory(): Promise<LocalRecordHistory>;
   saveObservationWithComparison(observation: SessionObservation): Promise<LocalRecordHistory>;
   deleteRecord(target: RecordDeletionTarget): Promise<LocalRecordHistory>;
-  listComparisons(): Promise<ComparisonRecord[]>;
-  saveComparison(comparison: ComparisonRecord): Promise<void>;
-  listProvenance(): Promise<StoredProvenance[]>;
   saveProvenance(asset: AssetProvenance | readonly AssetProvenance[]): Promise<void>;
   exportData(): Promise<CatflixDataExport>;
   exportRecoveryData(): Promise<CatflixDataExport>;
   prepareImport(data: unknown): ImportPreview;
   commitImport(preview: ImportPreview): Promise<void>;
-  /** Transitional convenience for current callers; new flows must preview then commit. */
-  importData(data: unknown): Promise<void>;
   getStorageStatus(): StorageStatus;
   subscribeStorageStatus(listener: (status: StorageStatus) => void): () => void;
 }
@@ -83,19 +62,9 @@ export function createLocalRepository(): LocalRepository {
     setQueue: (queue) => queue.every(isQueueItem) ? backend.replace("queue", queue) : Promise.reject(new Error("Invalid queue item.")),
     async getProgress(sceneId) { const value = await backend.get<ProgressRecord>("progress", sceneId); return value && isProgressRecord(value) ? value : undefined; },
     saveProgress: (progress) => isProgressRecord(progress) ? backend.put("progress", progress) : Promise.reject(new Error("Invalid progress record.")),
-    async listNotes() { return (await backend.values<RefereeNote>("notes")).filter(isRefereeNote); },
-    saveNote: (note) => isRefereeNote(note) ? backend.put("notes", note) : Promise.reject(new Error("Invalid referee note.")),
-    async listObservations() { return (await backend.values<SessionObservation>("observations")).filter(isSessionObservation); },
-    saveObservation: (observation) => isSessionObservation(observation) ? backend.put("observations", observation) : Promise.reject(new Error("Invalid session observation.")),
     async listRecordHistory() { return listRecordHistory(backend); },
     async saveObservationWithComparison(observation) { return saveObservationWithComparison(backend, observation); },
     async deleteRecord(target) { return deleteRecord(backend, target); },
-    async listComparisons() { return (await backend.values<ComparisonRecord>("comparisons")).filter(isComparisonRecord); },
-    async saveComparison(comparison) {
-      if (!isComparisonRecord(comparison)) throw new Error("Invalid comparison record.");
-      await backend.put("comparisons", createMatchedComparison(comparison));
-    },
-    async listProvenance() { return (await backend.values<StoredProvenance>("provenance")).filter(isStoredProvenance); },
     saveProvenance: (asset) => saveProvenance(backend, asset),
     async exportData() { return exportLocalData(backend); },
     async exportRecoveryData() { return exportRecoveryLocalData(backend); },
@@ -112,7 +81,6 @@ export function createLocalRepository(): LocalRepository {
       await backend.replaceAll(toStoreReplacements(decoded));
       preparedImports.delete(preview);
     },
-    async importData(data) { await backend.replaceAll(toStoreReplacements(decodeExport(data))); },
     getStorageStatus: () => backend.getStatus(),
     subscribeStorageStatus: (listener) => backend.subscribeStatus(listener),
   };

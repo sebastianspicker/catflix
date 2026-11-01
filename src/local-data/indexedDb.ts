@@ -1,4 +1,3 @@
-import { LocalDataCapacityError } from "./localDataCapacity";
 import type { StorageStatus } from "./types";
 
 export const storeNames = ["settings", "queue", "progress", "notes", "observations", "comparisons", "provenance"] as const;
@@ -64,28 +63,32 @@ export function createLocalDataBackend(keyFor: KeyFunction, openConnection: Data
   const listeners = new Set<(next: StorageStatus) => void>();
   const report = (next: StorageStatus) => { status = next; listeners.forEach((listener) => { listener(status); }); };
   const open = () => databasePromise ??= openConnection().then(({ database, fallbackMessage }) => {
-    if (!database) report({ mode: "degraded", message: fallbackMessage ?? "IndexedDB is unavailable; Catflix is using temporary memory only." });
+    if (!database) {
+      report({ mode: "degraded", message: fallbackMessage ?? "IndexedDB is unavailable; Catflix is using temporary memory only." });
+      return undefined;
+    }
+    // Release a connection the browser closed or a newer tab wants to upgrade; the next call reopens it.
+    const release = () => { database.close(); databasePromise = undefined; };
+    database.onclose = release;
+    database.onversionchange = release;
     return database;
   }).catch((error: unknown) => {
     report({ mode: "degraded", message: `IndexedDB could not open; Catflix is using temporary memory only. ${errorMessage(error)}` });
     return undefined;
   });
-  const run = async <T>(operation: () => Promise<T>, kind: "read" | "write"): Promise<T> => {
+  // Only a failed open means degraded (memory-only) mode; a failed read or write is reported by its caller.
+  const run = async <T>(operation: () => Promise<T>): Promise<T> => {
     try { return await operation(); }
-    catch (error) {
-      if (error instanceof CallerRejection) throw error.reason;
-      if (!(error instanceof LocalDataCapacityError)) report({ mode: "degraded", message: `${kind === "read" ? "Local data could not be read" : "Local data could not be saved"}. ${errorMessage(error)}` });
-      throw error;
-    }
+    catch (error) { throw error instanceof CallerRejection ? error.reason : error; }
   };
   return {
-    get: (store, key) => run(() => getValue(open, memory, store, key), "read"),
-    values: (store) => run(() => listValues(open, memory, store), "read"),
-    snapshot: (stores = storeNames) => run(() => snapshotValues(open, memory, invokeCaller(() => validatedTransactionStores(stores))), "read"),
-    put: (store, value) => run(() => putValue(open, memory, keyFor, store, value, admit), "write"),
-    replace: (store, values) => run(() => replaceValues(open, memory, keyFor, store, values, admit), "write"),
-    replaceAll: (replacements) => run(() => replaceAllValues(open, memory, keyFor, replacements, admit), "write"),
-    transact: (stores, mutation) => run(() => transactValues(open, memory, keyFor, stores, mutation, admit), "write"),
+    get: (store, key) => run(() => getValue(open, memory, store, key)),
+    values: (store) => run(() => listValues(open, memory, store)),
+    snapshot: (stores = storeNames) => run(() => snapshotValues(open, memory, invokeCaller(() => validatedTransactionStores(stores)))),
+    put: (store, value) => run(() => putValue(open, memory, keyFor, store, value, admit)),
+    replace: (store, values) => run(() => replaceValues(open, memory, keyFor, store, values, admit)),
+    replaceAll: (replacements) => run(() => replaceAllValues(open, memory, keyFor, replacements, admit)),
+    transact: (stores, mutation) => run(() => transactValues(open, memory, keyFor, stores, mutation, admit)),
     getStatus: () => status,
     subscribeStatus: (listener) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
   };

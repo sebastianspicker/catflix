@@ -131,14 +131,16 @@ function renderRope(renderer: PhaserRendererState, actor: SceneActorSnapshot, wi
   const { activeScene, options } = renderer;
   if (!activeScene) return;
   const curve = ropeCurve(actor, width, height, options.sceneMotionMode());
-  const points = quadraticPoints(curve.start, curve.control, curve.end);
+  // The y scale thins the rope but also scales its point positions, so undo it on the points.
+  const thickness = Math.max(0.16, width / 1_900);
+  const points = quadraticPoints(curve.start, curve.control, curve.end).map((point) => ({ x: point.x, y: point.y / thickness }));
   if (!renderer.redStringRope) renderer.redStringRope = activeScene.add.rope(0, 0, "catflix-rope", undefined, points, true);
   else renderer.redStringRope.setPoints(points);
   renderer.redStringRope
     .setVisible(actor.visible)
     .setAlpha(actor.alpha)
     .setDepth(actor.depth)
-    .setScale(1, Math.max(0.16, width / 1_900));
+    .setScale(1, thickness);
 }
 
 function drawForeground(renderer: PhaserRendererState, width: number, height: number, state: SceneSnapshot): void {

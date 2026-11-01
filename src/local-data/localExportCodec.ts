@@ -75,12 +75,21 @@ export function toStoreReplacements(data: CatflixDataExport): readonly StoreRepl
   ];
 }
 
-export function saveProvenance(backend: LocalDataBackend, input: AssetProvenance | readonly AssetProvenance[]): Promise<void> {
+export async function saveProvenance(backend: LocalDataBackend, input: AssetProvenance | readonly AssetProvenance[]): Promise<void> {
   const savedAt = new Date().toISOString();
   const assets: readonly AssetProvenance[] = isAssetProvenanceArray(input) ? input : [input];
   const records = assets.map((asset) => ({ ...asset, savedAt }));
-  if (!records.every(isStoredProvenance)) return Promise.reject(new Error("Provenance requires a local source, SHA-256 checksum, and complete editorial record."));
-  return backend.transact(["provenance"], (transaction) => { records.forEach((record) => { transaction.put("provenance", record); }); });
+  if (!records.every(isStoredProvenance)) throw new Error("Provenance requires a local source, SHA-256 checksum, and complete editorial record.");
+  // Runs on every page load: keep the first savedAt and skip the write when nothing else changed.
+  const stored = new Map((await backend.values<StoredProvenance>("provenance")).map((record) => [record.assetId, provenanceWithoutSavedAt(record)]));
+  const changed = records.filter((record) => stored.get(record.assetId) !== provenanceWithoutSavedAt(record));
+  if (changed.length === 0) return;
+  await backend.transact(["provenance"], (transaction) => { changed.forEach((record) => { transaction.put("provenance", record); }); });
+}
+
+function provenanceWithoutSavedAt(record: StoredProvenance): string {
+  const { savedAt: _savedAt, ...asset } = record;
+  return JSON.stringify(asset);
 }
 
 function isAssetProvenanceArray(input: AssetProvenance | readonly AssetProvenance[]): input is readonly AssetProvenance[] {

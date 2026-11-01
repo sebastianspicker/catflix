@@ -13,18 +13,11 @@ const authoredSceneList = [
   authoredScenes["beetle-under-the-fern"], authoredScenes["red-string"],
 ] as const;
 const manifests = authoredSceneList.map(compileContentManifest);
-const manifestById = new Map(manifests.map((manifest) => [manifest.id, manifest]));
 const scoreById = new Map(authoredSceneList.map((scene) => [scene.id, compileSceneScore(scene)] as const));
 
 for (const manifest of manifests) {
   const result = validateContentManifest(manifest);
   if (!result.ok) throw new Error(`Invalid content manifest ${manifest.id}: ${result.errors.join(" ")}`);
-}
-
-export function getContentManifest(id: SceneId): ContentManifest {
-  const manifest = manifestById.get(id);
-  if (!manifest) throw new Error(`Unknown content manifest ${id}.`);
-  return manifest;
 }
 
 export function listContentManifests(): readonly ContentManifest[] { return [...manifests]; }
