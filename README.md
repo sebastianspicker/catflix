@@ -8,6 +8,23 @@
 cats.** *Local-first* means everything runs and stays in your own browser —
 there is no server storing your data.
 
+<details>
+<summary>Status and limitations</summary>
+
+Catflix is an independent experimental project exploring finite, supervised
+screen encounters for cats and local observation records. Developed
+independently alongside my main professional work. The source alpha is a
+work in progress and a starting point for study and adaptation, rather than
+a finished consumer product. Review the known browser and storage limits
+before relying on saved records.
+
+**Disclaimer.** This sensory experiment does not establish enjoyment,
+preference or feline welfare. Supervise every encounter, keep the animal
+free to leave, and take responsibility for the screen environment and how
+you interpret observations.
+
+</details>
+
 [**Open the live demo →**](https://sebastianspicker.github.io/catflix/) ·
 [**See the screenshot tour →**](https://sebastianspicker.github.io/catflix/demo)
 
@@ -17,8 +34,9 @@ Catflix takes the shape of a streaming service and points it at a small,
 hand-built watchlist made for cats. You pick a scene, confirm the room is
 safe, and start a short "encounter" — a single timed viewing session — that
 begins muted, ends on its own, and never replays itself. Everything runs in
-one browser tab: no account, server, analytics, or network dependency of any
-kind [README, Intro paragraphs].
+one browser tab: no account, application server, analytics, or external
+service is required for playback or local records. The website and its
+bundled assets still need to load.
 
 The project is also a working example of a few things done carefully:
 **deterministic**, frame-accurate simulation (deterministic means the same
@@ -26,15 +44,23 @@ inputs — including the numeric **seed** that starts a scene — always produce
 the same scene, run after run); strict, one-directional internal module
 boundaries, described in [How Catflix is built](docs/ARCHITECTURE.md) (the
 public repository does not include an automated check for them); and private,
-versioned local data with a real upgrade path between data formats [README,
-Intro paragraphs].
+versioned local data with a real upgrade path between data formats.
 
 **Status: source alpha.** No version has been tagged for release yet
-[README, Status]. If you are trying to decide whether to use it: it works
-today, in any modern desktop or tablet browser, but treat it as an
-early-stage, actively developed project rather than a finished product.
+. If you are trying to decide whether to use it: it works
+on the tested browser setups, but compatibility still needs checking on
+your own desktop or tablet. Treat it as an early-stage project rather than a
+finished product.
 Known problems and how to report new ones are listed in
 [Known issues](docs/KNOWN_ISSUES.md).
+
+```mermaid
+flowchart LR
+  Choose[Choose a scene] --> Check[Confirm the room is ready]
+  Check --> Start[Start a finite, muted encounter]
+  Start --> End[Stop or let it finish]
+  End --> Notes[Review and optionally save local notes]
+```
 
 ## The five scenes
 
@@ -92,7 +118,7 @@ page is laid out for, in pixels) — no separate mobile app.
 Every record Catflix keeps — your watchlist, progress, notes, observations,
 and comparisons — lives only in your browser, in a local database called
 **IndexedDB** (a storage system built into modern browsers). Nothing is
-uploaded anywhere [README, Local data and privacy].
+uploaded anywhere.
 
 Specifically:
 
@@ -129,7 +155,7 @@ Catflix records what a cat does — looking, tracking, approaching, and
 pouncing — and calls that **attention**. It never records or implies
 **enjoyment**, **preference** (a voluntary choice between options), a
 **diagnosis**, or **welfare** (how a cat fares over time, beyond one moment)
-[README, Local data and privacy]. This distinction is not a technical
+. This distinction is not a technical
 footnote: it is a core product rule, explained fully in [Catflix product
 principles](PRODUCT.md#the-scientific-boundary).
 
@@ -185,8 +211,11 @@ runtime and data flow, stable contracts, and where new code belongs.
 
 ### Continuous integration (CI)
 
-CI builds the Pages artifact and uploads it. A `deploy` job publishes that
-same artifact on pushes to `main` ([workflow definition](.github/workflows/ci.yml)).
+CI builds and preserves the Pages artifact for Dependabot-authored pull
+requests or manual dispatches. The `deploy` job publishes that same artifact
+only after a manual dispatch on the default branch
+([workflow definition](.github/workflows/ci.yml)). Security scanning remains
+automatic; pushes and human-authored pull requests do not publish the app.
 
 ## Further reading
 

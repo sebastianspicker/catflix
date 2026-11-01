@@ -11,10 +11,10 @@ Catflix is a modular, local-first React app. One browser tab shows a
 catalogue of five authored encounters, walks the owner through a safety
 setup, runs a deterministic finite simulation, and keeps descriptive records
 on the device. There's no backend, account, API, analytics, cloud sync, or
-catalogue service to call. [ARCHITECTURE, Intro] The browser app is the only
+catalogue service to call. The browser app is the only
 runtime; IndexedDB and the bundled assets are its only local dependencies;
 external research links are navigation targets, not data sources; and GitHub
-Actions is the only deployment path. [ARCHITECTURE, System context]
+Actions is the only deployment path.
 
 Five ideas shape everything below:
 
@@ -37,8 +37,7 @@ Five ideas shape everything below:
 ## The parts and how they depend on each other
 
 Each folder under `src/` owns one responsibility, and the table below states
-that responsibility plus what may or may not depend on it. [ARCHITECTURE,
-Components]
+that responsibility plus what may or may not depend on it.
 
 | Component | Responsibility | Boundary |
 | --- | --- | --- |
@@ -94,8 +93,7 @@ flowchart TD
     localData --> domain
 ```
 
-The diagram shows the main edges, not every allowed UI import. [ARCHITECTURE,
-Components] The diagram summarizes the intended import direction for a
+The diagram shows the main edges, not every allowed UI import. The diagram summarizes the intended import direction for a
 reader; the component table describes each module's responsibility.
 
 ## What happens during an encounter
@@ -130,7 +128,7 @@ sequenceDiagram
 
 The authored scene aggregate — the content record behind one scene — is the
 single content source. It projects to a validated public manifest and a
-deterministic scene score. [ARCHITECTURE, Encounter flow] The engine owns
+deterministic scene score. The engine owns
 simulation truth: Canvas and Phaser render the very same snapshots that the
 engine computes, rather than each keeping their own version of what's
 happening. Canvas starts synchronously (immediately, without waiting on
@@ -168,7 +166,7 @@ schema version 2 (the current shape of its stores), with seven stores
 (named collections of records, comparable to tables): `settings`, `queue`,
 `progress`, `notes`, `observations`, `comparisons`, and `provenance`. The
 application's composition layer creates this repository once.
-[ARCHITECTURE, Local data]
+
 
 **Import and export.** Export always emits schema v2. Import accepts both
 schema v1 and v2, and before writing anything it validates record shape,
@@ -248,7 +246,7 @@ lazily loaded research route `/research`, or the lazily loaded `/demo`
 screenshot tour. `src/paths.ts` resolves each route's public paths against
 Vite's base URL — including the deployed `/catflix/` prefix GitHub Pages
 uses — so a path is never assumed to start from the site root.
-[ARCHITECTURE, Routes and runtime controls]
+
 
 Three query-string controls are supported:
 
@@ -265,7 +263,7 @@ with a lazy Phaser upgrade.
 ## Build and deployment
 
 The repository is one private npm package. `npm run build` type-checks the
-application and runs the Vite production build. [ARCHITECTURE, Build and deployment]
+application and runs the Vite production build.
 
 Vite (the project's build tool) emits `.vite/manifest.json` — a generated
 listing of which built files depend on which. Phaser, the optional rendering
@@ -274,11 +272,13 @@ library, remains reachable through a dynamic import, loaded when needed.
 `npm run build:pages` builds the app with the base path `/catflix/`, copies
 `index.html` to `404.html` so client-side routing still works after a direct
 link or refresh (history fallback), creates a `.nojekyll` file so GitHub
-Pages serves the build as-is. GitHub Actions builds this artifact on pull
-requests and pushes to `main`. The `deploy` job downloads the same artifact
-and deploys it, but only on a push to
-`main`, using OIDC (OpenID Connect — a way for the job to prove its identity
-to GitHub Pages without a stored long-lived secret) for its Pages permissions.
+Pages serves the build as-is. GitHub Actions builds this artifact for
+Dependabot-authored pull requests and manual dispatches. The `deploy` job
+downloads the same artifact and publishes it only after a manual dispatch
+on the repository's default branch. Human-authored pull requests and pushes
+do not run this generic build or deploy it. Security scanning remains automatic.
+Deployment uses OIDC (OpenID Connect) for short-lived Pages permissions rather
+than a stored long-lived secret.
 
 ## Rules for changes
 
@@ -293,7 +293,7 @@ to GitHub Pages without a stored long-lived secret) for its Pages permissions.
 - Use `src/ui/` only for primitives with more than one product consumer.
   Don't add generic helper directories or compatibility facades.
 
-[ARCHITECTURE, Change rules] The modular-monolith shape — many internal
+ The modular-monolith shape — many internal
 modules, but still one deployed application — is deliberate. All state and
 rendering belong to one browser app, so a services layer or
 dependency-injection container would invent a boundary that doesn't exist yet,
@@ -310,8 +310,9 @@ instead of isolating a real one.
   run the app. A *manifest* lists generated files and their dependencies.
 - **Canvas.** The browser's built-in 2D drawing surface; the renderer Catflix
   starts with, before any optional upgrade.
-- **CI (continuous integration).** The automated checks GitHub runs on every
-  push and pull request.
+- **CI (continuous integration).** Automated validation; generic builds here
+  run for Dependabot pull requests or manual dispatch, with separate automatic
+  security scanning.
 - **Capacity admission.** The check that runs inside a write transaction to
   confirm a new or changed record won't push a store over its size or count
   limit, before the write is allowed to commit.

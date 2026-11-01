@@ -8,7 +8,7 @@ knows JavaScript and npm but hasn't worked in this codebase before.
 Three things matter more than anything else here:
 
 1. **Keep changes narrow, and stay inside the product and safety boundaries
-   described in [PRODUCT.md](PRODUCT.md).** [CONTRIBUTING, Intro] Catflix is a
+   described in [PRODUCT.md](PRODUCT.md).** Catflix is a
    small, deliberately scoped app. A change that works but crosses one of its
    stated boundaries — what data may leave the device, how playback must
    behave, what the app may claim about a cat's feelings — is not welcome even
@@ -16,7 +16,7 @@ Three things matter more than anything else here:
 2. **Run `npm run build` before you finish**, and `npm run build:pages`
    when routes, assets, or deployment configuration change.
 3. **Don't break the rules under "Rules you must not break" below.**
-   [CONTRIBUTING, Product constraints] They cover what stays local, how
+ They cover what stays local, how
    playback must behave, and the line between a cat's attention and a cat's
    feelings.
 
@@ -29,7 +29,7 @@ Follow these steps for a change that touches application code.
 
 1. **Use the Node.js version pinned in [`.nvmrc`](.nvmrc).**
 2. **Install dependencies with `npm ci --ignore-scripts`.**
-   [CONTRIBUTING, Development] `npm ci` installs exactly the versions recorded
+ `npm ci` installs exactly the versions recorded
    in the lockfile — unlike `npm install`, it will not update them — and
    `--ignore-scripts` skips any install-time scripts a dependency ships.
 3. **Run `npm run build` before you finish.** This type-checks the application
@@ -38,9 +38,11 @@ Follow these steps for a change that touches application code.
    output, or Pages configuration.** This builds the app under its deployed
    GitHub Pages base path and creates direct-link fallback files.
 
-**How CI reuses your build.** CI (continuous integration — the automated
-checks GitHub runs on every push and pull request) builds the Pages site and
-passes its output — an *artifact*, in CI terms — to the `deploy` job.
+**How CI reuses your build.** Generic CI validates Dependabot-authored pull
+requests automatically and can also be started manually. Human-authored pull
+requests and pushes do not start this build. Security scanning remains automatic.
+The Pages site is built once and preserved as an artifact; deployment runs only
+when the workflow is manually dispatched on the repository's default branch.
 
 ## Docs-only changes
 
@@ -50,12 +52,11 @@ problems in a diff, such as trailing whitespace or a missing final newline.
 
 Skip the build unless your change touches the runtime-imported
 research Markdown, or restates a claim whose implementation should be
-rechecked. [CONTRIBUTING, Development]
+rechecked.
 
 ## Rules you must not break (product)
 
-These apply no matter how small the change is. [CONTRIBUTING, Product
-constraints]
+These apply no matter how small the change is.
 
 - **Keep records local** unless a separately reviewed feature changes that
   boundary.
@@ -80,7 +81,7 @@ constraints]
 ## Local data and runtime rules
 
 The persistence layer carries its own rules, because the data involved is
-private household observation data. [CONTRIBUTING, Local data and runtime]
+private household observation data.
 
 - **Keep the schema-v2 contract** — the current shape and store list of the
   stored data, described in full in
@@ -107,7 +108,7 @@ private household observation data. [CONTRIBUTING, Local data and runtime]
 ## Where code goes
 
 Follow [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the complete picture;
-as a quick reference: [CONTRIBUTING, Module placement]
+as a quick reference:
 
 - Authored scene material — the content that defines the five scenes — goes
   in `src/catalogue/model`.
@@ -123,8 +124,7 @@ duplicates logic those modules already own.
 ## Opening a pull request
 
 Describe the user-visible change, the build checks you ran, and any impact on
-screenshots, storage, privacy, or research claims. [CONTRIBUTING, Pull
-requests] If your change adds a new scientific claim, update both
+screenshots, storage, privacy, or research claims. If your change adds a new scientific claim, update both
 [docs/research/feline-perception.md](docs/research/feline-perception.md) and
 [`docs/research/evidence-ledger.csv`](docs/research/evidence-ledger.csv)
 with a stable source record, so the claim can be traced back to evidence.
@@ -145,8 +145,9 @@ are documented and compatible with that license.
   unrebuilt, to a later job — here, the Pages build used by `deploy`.
 - **Canvas.** The browser's built-in 2D drawing surface; the renderer Catflix
   starts with before any optional upgrade.
-- **CI (continuous integration).** The automated checks GitHub runs on every
-  push and pull request.
+- **CI (continuous integration).** Automated checks; here, generic validation
+  runs for Dependabot pull requests or manual dispatch, while security scanning
+  runs automatically.
 - **Degraded mode (temporary-memory mode).** The fallback used when
   IndexedDB can't open: data lives only in memory for the life of the page,
   and import/export are turned off so temporary data can't be mistaken for

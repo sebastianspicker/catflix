@@ -148,6 +148,8 @@ desktop.ini
 /AUDIT_LEDGER.md
 /*-ledger.md
 /*_ledger.md
+/*_LEDGER.md
+/*-LEDGER.md
 /remediation-ledger.md
 /plan.md
 /progress.md
@@ -193,3 +195,7 @@ desktop.ini
 /PRD.md
 /TODO.md
 /docs/**/drafts/
+
+# Private local alpha audit and publication drafting material
+/ALPHA_AUDIT_REPORT.md
+/ALPHA_PR_DESCRIPTION.md
