@@ -8,6 +8,8 @@
 cats.** *Local-first* means everything runs and stays in your own browser —
 there is no server storing your data.
 
+> _Claude was used to polish and proof-read the code and documentation of this repository._
+
 <details>
 <summary>Status and limitations</summary>
 

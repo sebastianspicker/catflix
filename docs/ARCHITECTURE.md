@@ -34,6 +34,62 @@ Five ideas shape everything below:
 5. **A pipeline that builds once, then reuses the same output** for GitHub
    Pages deployment.
 
+## What runs where
+
+This answers "which pieces exist at runtime, and how do they talk?". Every
+box below runs inside one browser tab; GitHub Pages only serves static files.
+
+```mermaid
+flowchart LR
+  owner((Owner))
+  pages[GitHub Pages]
+  subgraph tab [Browser tab]
+    main[main.tsx router]
+    app[useCatalogueApp]
+    player[Player]
+    host[EncounterRuntime]
+    engine[Simulation engine]
+    canvas[Canvas renderer]
+    phaser[Phaser renderer]
+    audio[Web Audio]
+    repo[LocalRepository]
+  end
+  idb[(IndexedDB catflix-local)]
+  pages -->|"HTML, JS, assets"| main
+  owner -->|clicks| main
+  main -->|"route /"| app
+  app -->|SessionPlan| player
+  player -->|"start, pause, stop"| host
+  host -->|"advance(delta)"| engine
+  host -->|draw snapshot| canvas
+  host -.->|"lazy import()"| phaser
+  host -.->|sound events| audio
+  app -->|"read, write records"| repo
+  repo -->|transactions| idb
+  classDef focus fill:#fde68a,stroke:#b45309,color:#1f2937
+  class engine focus
+```
+
+`main.tsx` picks a route once at load: `/` renders the catalogue app, while
+`/research` and `/demo` are separate lazy pages that never touch the player
+or the repository. `useCatalogueApp` is the only component that calls the
+repository, through the helpers in `cataloguePersistence.ts`. The
+`EncounterRuntime` (in `host.ts`) owns the frame loop and hands each engine
+snapshot to whichever renderer is active; Phaser and the audio recipes are
+fetched with dynamic `import()` only when needed. If IndexedDB cannot open,
+the repository keeps the same interface but stores records in page memory
+(degraded mode, see below).
+
+Where in the code:
+
+- [src/main.tsx](../src/main.tsx), [src/App.tsx](../src/App.tsx) — route selection and app shell
+- [src/app/useCatalogueApp.ts](../src/app/useCatalogueApp.ts), [src/app/workflow.ts](../src/app/workflow.ts) — workflow state and reducer
+- [src/app/cataloguePersistence.ts](../src/app/cataloguePersistence.ts) — the single repository instance and its callers
+- [src/encounter/runtime/host.ts](../src/encounter/runtime/host.ts) — `createEncounterRuntime`, frame loop, pause and visibility
+- [src/encounter/runtime/phaserBootstrap.ts](../src/encounter/runtime/phaserBootstrap.ts) — lazy Phaser load
+- [src/encounter/engine/sceneSimulation.ts](../src/encounter/engine/sceneSimulation.ts) — `createSceneSimulationEngine`
+- [src/local-data/LocalRepository.ts](../src/local-data/LocalRepository.ts), [src/local-data/indexedDb.ts](../src/local-data/indexedDb.ts) — repository and IndexedDB/memory backend
+
 ## The parts and how they depend on each other
 
 Each folder under `src/` owns one responsibility, and the table below states
@@ -98,33 +154,52 @@ reader; the component table describes each module's responsibility.
 
 ## What happens during an encounter
 
-The sequence below — also copied unchanged from the source — traces one
-playback session from the owner's first click to the records it leaves
-behind:
+The sequence below traces one playback session from the owner's first click
+to the progress record it leaves behind:
 
 ```mermaid
 sequenceDiagram
-    participant O as Owner
-    participant A as App workflow
-    participant C as Authored catalogue
-    participant U as Safety and player UI
-    participant E as Encounter engine
-    participant R as Browser runtime
-    participant D as Local repository
+    autonumber
+    actor O as Owner
+    participant A as useCatalogueApp
+    participant U as SafetyGate and Player
+    participant R as EncounterRuntime
+    participant E as Simulation engine
+    participant D as LocalRepository
 
-    O->>A: Select scene and variant
-    A->>C: Read validated manifest and score
-    O->>U: Choose mode and confirm setup
-    U->>A: Create session plan
-    A-->>U: Render player with the session plan
-    U->>R: Create and start the browser runtime
-    R->>E: Create engine with score, variants, seed, and motion mode
-    E-->>R: Deterministic snapshots and events
-    R-->>U: Canvas first, optional lazy Phaser upgrade
-    O->>U: Pause, stop, contact, or confirm observation
-    U->>A: Session result or confirmed observation
-    A->>D: Progress, observation, comparison, and settings writes
+    O->>A: Pick a scene (prepare)
+    A->>A: Pending plan with variant and seed
+    O->>U: Choose mode, confirm checklist
+    U->>A: startSession(mode, setup)
+    A-->>U: Render Player with SessionPlan
+    U->>R: createEncounterRuntime, start()
+    R->>E: createSceneSimulationEngine(score, seed)
+    loop every animation frame
+        R->>E: advance(delta)
+        E-->>R: SceneSnapshot
+        R-->>U: onProgress(elapsed, phase)
+    end
+    R-->>U: onComplete, or owner presses stop
+    U->>A: endSession(SessionResult)
+    A-)D: persistSessionProgress
 ```
+
+Steps 1–2 happen in `prepare`, which resolves the variant and the seed (from
+`?seed=` or a hash for comparison runs). Nothing plays until step 4: the
+`SafetyGate` dispatches the reducer's `start` action, which turns the pending
+plan into the active `SessionPlan`. Steps 8–10 are the hot loop; the renderer
+draws the same snapshot the engine returned. Step 13 is fire-and-forget: a
+failed progress write raises the app-level alert instead of blocking the
+owner.
+
+Where in the code:
+
+- [src/app/useCatalogueApp.ts](../src/app/useCatalogueApp.ts) — `prepare`, `startSession`, `endSession`
+- [src/encounter/ui/SafetyGate.tsx](../src/encounter/ui/SafetyGate.tsx) — the setup checklist
+- [src/encounter/ui/usePlayerHostLifecycle.ts](../src/encounter/ui/usePlayerHostLifecycle.ts) — creates and destroys the runtime
+- [src/encounter/ui/usePlayerRuntime.ts](../src/encounter/ui/usePlayerRuntime.ts) — pause, sound, motion and stop controls
+- [src/encounter/runtime/host.ts](../src/encounter/runtime/host.ts) — `fallbackFrame`, `phaserFrame`, `advance`
+- [src/app/cataloguePersistence.ts](../src/app/cataloguePersistence.ts) — `persistSessionProgress`
 
 The authored scene aggregate — the content record behind one scene — is the
 single content source. It projects to a validated public manifest and a
@@ -170,6 +245,90 @@ schema version 2 (the current shape of its stores), with seven stores
 (named collections of records, comparable to tables): `settings`, `queue`,
 `progress`, `notes`, `observations`, `comparisons`, and `provenance`. The
 application's composition layer creates this repository once.
+
+**What is stored.** The diagram shows each store's key and the only real
+link between records: a comparison points at up to two observations.
+
+```mermaid
+erDiagram
+    settings {
+        string key "always device"
+        string sceneMotionMode
+        boolean soundEnabled
+    }
+    queue {
+        string id PK
+        string sceneId
+    }
+    progress {
+        string sceneId PK
+        number elapsedMs
+        number durationMs
+    }
+    notes {
+        string id PK
+        string sceneId
+        string rawNote
+    }
+    observations {
+        string id PK
+        string sceneId
+        number seed
+        string comparisonDimension
+    }
+    comparisons {
+        string id PK
+        string changedDimension
+    }
+    provenance {
+        string assetId PK
+    }
+    comparisons }o--o| observations : "first.observationId"
+    comparisons }o--o| observations : "second.observationId"
+```
+
+Records refer to scenes by `sceneId`, but scenes are authored code in
+`src/catalogue/model/`, not a store. Keys come from `keyFor` in
+`LocalRepository.ts`; the full field lists are the interfaces in
+[src/local-data/types.ts](../src/local-data/types.ts).
+
+**Saving an observation.** This is the main write path and shows how one
+owner action becomes one multi-store transaction:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor O as Owner
+    participant F as RefereeNotes
+    participant A as useCatalogueApp
+    participant P as cataloguePersistence
+    participant D as LocalRepository
+    participant I as IndexedDB
+
+    O->>F: Confirm observation
+    F->>A: saveNotes(draft)
+    A->>P: saveCompletedObservation
+    P->>D: saveObservationWithComparison
+    D->>I: transaction on notes, observations, comparisons
+    I-->>D: commit, or capacity error
+    D-->>A: LocalRecordHistory
+    A-->>O: ObservationReceipt
+```
+
+Step 5 reads the current records, picks the oldest compatible incomplete
+comparison (see **Pairing** below), and writes the observation and any
+comparison change together. Step 7 returns the committed history, which
+replaces the React state, so counts never drift from what was saved.
+
+Where in the code:
+
+- [src/encounter/ui/RefereeNotes.tsx](../src/encounter/ui/RefereeNotes.tsx), [src/encounter/ui/ObservationReceipt.tsx](../src/encounter/ui/ObservationReceipt.tsx) — observation form and receipt
+- [src/app/CatalogueOverlays.tsx](../src/app/CatalogueOverlays.tsx) — wires `SafetyGate` to `startSession` and `RefereeNotes` to `saveNotes`
+- [src/app/cataloguePersistence.ts](../src/app/cataloguePersistence.ts) — `saveCompletedObservation`, export and import helpers
+- [src/local-data/recordHistory.ts](../src/local-data/recordHistory.ts) — `saveObservationWithComparison`, `deleteRecord`
+- [src/local-data/indexedDb.ts](../src/local-data/indexedDb.ts) — `transact`, memory fallback
+- [src/local-data/localDataCapacity.ts](../src/local-data/localDataCapacity.ts) — capacity admission
+- [src/local-data/localExportCodec.ts](../src/local-data/localExportCodec.ts) — schema v1/v2 import and export
 
 
 **Import and export.** Export always emits schema v2. Import accepts both
@@ -272,6 +431,31 @@ with a lazy Phaser upgrade.
 
 The repository is one private npm package. `npm run build` type-checks the
 application and runs the Vite production build.
+
+This answers "how does a change reach the live site?":
+
+```mermaid
+flowchart LR
+  trigger["Dependabot PR or<br/>manual dispatch"]
+  verify["verify job<br/>npm run build:pages"]
+  artifact[[catflix-pages-dist]]
+  deploy["deploy job<br/>default branch only"]
+  site[GitHub Pages site]
+  trigger --> verify
+  verify -->|upload dist| artifact
+  artifact -->|download| deploy
+  deploy -->|"deploy-pages, OIDC"| site
+```
+
+Only a manual dispatch on the default branch reaches `deploy`; a Dependabot
+pull request stops after the artifact is stored. Human pull requests and
+pushes run neither job. The separate secret-scanning workflow is not shown.
+
+Where in the code:
+
+- [.github/workflows/ci.yml](../.github/workflows/ci.yml) — `verify` and `deploy` jobs
+- [scripts/prepare-pages.mjs](../scripts/prepare-pages.mjs) — writes `404.html` and `.nojekyll`
+- [vite.config.ts](../vite.config.ts) — build configuration
 
 Vite (the project's build tool) emits `.vite/manifest.json` — a generated
 listing of which built files depend on which. Phaser, the optional rendering
