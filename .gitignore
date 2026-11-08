@@ -96,7 +96,6 @@ desktop.ini
 
 # Local analysis and design tools
 /.codacy/
-/.codacy.yml
 /.codegraph/
 /.impeccable/
 /.mcp.json
