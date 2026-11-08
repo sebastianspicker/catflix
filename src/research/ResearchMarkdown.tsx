@@ -9,8 +9,9 @@ type MarkdownAstNode = {
 
 const relativeHrefPrefixes = ['/', './', '../', '#'];
 
-function safeMarkdownHref(href: string): string {
-  if (relativeHrefPrefixes.some((prefix) => href.startsWith(prefix))) return href;
+export function safeMarkdownHref(href: string): string {
+  // `//host` is protocol-relative, i.e. off-site, so it must pass the protocol check below.
+  if (!href.startsWith('//') && relativeHrefPrefixes.some((prefix) => href.startsWith(prefix))) return href;
 
   try {
     return ['http:', 'https:'].includes(new URL(href).protocol) ? href : '#';

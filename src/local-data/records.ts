@@ -39,15 +39,6 @@ export function isLegacyDeviceSettings(value: unknown): boolean {
     && optional(settings, "safetyAcknowledgedAt", isTimestamp);
 }
 
-export function createMatchedComparison(comparison: ComparisonRecord): ComparisonRecord {
-  const record = asRecord(comparison);
-  if (record === undefined || !hasValidComparisonFields(record)) throw new Error("Invalid comparison record.");
-  if (!hasMatchingComparisonContext(comparison)) throw new Error("A matched comparison must share one scene, seed, and encounter score, plus content revision.");
-  const differences = changedVariantDimensions(comparison);
-  if (differences.length !== 1 || differences[0] !== comparison.changedDimension) throw new Error("A matched comparison must change exactly one declared dimension.");
-  return cloneValue(comparison);
-}
-
 export function isQueueItem(value: unknown): value is QueueItem {
   const record = asRecord(value);
   return record !== undefined
@@ -87,7 +78,10 @@ export function isSessionObservation(value: unknown): value is SessionObservatio
 export function isComparisonRecord(value: unknown): value is ComparisonRecord {
   const record = asRecord(value);
   if (record === undefined || !hasValidComparisonFields(record)) return false;
-  try { createMatchedComparison(record as unknown as ComparisonRecord); return true; } catch { return false; }
+  // A matched comparison shares one scene, revision, seed and score, and changes exactly the declared dimension.
+  const comparison = record as unknown as ComparisonRecord;
+  const differences = changedVariantDimensions(comparison);
+  return hasMatchingComparisonContext(comparison) && differences.length === 1 && differences[0] === comparison.changedDimension;
 }
 
 export function isStoredProvenance(value: unknown): value is StoredProvenance {
@@ -218,56 +212,14 @@ function isContactTimestampList(value: unknown): value is readonly number[] {
   }
   return true;
 }
+const timestampPattern = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,3})?Z$/;
 export function isTimestamp(value: unknown): value is string {
-  if (typeof value !== "string") return false;
-  const parts = timestampParts(value);
+  const parts = typeof value === "string" ? timestampPattern.exec(value)?.slice(1).map(Number) : undefined;
   if (!parts) return false;
-  const timestamp = new Date(value);
-  return hasMatchingTimestampParts(timestamp, parts);
-}
-function timestampParts(value: string): readonly [number, number, number, number, number, number] | undefined {
-  const dateTime = timestampDateTime(value);
-  if (!dateTime) return undefined;
-  const [date, time] = dateTime;
-  const dateParts = date.split("-");
-  const timeParts = time.slice(0, -1).split(":");
-  if (dateParts.length !== 3 || timeParts.length !== 3) return undefined;
-  const [year, month, day] = dateParts;
-  const [hour, minute, secondFraction] = timeParts;
-  if (secondFraction === undefined) return undefined;
-  const secondParts = secondFraction.split(".");
-  if (secondParts.length > 2) return undefined;
-  const [second] = secondParts;
-  const fraction: string | undefined = secondParts.length === 2 ? secondParts[1] : undefined;
-  if (!hasValidTimestampComponents([[year, 4, 4], [month, 2, 2], [day, 2, 2], [hour, 2, 2], [minute, 2, 2], [second, 2, 2], [fraction, 1, 3]])) return undefined;
-  return [Number(year), Number(month), Number(day), Number(hour), Number(minute), Number(second)];
-}
-function timestampDateTime(value: string): readonly [string, string] | undefined {
-  const sections = value.split("T");
-  if (sections.length !== 2 || !sections[0] || !sections[1]?.endsWith("Z")) return undefined;
-  return [sections[0], sections[1]];
-}
-function hasMatchingTimestampParts(timestamp: Date, parts: readonly [number, number, number, number, number, number]): boolean {
-  return [
-    Number.isFinite(timestamp.getTime()),
-    timestamp.getUTCFullYear() === parts[0],
-    timestamp.getUTCMonth() + 1 === parts[1],
-    timestamp.getUTCDate() === parts[2],
-    timestamp.getUTCHours() === parts[3],
-    timestamp.getUTCMinutes() === parts[4],
-    timestamp.getUTCSeconds() === parts[5],
-  ].every(Boolean);
-}
-function hasValidTimestampComponents(components: readonly (readonly [string | undefined, number, number])[]): boolean {
-  return components.every(([value, minimum, maximum], index) => index === components.length - 1
-    ? value === undefined || hasDigits(value, minimum, maximum)
-    : hasDigits(value, minimum, maximum));
-}
-function hasDigits(value: string | undefined, minimum: number, maximum: number): value is string {
-  return value !== undefined
-    && value.length >= minimum
-    && value.length <= maximum
-    && [...value].every((character) => character >= "0" && character <= "9");
+  // Date rolls invalid parts over (Feb 30 → Mar 2), so the round trip must give back the same parts.
+  const date = new Date(value as string);
+  return [date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate(), date.getUTCHours(), date.getUTCMinutes(), date.getUTCSeconds()]
+    .every((part, index) => part === parts[index]);
 }
 export function isRecordIdentifier(value: unknown): value is string { return typeof value === "string" && value.length <= 256 && /^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(value); }
 function isIdentifier(value: unknown): value is string { return isRecordIdentifier(value); }

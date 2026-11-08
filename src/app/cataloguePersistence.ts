@@ -18,6 +18,7 @@ const store = createLocalRepository();
 const exportUrlLifetimeMs = 40_000;
 let catalogueHydration: Promise<CatalogueHydration> | undefined;
 let storedQueue: readonly QueueItem[] = [];
+let storedQueueKey = '';
 let storedSceneMotionMode: SceneMotionMode | undefined;
 let persistenceError = '';
 const persistenceListeners = new Set<(message: string) => void>();
@@ -46,6 +47,7 @@ async function hydrateCatalogue(manifests: readonly ContentManifest[]): Promise<
     store.getSettings(),
   ]);
   storedQueue = savedQueue;
+  storedQueueKey = savedQueue.map((item) => item.sceneId).join();
   storedSceneMotionMode = settings.sceneMotionMode;
   return {
     queue: mergeQueueIds(savedQueue.map((item) => item.sceneId), []),
@@ -58,15 +60,21 @@ async function hydrateCatalogue(manifests: readonly ContentManifest[]): Promise<
 // Both also run right after loading. Comparing with the last loaded or written value skips that
 // redundant full-store write without a read, so rapid changes still land in order (last write wins).
 export function persistQueue(queue: readonly SceneId[]): void {
-  if (queue.join() === storedQueue.map((item) => item.sceneId).join()) return;
+  const key = queue.join();
+  if (key === storedQueueKey) return;
+  storedQueueKey = key;
   storedQueue = queueRecords(queue, storedQueue);
-  reportRejectedStorageWrite(store.setQueue(storedQueue));
+  // A failed write must not count as stored, or the same queue is never written again.
+  reportRejectedStorageWrite(store.setQueue(storedQueue), () => { if (storedQueueKey === key) storedQueueKey = '\0'; });
 }
 
 export function persistSceneMotionMode(sceneMotionMode: SceneMotionMode): void {
   if (sceneMotionMode === storedSceneMotionMode) return;
   storedSceneMotionMode = sceneMotionMode;
-  reportRejectedStorageWrite(store.getSettings().then((settings) => store.setSettings({ ...settings, sceneMotionMode })));
+  reportRejectedStorageWrite(
+    store.getSettings().then((settings) => store.setSettings({ ...settings, sceneMotionMode })),
+    () => { if (storedSceneMotionMode === sceneMotionMode) storedSceneMotionMode = undefined; },
+  );
 }
 
 export function persistSessionProgress(plan: SessionPlan, result: SessionResult): void {
@@ -120,8 +128,9 @@ export function deleteLocalRecord(target: RecordDeletionTarget): Promise<LocalRe
   return store.deleteRecord(target);
 }
 
-function reportRejectedStorageWrite(operation: Promise<unknown>): void {
+function reportRejectedStorageWrite(operation: Promise<unknown>, onFailure?: () => void): void {
   void operation.catch((error: unknown) => {
+    onFailure?.();
     persistenceError = error instanceof Error ? error.message : 'Local data could not be saved. Keep this tab open and try again.';
     persistenceListeners.forEach((listener) => { listener(persistenceError); });
   });

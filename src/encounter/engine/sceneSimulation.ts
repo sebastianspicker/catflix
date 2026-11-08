@@ -37,10 +37,10 @@ export const createSceneSimulationEngine = (score: SceneScore, audio: EncounterA
       const scheduled = updateSceneAudio(sceneId, score, audio, variants.sound === "on", elapsedMs, shadowActors, shadowSoundBucket);
       shadowSoundBucket = scheduled.nextBucket;
       const admitted = admitLiveSoundEvent(score, scheduled.events, actors, elapsedMs, contacts.state.forcedRestUntilMs, contacts.state.refractoryUntilMs);
-      soundEvents = admitted.events; frameEvents.push(...admitted.frameEvents);
+      frameEvents.push(...admitted.frameEvents);
     } else {
       const nextAudio = updateSceneAudio(sceneId, score, audio, variants.sound === "on", elapsedMs, actors, lastSoundBucket);
-      soundEvents = nextAudio.events; lastSoundBucket = nextAudio.nextBucket; frameEvents.push(...nextAudio.frameEvents);
+      lastSoundBucket = nextAudio.nextBucket; frameEvents.push(...nextAudio.frameEvents);
     }
     if (elapsedMs >= score.durationMs && !completionSent) { frameEvents.push({ type: "complete", atMs: elapsedMs }); completionSent = true; }
   }

@@ -1,3 +1,4 @@
+import { cloneValue } from "./records";
 import type { StorageStatus } from "./types";
 
 export const storeNames = ["settings", "queue", "progress", "notes", "observations", "comparisons", "provenance"] as const;
@@ -126,11 +127,11 @@ async function putValue(open: () => Promise<IDBDatabase | undefined>, memory: St
 }
 
 async function replaceValues(open: () => Promise<IDBDatabase | undefined>, memory: StoreMaps, keyFor: KeyFunction, store: StoreName, values: readonly unknown[], admit?: LocalDataAdmission): Promise<void> {
-  await transactValues(open, memory, keyFor, [store], (transaction) => replaceTransactionStore(transaction, store, values, keyFor), admit);
+  await transactValues(open, memory, keyFor, [store], (transaction) => { replaceTransactionStore(transaction, store, values, keyFor); }, admit);
 }
 
 async function replaceAllValues(open: () => Promise<IDBDatabase | undefined>, memory: StoreMaps, keyFor: KeyFunction, replacements: readonly StoreReplacement[], admit?: LocalDataAdmission): Promise<void> {
-  invokeCaller(() => assertCompleteReplacement(replacements));
+  invokeCaller(() => { assertCompleteReplacement(replacements); });
   const staged = new Map(replacements.map(({ store, values }) => [store, replacementMap(values, keyFor, store)]));
   const database = await open();
   if (!database) {
@@ -217,10 +218,10 @@ function replaceTransactionStore(transaction: LocalDataTransaction, store: Store
 }
 
 function applyMutationLog(transaction: IDBTransaction, log: MutationLog): void {
-  log.forEach((mutations, store) => mutations.forEach((mutation, key) => {
+  log.forEach((mutations, store) => { mutations.forEach((mutation, key) => {
     if (mutation.kind === "put") transaction.objectStore(store).put(mutation.value, key);
     else transaction.objectStore(store).delete(key);
-  }));
+  }); });
 }
 
 function finalMutationLog(current: LocalDataState, log: MutationLog): MutationLog {
@@ -256,7 +257,6 @@ function replacementMap(values: readonly unknown[], keyFor: KeyFunction, store: 
 function replaceObjectStore(store: IDBObjectStore, values: readonly unknown[], keyFor: KeyFunction, name: StoreName): void { store.clear(); values.forEach((value) => store.put(cloneValue(value), keyFor(name, value))); }
 function requestValue<T>(request: IDBRequest<T>): Promise<T> { return new Promise((resolve, reject) => { request.onsuccess = () => { resolve(request.result); }; request.onerror = () => { reject(request.error ?? new Error("IndexedDB request failed.")); }; }); }
 function transactionDone(transaction: IDBTransaction, write: () => void): Promise<void> { return new Promise((resolve, reject) => { transaction.oncomplete = () => { resolve(); }; transaction.onerror = () => { reject(transaction.error ?? new Error("IndexedDB transaction failed.")); }; transaction.onabort = () => { reject(transaction.error ?? new Error("IndexedDB transaction aborted.")); }; try { write(); } catch (reason) { const error = toError(reason, "IndexedDB write callback failed."); transaction.abort(); reject(error); } }); }
-function cloneValue<T>(value: T): T { return typeof structuredClone === "function" ? structuredClone(value) : JSON.parse(JSON.stringify(value)) as T; }
 function sameStoredValue(left: unknown, right: unknown): boolean { return JSON.stringify(left) === JSON.stringify(right); }
 function errorMessage(error: unknown): string { return error instanceof Error && error.message ? error.message : "Please keep this tab open and try again."; }
 function toError(reason: unknown, message: string): Error { return reason instanceof Error ? reason : new Error(message, { cause: reason }); }
